@@ -19,12 +19,28 @@ const DEFAULT_GENERAL_ID = DEFAULT_GENERAL_ASSISTANT_ID
 export interface AIChat {
   id: string
   sessionId: string
+  kind: AIChatKind
   title: string | null
   assistantId: string
   activeMessageId?: string | null
   createdAt: number
   updatedAt: number
 }
+
+export type AIChatKind = 'session' | 'global'
+
+export type AIEntityRef =
+  | {
+      type: 'contact'
+      contactKey: string
+      displayName: string
+    }
+  | {
+      type: 'session'
+      sessionId: string
+      displayName: string
+      sessionType: 'private' | 'group'
+    }
 
 export type ContentBlock =
   | { type: 'text'; text: string; processDurationMs?: number }
@@ -78,6 +94,14 @@ export interface AIMessage {
   dataMessageCount?: number
   contentBlocks?: ContentBlock[]
   tokenUsage?: TokenUsageData
+  entityRefs?: AIEntityRef[]
+}
+
+export interface AIHistoryMessage {
+  role: 'user' | 'assistant' | 'summary'
+  content: string
+  contentBlocks?: ContentBlock[]
+  entityRefs?: AIEntityRef[]
 }
 
 interface AIMessageRow {
@@ -93,6 +117,7 @@ interface AIMessageRow {
   dataMessageCount: number | null
   contentBlocks: string | null
   tokenUsage: string | null
+  entityRefs: string | null
 }
 
 export interface AIChatManagerLogger {
@@ -138,6 +163,7 @@ export class AIChatManager {
       CREATE TABLE IF NOT EXISTS ai_chat (
         id TEXT PRIMARY KEY,
         session_id TEXT NOT NULL,
+        kind TEXT NOT NULL DEFAULT 'session',
         title TEXT,
         assistant_id TEXT DEFAULT '${DEFAULT_GENERAL_ID}',
         active_message_id TEXT,
@@ -159,6 +185,7 @@ export class AIChatManager {
         branch_index INTEGER DEFAULT 0,
         debug_context TEXT,
         token_usage TEXT,
+        entity_refs TEXT,
         FOREIGN KEY(ai_chat_id) REFERENCES ai_chat(id) ON DELETE CASCADE
       );
 
@@ -200,10 +227,21 @@ export class AIChatManager {
     if (!messageColumns.includes('branch_index')) {
       db.exec(`ALTER TABLE ${tableName} ADD COLUMN branch_index INTEGER DEFAULT 0`)
     }
+    if (!messageColumns.includes('entity_refs')) {
+      db.exec(`ALTER TABLE ${tableName} ADD COLUMN entity_refs TEXT`)
+    }
+  }
+
+  private ensureChatMigrationColumns(db: Database.Database): void {
+    const chatColumns = this.getTableColumns(db, 'ai_chat')
+    if (!chatColumns.includes('kind')) {
+      db.exec(`ALTER TABLE ai_chat ADD COLUMN kind TEXT NOT NULL DEFAULT 'session'`)
+    }
   }
 
   private migrateDatabase(db: Database.Database): void {
     try {
+      this.ensureChatMigrationColumns(db)
       const hasLegacyConversationTable = this.tableExists(db, 'ai_conversation')
 
       if (hasLegacyConversationTable) {
@@ -254,15 +292,16 @@ export class AIChatManager {
             branch_index INTEGER DEFAULT 0,
             debug_context TEXT,
             token_usage TEXT,
+            entity_refs TEXT,
             FOREIGN KEY(ai_chat_id) REFERENCES ai_chat(id) ON DELETE CASCADE
           );
 
           INSERT INTO ai_message (
             id, ai_chat_id, role, content, timestamp, data_keywords, data_message_count,
-            content_blocks, parent_id, sibling_group_id, branch_index, debug_context, token_usage
+            content_blocks, parent_id, sibling_group_id, branch_index, debug_context, token_usage, entity_refs
           )
           SELECT id, conversation_id, role, content, timestamp, data_keywords, data_message_count,
-                 content_blocks, parent_id, sibling_group_id, branch_index, debug_context, token_usage
+                 content_blocks, parent_id, sibling_group_id, branch_index, debug_context, token_usage, entity_refs
           FROM ai_message_legacy;
 
           DROP TABLE ai_message_legacy;
@@ -365,6 +404,7 @@ export class AIChatManager {
       dataMessageCount: row.dataMessageCount ?? undefined,
       contentBlocks: row.contentBlocks ? JSON.parse(row.contentBlocks) : undefined,
       tokenUsage: row.tokenUsage ? JSON.parse(row.tokenUsage) : undefined,
+      entityRefs: row.entityRefs ? JSON.parse(row.entityRefs) : undefined,
     }
   }
 
@@ -375,7 +415,7 @@ export class AIChatManager {
         `SELECT id, ai_chat_id as aiChatId, role, content, timestamp,
                 parent_id as parentId, sibling_group_id as siblingGroupId, branch_index as branchIndex,
                 data_keywords as dataKeywords, data_message_count as dataMessageCount,
-                content_blocks as contentBlocks, token_usage as tokenUsage
+                content_blocks as contentBlocks, token_usage as tokenUsage, entity_refs as entityRefs
          FROM ai_message WHERE id = ?`
       )
       .get(messageId) as AIMessageRow | undefined
@@ -408,7 +448,7 @@ export class AIChatManager {
         `SELECT id, ai_chat_id as aiChatId, role, content, timestamp,
                 parent_id as parentId, sibling_group_id as siblingGroupId, branch_index as branchIndex,
                 data_keywords as dataKeywords, data_message_count as dataMessageCount,
-                content_blocks as contentBlocks, token_usage as tokenUsage
+                content_blocks as contentBlocks, token_usage as tokenUsage, entity_refs as entityRefs
          FROM ai_message WHERE ai_chat_id = ? ORDER BY timestamp ASC, id ASC`
       )
       .all(aiChatId) as AIMessageRow[]
@@ -515,23 +555,42 @@ export class AIChatManager {
   // ==================== 对话管理 ====================
 
   createAIChat(sessionId: string, title: string | undefined, assistantId: string): AIChat {
+    return this.createChat('session', sessionId, title, assistantId)
+  }
+
+  createGlobalAIChat(title: string | undefined, assistantId: string): AIChat {
+    return this.createChat('global', '', title, assistantId)
+  }
+
+  private createChat(kind: AIChatKind, sessionId: string, title: string | undefined, assistantId: string): AIChat {
     const db = this.getDb()
     const now = Math.floor(Date.now() / 1000)
     const id = this.generateId('conv')
 
     db.prepare(
-      `INSERT INTO ai_chat (id, session_id, title, assistant_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    ).run(id, sessionId, title || null, assistantId, now, now)
+      `INSERT INTO ai_chat (id, session_id, kind, title, assistant_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, sessionId, kind, title || null, assistantId, now, now)
 
-    return { id, sessionId, title: title || null, assistantId, activeMessageId: null, createdAt: now, updatedAt: now }
+    return {
+      id,
+      sessionId,
+      kind,
+      title: title || null,
+      assistantId,
+      activeMessageId: null,
+      createdAt: now,
+      updatedAt: now,
+    }
   }
 
   getAIChatCountsBySession(): Map<string, number> {
     const result = new Map<string, number>()
     try {
       const db = this.getDb()
-      const rows = db.prepare('SELECT session_id, COUNT(*) as count FROM ai_chat GROUP BY session_id').all() as Array<{
+      const rows = db
+        .prepare("SELECT session_id, COUNT(*) as count FROM ai_chat WHERE kind = 'session' GROUP BY session_id")
+        .all() as Array<{
         session_id: string
         count: number
       }>
@@ -548,19 +607,30 @@ export class AIChatManager {
     const db = this.getDb()
     return db
       .prepare(
-        `SELECT id, session_id as sessionId, title, assistant_id as assistantId,
+        `SELECT id, session_id as sessionId, kind, title, assistant_id as assistantId,
                 active_message_id as activeMessageId,
                 created_at as createdAt, updated_at as updatedAt
-         FROM ai_chat WHERE session_id = ? ORDER BY updated_at DESC`
+         FROM ai_chat WHERE kind = 'session' AND session_id = ? ORDER BY updated_at DESC`
       )
       .all(sessionId) as AIChat[]
+  }
+
+  getGlobalAIChats(): AIChat[] {
+    return this.getDb()
+      .prepare(
+        `SELECT id, session_id as sessionId, kind, title, assistant_id as assistantId,
+                active_message_id as activeMessageId,
+                created_at as createdAt, updated_at as updatedAt
+         FROM ai_chat WHERE kind = 'global' ORDER BY updated_at DESC`
+      )
+      .all() as AIChat[]
   }
 
   getAIChat(aiChatId: string): AIChat | null {
     const db = this.getDb()
     const row = db
       .prepare(
-        `SELECT id, session_id as sessionId, title, assistant_id as assistantId,
+        `SELECT id, session_id as sessionId, kind, title, assistant_id as assistantId,
                 active_message_id as activeMessageId,
                 created_at as createdAt, updated_at as updatedAt
          FROM ai_chat WHERE id = ?`
@@ -592,7 +662,8 @@ export class AIChatManager {
     dataKeywords?: string[],
     dataMessageCount?: number,
     contentBlocks?: ContentBlock[],
-    tokenUsage?: TokenUsageData
+    tokenUsage?: TokenUsageData,
+    entityRefs?: AIEntityRef[]
   ): AIMessage {
     const db = this.getDb()
     const now = Math.floor(Date.now() / 1000)
@@ -609,9 +680,9 @@ export class AIChatManager {
     db.prepare(
       `INSERT INTO ai_message (
          id, ai_chat_id, role, content, timestamp, data_keywords, data_message_count,
-         content_blocks, token_usage, debug_context, parent_id, sibling_group_id, branch_index
+         content_blocks, token_usage, debug_context, parent_id, sibling_group_id, branch_index, entity_refs
        )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       id,
       aiChatId,
@@ -625,7 +696,8 @@ export class AIChatManager {
       pendingDebug ?? null,
       parentId,
       siblingGroupId,
-      branchIndex
+      branchIndex,
+      entityRefs?.length ? JSON.stringify(entityRefs) : null
     )
 
     db.prepare('UPDATE ai_chat SET active_message_id = ?, updated_at = ? WHERE id = ?').run(id, now, aiChatId)
@@ -641,6 +713,7 @@ export class AIChatManager {
       dataMessageCount,
       contentBlocks,
       tokenUsage,
+      entityRefs: entityRefs?.length ? entityRefs : undefined,
     }
   }
 
@@ -695,9 +768,9 @@ export class AIChatManager {
     const forkTitle = title || `${source.title || 'Untitled'} (fork)`
 
     db.prepare(
-      `INSERT INTO ai_chat (id, session_id, title, assistant_id, active_message_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, NULL, ?, ?)`
-    ).run(newConvId, source.sessionId, forkTitle, source.assistantId, now, now)
+      `INSERT INTO ai_chat (id, session_id, kind, title, assistant_id, active_message_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`
+    ).run(newConvId, source.sessionId, source.kind, forkTitle, source.assistantId, now, now)
 
     const idMap = new Map<string, string>()
     let lastNewId: string | null = null
@@ -710,9 +783,9 @@ export class AIChatManager {
       db.prepare(
         `INSERT INTO ai_message (
            id, ai_chat_id, role, content, timestamp, data_keywords, data_message_count,
-           content_blocks, token_usage, debug_context, parent_id, sibling_group_id, branch_index
+           content_blocks, token_usage, debug_context, parent_id, sibling_group_id, branch_index, entity_refs
          )
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 0)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 0, ?)`
       ).run(
         newMsgId,
         newConvId,
@@ -724,7 +797,8 @@ export class AIChatManager {
         row.contentBlocks,
         row.tokenUsage,
         newParentId,
-        newMsgId
+        newMsgId,
+        row.entityRefs
       )
       lastNewId = newMsgId
     }
@@ -736,6 +810,7 @@ export class AIChatManager {
     return {
       id: newConvId,
       sessionId: source.sessionId,
+      kind: source.kind,
       title: forkTitle,
       assistantId: source.assistantId,
       activeMessageId: lastNewId,
@@ -782,7 +857,8 @@ export class AIChatManager {
     role: AIMessageRole,
     content: string,
     contentBlocks?: ContentBlock[],
-    tokenUsage?: TokenUsageData
+    tokenUsage?: TokenUsageData,
+    entityRefs?: AIEntityRef[]
   ): AIMessage {
     const db = this.getDb()
     const now = Math.floor(Date.now() / 1000)
@@ -800,9 +876,9 @@ export class AIChatManager {
     db.prepare(
       `INSERT INTO ai_message (
          id, ai_chat_id, role, content, timestamp, data_keywords, data_message_count,
-         content_blocks, token_usage, debug_context, parent_id, sibling_group_id, branch_index
+         content_blocks, token_usage, debug_context, parent_id, sibling_group_id, branch_index, entity_refs
        )
-       VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, 0)`
+       VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, 0, ?)`
     ).run(
       id,
       aiChatId,
@@ -813,7 +889,8 @@ export class AIChatManager {
       tokenUsage ? JSON.stringify(tokenUsage) : null,
       pendingDebug ?? null,
       afterMessageId,
-      id
+      id,
+      entityRefs?.length ? JSON.stringify(entityRefs) : null
     )
 
     if (childRow) {
@@ -832,6 +909,7 @@ export class AIChatManager {
       parentId: afterMessageId,
       contentBlocks,
       tokenUsage,
+      entityRefs: entityRefs?.length ? entityRefs : undefined,
     }
   }
 
@@ -876,11 +954,7 @@ export class AIChatManager {
 
   // ==================== Agent 专用 ====================
 
-  getHistoryForAgent(
-    aiChatId: string,
-    maxMessages?: number,
-    leafMessageId?: string | null
-  ): Array<{ role: 'user' | 'assistant' | 'summary'; content: string; contentBlocks?: ContentBlock[] }> {
+  getHistoryForAgent(aiChatId: string, maxMessages?: number, leafMessageId?: string | null): AIHistoryMessage[] {
     const messages = this.getActivePathRows(aiChatId, leafMessageId).map((row) => this.parseMessageRow(row))
     const validMessages = messages.filter(
       (m) =>
@@ -896,7 +970,7 @@ export class AIChatManager {
       }
     }
 
-    let result: Array<{ role: 'user' | 'assistant' | 'summary'; content: string; contentBlocks?: ContentBlock[] }>
+    let result: AIHistoryMessage[]
 
     if (summaryMsg) {
       const metaBlock = summaryMsg.contentBlocks?.find(
@@ -916,11 +990,26 @@ export class AIChatManager {
         : []
 
       result = [
-        { role: 'summary' as const, content: summaryMsg.content },
-        ...contextMessages.map((m) => ({ role: m.role, content: m.content, contentBlocks: m.contentBlocks })),
+        {
+          role: 'summary' as const,
+          content: summaryMsg.content,
+          contentBlocks: summaryMsg.contentBlocks,
+          entityRefs: summaryMsg.entityRefs,
+        },
+        ...contextMessages.map((m) => ({
+          role: m.role,
+          content: m.content,
+          contentBlocks: m.contentBlocks,
+          entityRefs: m.entityRefs,
+        })),
       ]
     } else {
-      result = validMessages.map((m) => ({ role: m.role, content: m.content, contentBlocks: m.contentBlocks }))
+      result = validMessages.map((m) => ({
+        role: m.role,
+        content: m.content,
+        contentBlocks: m.contentBlocks,
+        entityRefs: m.entityRefs,
+      }))
     }
 
     if (maxMessages && result.length > maxMessages) {
@@ -939,7 +1028,8 @@ export class AIChatManager {
   addSummaryMessage(
     aiChatId: string,
     content: string,
-    meta: { bufferBoundaryTimestamp: number; compressedMessageCount: number }
+    meta: { bufferBoundaryTimestamp: number; compressedMessageCount: number },
+    entityRefs?: AIEntityRef[]
   ): AIMessage {
     const contentBlocks: ContentBlock[] = [
       {
@@ -949,7 +1039,7 @@ export class AIChatManager {
       },
     ]
 
-    return this.addMessage(aiChatId, 'summary', content, undefined, undefined, contentBlocks)
+    return this.addMessage(aiChatId, 'summary', content, undefined, undefined, contentBlocks, undefined, entityRefs)
   }
 
   getLatestSummary(aiChatId: string): AIMessage | null {
@@ -960,15 +1050,25 @@ export class AIChatManager {
   getMessagesAfterSummary(
     aiChatId: string,
     summaryTimestamp: number
-  ): Array<{ role: AIMessageRole; content: string; timestamp: number; contentBlocks?: ContentBlock[] }> {
+  ): Array<{
+    role: AIMessageRole
+    content: string
+    timestamp: number
+    contentBlocks?: ContentBlock[]
+    entityRefs?: AIEntityRef[]
+  }> {
     return this.getActivePathRows(aiChatId)
       .filter((row) => row.timestamp > summaryTimestamp && (row.role === 'user' || row.role === 'assistant'))
       .map((row) => this.toCompressionMessage(row))
   }
 
-  getAllUserAssistantMessages(
-    aiChatId: string
-  ): Array<{ role: AIMessageRole; content: string; timestamp: number; contentBlocks?: ContentBlock[] }> {
+  getAllUserAssistantMessages(aiChatId: string): Array<{
+    role: AIMessageRole
+    content: string
+    timestamp: number
+    contentBlocks?: ContentBlock[]
+    entityRefs?: AIEntityRef[]
+  }> {
     return this.getActivePathRows(aiChatId)
       .filter((row) => row.role === 'user' || row.role === 'assistant')
       .map((row) => this.toCompressionMessage(row))
@@ -979,12 +1079,14 @@ export class AIChatManager {
     content: string
     timestamp: number
     contentBlocks?: ContentBlock[]
+    entityRefs?: AIEntityRef[]
   } {
     return {
       role: row.role as AIMessageRole,
       content: row.content,
       timestamp: row.timestamp,
       contentBlocks: row.contentBlocks ? JSON.parse(row.contentBlocks) : undefined,
+      entityRefs: row.entityRefs ? JSON.parse(row.entityRefs) : undefined,
     }
   }
 

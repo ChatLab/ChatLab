@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import type { AiRouteContext } from '../../context/ai'
 import { countMessagesTokens } from '@openchatlab/node-runtime'
+import type { AIEntityRef } from '@openchatlab/node-runtime'
 
 type AiChatRouteContext = Pick<AiRouteContext, 'aiChatManager'>
 
@@ -23,6 +24,17 @@ export function registerAiChatRoutes(server: FastifyInstance, ctx: AiChatRouteCo
     const { sessionId } = request.query
     if (!sessionId) return []
     return cm.getAIChats(sessionId)
+  })
+
+  server.post<{
+    Body: { title?: string; assistantId: string }
+  }>('/_web/ai/global-chats', async (request) => {
+    const { title, assistantId } = request.body
+    return cm.createGlobalAIChat(title, assistantId)
+  })
+
+  server.get('/_web/ai/global-chats', async () => {
+    return cm.getGlobalAIChats()
   })
 
   server.get<{ Params: { id: string } }>('/_web/ai/chats/:id', async (request, reply) => {
@@ -59,9 +71,10 @@ export function registerAiChatRoutes(server: FastifyInstance, ctx: AiChatRouteCo
         cacheReadTokens?: number
         cacheWriteTokens?: number
       }
+      entityRefs?: AIEntityRef[]
     }
   }>('/_web/ai/chats/:id/messages', async (request) => {
-    const { role, content, dataKeywords, dataMessageCount, contentBlocks, tokenUsage } = request.body
+    const { role, content, dataKeywords, dataMessageCount, contentBlocks, tokenUsage, entityRefs } = request.body
     return cm.addMessage(
       request.params.id,
       role,
@@ -69,7 +82,8 @@ export function registerAiChatRoutes(server: FastifyInstance, ctx: AiChatRouteCo
       dataKeywords,
       dataMessageCount,
       contentBlocks as any,
-      tokenUsage
+      tokenUsage,
+      entityRefs
     )
   })
 
@@ -136,13 +150,22 @@ export function registerAiChatRoutes(server: FastifyInstance, ctx: AiChatRouteCo
         cacheReadTokens?: number
         cacheWriteTokens?: number
       }
+      entityRefs?: AIEntityRef[]
     }
   }>('/_web/ai/chats/:id/messages/insert-after', async (request, reply) => {
-    const { afterMessageId, role, content, contentBlocks, tokenUsage } = request.body
+    const { afterMessageId, role, content, contentBlocks, tokenUsage, entityRefs } = request.body
     if (!afterMessageId || typeof afterMessageId !== 'string') {
       return reply.code(400).send({ error: 'afterMessageId is required' })
     }
-    return cm.insertMessageAfter(request.params.id, afterMessageId, role, content, contentBlocks as any, tokenUsage)
+    return cm.insertMessageAfter(
+      request.params.id,
+      afterMessageId,
+      role,
+      content,
+      contentBlocks as any,
+      tokenUsage,
+      entityRefs
+    )
   })
 
   server.get<{ Params: { id: string } }>('/_web/ai/chats/:id/token-usage', async (request) => {

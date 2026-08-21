@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
 import { AIChatManager } from '../chats'
+import type { AIEntityRef } from '../chats'
 import type { ChartPayload } from '@openchatlab/core'
 
 const sqliteNativeBinding = process.env.CHATLAB_TEST_SQLITE_NATIVE_BINDING
@@ -277,6 +278,132 @@ describe('AIChatManager legacy migration', () => {
       assert.equal(messages[0]?.parentId, null)
       assert.equal(messages[1]?.parentId, 'pm1')
       assert.equal(manager.getAIChat('conv-partial')?.activeMessageId, 'pm2')
+      manager.close()
+    } finally {
+      cleanup(dir)
+    }
+  })
+
+  it('adds global chat and entity reference columns to the previously released schema', () => {
+    const dir = createTempDir()
+    try {
+      const db = createTestDatabase(join(dir, 'conversations.db'))
+      db.exec(`
+        CREATE TABLE ai_chat (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL,
+          title TEXT,
+          assistant_id TEXT DEFAULT 'general_cn',
+          active_message_id TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE TABLE ai_message (
+          id TEXT PRIMARY KEY,
+          ai_chat_id TEXT NOT NULL,
+          role TEXT NOT NULL,
+          content TEXT NOT NULL,
+          timestamp INTEGER NOT NULL,
+          data_keywords TEXT,
+          data_message_count INTEGER,
+          content_blocks TEXT,
+          parent_id TEXT,
+          sibling_group_id TEXT,
+          branch_index INTEGER DEFAULT 0,
+          debug_context TEXT,
+          token_usage TEXT
+        );
+      `)
+      db.prepare('INSERT INTO ai_chat VALUES (?, ?, ?, ?, ?, ?, ?)').run(
+        'existing-chat',
+        'session-existing',
+        'Existing',
+        'general_cn',
+        'existing-message',
+        1,
+        1
+      )
+      db.prepare('INSERT INTO ai_message VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, 0, NULL, NULL)').run(
+        'existing-message',
+        'existing-chat',
+        'user',
+        'hello',
+        1,
+        'existing-message'
+      )
+      db.close()
+
+      const manager = createManager(dir)
+      assert.equal(manager.getAIChats('session-existing')[0]?.kind, 'session')
+      assert.equal(manager.getMessages('existing-chat')[0]?.entityRefs, undefined)
+      manager.close()
+
+      const migrated = createTestDatabase(join(dir, 'conversations.db'))
+      const chatColumns = migrated.pragma('table_info(ai_chat)') as Array<{ name: string }>
+      const messageColumns = migrated.pragma('table_info(ai_message)') as Array<{ name: string }>
+      assert.ok(chatColumns.some((column) => column.name === 'kind'))
+      assert.ok(messageColumns.some((column) => column.name === 'entity_refs'))
+      migrated.close()
+    } finally {
+      cleanup(dir)
+    }
+  })
+})
+
+describe('AIChatManager global chats and entity references', () => {
+  const entityRefs: AIEntityRef[] = [
+    { type: 'contact', contactKey: 'qq:10001', displayName: 'Alice' },
+    { type: 'session', sessionId: 'group-1', displayName: 'Project Group', sessionType: 'group' },
+  ]
+
+  it('keeps global chats out of session lists and counts', () => {
+    const dir = createTempDir()
+    try {
+      const manager = createManager(dir)
+      const sessionChat = manager.createAIChat('session-1', 'Session', 'general_cn')
+      const globalChat = manager.createGlobalAIChat('Global', 'general_cn')
+
+      assert.equal(sessionChat.kind, 'session')
+      assert.equal(globalChat.kind, 'global')
+      assert.equal(globalChat.sessionId, '')
+      assert.deepEqual(
+        manager.getAIChats('session-1').map((chat) => chat.id),
+        [sessionChat.id]
+      )
+      assert.deepEqual(
+        manager.getGlobalAIChats().map((chat) => chat.id),
+        [globalChat.id]
+      )
+      assert.deepEqual([...manager.getAIChatCountsBySession()], [['session-1', 1]])
+      manager.close()
+    } finally {
+      cleanup(dir)
+    }
+  })
+
+  it('persists entity references with their user message and preserves them when forking', () => {
+    const dir = createTempDir()
+    try {
+      const manager = createManager(dir)
+      const globalChat = manager.createGlobalAIChat('Global', 'general_cn')
+      const userMessage = manager.addMessage(
+        globalChat.id,
+        'user',
+        'Compare them',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        entityRefs
+      )
+      manager.addMessage(globalChat.id, 'assistant', 'I will compare them.')
+
+      assert.deepEqual(manager.getMessages(globalChat.id)[0]?.entityRefs, entityRefs)
+      assert.deepEqual(manager.getHistoryForAgent(globalChat.id)[0]?.entityRefs, entityRefs)
+
+      const fork = manager.forkAIChat(globalChat.id, userMessage.id)
+      assert.equal(fork.kind, 'global')
+      assert.deepEqual(manager.getMessages(fork.id)[0]?.entityRefs, entityRefs)
       manager.close()
     } finally {
       cleanup(dir)

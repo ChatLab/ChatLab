@@ -5,12 +5,17 @@ import type { PlanContentBlock } from './planBlocks'
 export interface AIChat {
   id: string
   sessionId: string
+  kind: 'session' | 'global'
   title: string | null
   assistantId: string
   activeMessageId?: string | null
   createdAt: number
   updatedAt: number
 }
+
+export type AIEntityRef =
+  | { type: 'contact'; contactKey: string; displayName: string }
+  | { type: 'session'; sessionId: string; displayName: string; sessionType: 'private' | 'group' }
 
 export type ContentBlock =
   | { type: 'text'; text: string; processDurationMs?: number }
@@ -52,6 +57,7 @@ export interface AIMessage {
   dataMessageCount?: number
   contentBlocks?: ContentBlock[]
   tokenUsage?: TokenUsageData
+  entityRefs?: AIEntityRef[]
 }
 
 export interface DesensitizeRule {
@@ -117,7 +123,9 @@ export interface AIAdapter {
   // ===== 对话管理 =====
   getAIChat(aiChatId: string): Promise<AIChat | null>
   getAIChats(sessionId: string): Promise<AIChat[]>
+  getGlobalAIChats(): Promise<AIChat[]>
   createAIChat(sessionId: string, title: string | undefined, assistantId: string): Promise<AIChat>
+  createGlobalAIChat(title: string | undefined, assistantId: string): Promise<AIChat>
   updateAIChatTitle(aiChatId: string, title: string): Promise<boolean>
   deleteAIChat(aiChatId: string): Promise<boolean>
 
@@ -130,7 +138,8 @@ export interface AIAdapter {
     dataKeywords?: string[],
     dataMessageCount?: number,
     contentBlocks?: ContentBlock[],
-    tokenUsage?: TokenUsageData
+    tokenUsage?: TokenUsageData,
+    entityRefs?: AIEntityRef[]
   ): Promise<AIMessage>
   deleteMessagesFrom(aiChatId: string, messageId: string): Promise<void>
   forkAIChat(sourceAIChatId: string, upToMessageId: string, title?: string): Promise<AIChat>
@@ -142,7 +151,8 @@ export interface AIAdapter {
     role: AIMessageRole,
     content: string,
     contentBlocks?: ContentBlock[],
-    tokenUsage?: TokenUsageData
+    tokenUsage?: TokenUsageData,
+    entityRefs?: AIEntityRef[]
   ): Promise<AIMessage>
   getAIChatTokenUsage(aiChatId: string): Promise<TokenUsageData>
   estimateContextTokens(

@@ -9,7 +9,7 @@ import type { AgentTool } from '@earendil-works/pi-agent-core'
 import type { Model, Api, Message } from '@earendil-works/pi-ai'
 import type { ThinkingLevel } from '@openchatlab/core'
 import type { ToolProgress } from '@openchatlab/shared-types'
-import type { ContentBlock } from '../chats'
+import type { AIEntityRef, ContentBlock } from '../chats'
 
 export interface AgentTokenUsage {
   promptTokens: number
@@ -24,6 +24,8 @@ export interface SimpleHistoryMessage {
   content: string
   /** Persisted content blocks; tool blocks with toolCallId+result are replayed as real toolCall/toolResult pairs. */
   contentBlocks?: ContentBlock[]
+  /** Stable entities selected on the originating user message or retained by a compressed summary. */
+  entityRefs?: AIEntityRef[]
 }
 
 export type AgentCoreEvent =

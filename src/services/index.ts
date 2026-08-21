@@ -102,6 +102,7 @@ export type {
   AIAdapter,
   AIChat,
   AIMessage,
+  AIEntityRef,
   AIMessageRole,
   ContentBlock,
   TokenUsageData,

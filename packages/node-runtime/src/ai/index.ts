@@ -36,7 +36,17 @@ export type {
 } from './assistant-manager'
 export { parseSkillFile, extractSkillId } from './skill-parser'
 export { AIChatManager } from './chats'
-export type { AIChat, AIMessage, AIMessageRole, ContentBlock, TokenUsageData, AIChatManagerLogger } from './chats'
+export type {
+  AIChat,
+  AIChatKind,
+  AIEntityRef,
+  AIHistoryMessage,
+  AIMessage,
+  AIMessageRole,
+  ContentBlock,
+  TokenUsageData,
+  AIChatManagerLogger,
+} from './chats'
 
 // Tokenizer
 export { countTokens, countMessagesTokens, initTokenizer } from './tokenizer'

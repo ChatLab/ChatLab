@@ -10,7 +10,15 @@ import { getPathProvider } from '../paths/provider'
 import { resolveDesktopNativeBinding } from '../runtime/native-sqlite'
 import { aiLogger } from './logger'
 
-export type { AIChat, AIMessage, AIMessageRole, ContentBlock, TokenUsageData } from '@openchatlab/node-runtime'
+export type {
+  AIChat,
+  AIChatKind,
+  AIEntityRef,
+  AIMessage,
+  AIMessageRole,
+  ContentBlock,
+  TokenUsageData,
+} from '@openchatlab/node-runtime'
 
 let manager: AIChatManager | null = null
 
@@ -47,12 +55,20 @@ export function createAIChat(sessionId: string, title: string | undefined, assis
   return getManager().createAIChat(sessionId, title, assistantId)
 }
 
+export function createGlobalAIChat(title: string | undefined, assistantId: string) {
+  return getManager().createGlobalAIChat(title, assistantId)
+}
+
 export function getAIChatCountsBySession() {
   return getManager().getAIChatCountsBySession()
 }
 
 export function getAIChats(sessionId: string) {
   return getManager().getAIChats(sessionId)
+}
+
+export function getGlobalAIChats() {
+  return getManager().getGlobalAIChats()
 }
 
 export function getAIChat(aiChatId: string) {
@@ -74,9 +90,19 @@ export function addMessage(
   dataKeywords?: string[],
   dataMessageCount?: number,
   contentBlocks?: import('@openchatlab/node-runtime').ContentBlock[],
-  tokenUsage?: import('@openchatlab/node-runtime').TokenUsageData
+  tokenUsage?: import('@openchatlab/node-runtime').TokenUsageData,
+  entityRefs?: import('@openchatlab/node-runtime').AIEntityRef[]
 ) {
-  return getManager().addMessage(aiChatId, role, content, dataKeywords, dataMessageCount, contentBlocks, tokenUsage)
+  return getManager().addMessage(
+    aiChatId,
+    role,
+    content,
+    dataKeywords,
+    dataMessageCount,
+    contentBlocks,
+    tokenUsage,
+    entityRefs
+  )
 }
 
 export function getMessages(aiChatId: string) {
@@ -109,9 +135,10 @@ export function insertMessageAfter(
   role: import('@openchatlab/node-runtime').AIMessageRole,
   content: string,
   contentBlocks?: import('@openchatlab/node-runtime').ContentBlock[],
-  tokenUsage?: import('@openchatlab/node-runtime').TokenUsageData
+  tokenUsage?: import('@openchatlab/node-runtime').TokenUsageData,
+  entityRefs?: import('@openchatlab/node-runtime').AIEntityRef[]
 ) {
-  return getManager().insertMessageAfter(aiChatId, afterMessageId, role, content, contentBlocks, tokenUsage)
+  return getManager().insertMessageAfter(aiChatId, afterMessageId, role, content, contentBlocks, tokenUsage, entityRefs)
 }
 
 export function setPendingDebugContext(aiChatId: string, debugContext: string) {

@@ -10,6 +10,7 @@ import type {
   AIChat,
   AIMessage,
   AIMessageRole,
+  AIEntityRef,
   ContentBlock,
   TokenUsageData,
   ExportFilterParams,
@@ -38,8 +39,16 @@ export class FetchAIAdapter implements AIAdapter {
     return get<AIChat[]>(`/ai/chats?sessionId=${encodeURIComponent(sessionId)}`)
   }
 
+  async getGlobalAIChats(): Promise<AIChat[]> {
+    return get<AIChat[]>('/ai/global-chats')
+  }
+
   async createAIChat(sessionId: string, title: string | undefined, assistantId: string): Promise<AIChat> {
     return post<AIChat>('/ai/chats', { sessionId, title, assistantId })
+  }
+
+  async createGlobalAIChat(title: string | undefined, assistantId: string): Promise<AIChat> {
+    return post<AIChat>('/ai/global-chats', { title, assistantId })
   }
 
   async updateAIChatTitle(aiChatId: string, title: string): Promise<boolean> {
@@ -62,7 +71,8 @@ export class FetchAIAdapter implements AIAdapter {
     dataKeywords?: string[],
     dataMessageCount?: number,
     contentBlocks?: ContentBlock[],
-    tokenUsage?: TokenUsageData
+    tokenUsage?: TokenUsageData,
+    entityRefs?: AIEntityRef[]
   ): Promise<AIMessage> {
     return post<AIMessage>(`/ai/chats/${aiChatId}/messages`, {
       role,
@@ -71,6 +81,7 @@ export class FetchAIAdapter implements AIAdapter {
       dataMessageCount,
       contentBlocks,
       tokenUsage,
+      entityRefs,
     })
   }
 
@@ -96,7 +107,8 @@ export class FetchAIAdapter implements AIAdapter {
     role: AIMessageRole,
     content: string,
     contentBlocks?: ContentBlock[],
-    tokenUsage?: TokenUsageData
+    tokenUsage?: TokenUsageData,
+    entityRefs?: AIEntityRef[]
   ): Promise<AIMessage> {
     return post<AIMessage>(`/ai/chats/${aiChatId}/messages/insert-after`, {
       afterMessageId,
@@ -104,6 +116,7 @@ export class FetchAIAdapter implements AIAdapter {
       content,
       contentBlocks,
       tokenUsage,
+      entityRefs,
     })
   }
 

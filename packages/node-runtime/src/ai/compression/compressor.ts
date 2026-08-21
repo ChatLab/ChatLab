@@ -8,8 +8,8 @@
 import { truncateToolResultText } from '@openchatlab/core'
 
 import { countTokens, countMessagesTokens } from '../tokenizer'
-import { isReplayableToolBlock } from '../agent/history'
-import type { AIChatManager, ContentBlock, AIMessageRole } from '../chats'
+import { appendEntityRefsForModel, isReplayableToolBlock } from '../agent/history'
+import type { AIChatManager, AIEntityRef, ContentBlock, AIMessageRole } from '../chats'
 import type { CompressionConfig, CompressionResult, CompressionLogger, CompressionLlmAdapter } from './types'
 
 interface CompressibleMessage {
@@ -17,6 +17,7 @@ interface CompressibleMessage {
   content: string
   timestamp: number
   contentBlocks?: ContentBlock[]
+  entityRefs?: AIEntityRef[]
 }
 
 const DEFAULT_CONTEXT_WINDOW = 128000
@@ -76,7 +77,13 @@ export async function checkAndCompress(
 
     const summary = convManager.getLatestSummary(aiChatId)
 
-    let messages: Array<{ role: AIMessageRole; content: string; timestamp: number; contentBlocks?: ContentBlock[] }>
+    let messages: Array<{
+      role: AIMessageRole
+      content: string
+      timestamp: number
+      contentBlocks?: ContentBlock[]
+      entityRefs?: AIEntityRef[]
+    }>
     if (summary) {
       const metaBlock = summary.contentBlocks?.find(
         (b): b is Extract<ContentBlock, { type: 'summary_meta' }> => b.type === 'summary_meta'
@@ -89,10 +96,16 @@ export async function checkAndCompress(
 
     const historyForTokenCount: Array<{ role: string; content: string }> = []
     if (summary) {
-      historyForTokenCount.push({ role: 'assistant', content: summary.content })
+      historyForTokenCount.push({
+        role: 'assistant',
+        content: appendEntityRefsForModel(summary.content, summary.entityRefs),
+      })
     }
     for (const msg of messages) {
-      historyForTokenCount.push({ role: msg.role, content: msg.content })
+      historyForTokenCount.push({
+        role: msg.role,
+        content: appendEntityRefsForModel(msg.content, msg.entityRefs),
+      })
       // Persisted tool results are replayed as toolCall/toolResult pairs each
       // turn (see agent/history.ts), so they occupy real context and must be counted.
       for (const toolText of replayedToolResultTexts(msg.contentBlocks)) {
@@ -139,14 +152,25 @@ export async function checkAndCompress(
         ? bufferMessages[0].timestamp
         : messagesToCompress[messagesToCompress.length - 1]!.timestamp + 1
 
-    convManager.addSummaryMessage(aiChatId, summaryText, {
-      bufferBoundaryTimestamp: bufferBoundary,
-      compressedMessageCount: messagesToCompress.length,
-    })
+    const summaryEntityRefs = mergeEntityRefs(
+      summary?.entityRefs,
+      ...messagesToCompress.map((message) => message.entityRefs)
+    )
+    convManager.addSummaryMessage(
+      aiChatId,
+      summaryText,
+      {
+        bufferBoundaryTimestamp: bufferBoundary,
+        compressedMessageCount: messagesToCompress.length,
+      },
+      summaryEntityRefs
+    )
 
-    const afterTokenCount: Array<{ role: string; content: string }> = [{ role: 'assistant', content: summaryText }]
+    const afterTokenCount: Array<{ role: string; content: string }> = [
+      { role: 'assistant', content: appendEntityRefsForModel(summaryText, summaryEntityRefs) },
+    ]
     for (const m of bufferMessages) {
-      afterTokenCount.push({ role: m.role, content: m.content })
+      afterTokenCount.push({ role: m.role, content: appendEntityRefsForModel(m.content, m.entityRefs) })
       for (const toolText of replayedToolResultTexts(m.contentBlocks)) {
         afterTokenCount.push({ role: 'tool', content: toolText })
       }
@@ -207,7 +231,7 @@ function replayedToolResultTexts(blocks?: ContentBlock[]): string[] {
 }
 
 function countMessageTokensWithTools(msg: CompressibleMessage): number {
-  let tokens = countTokens(msg.content) + 4
+  let tokens = countTokens(appendEntityRefsForModel(msg.content, msg.entityRefs)) + 4
   for (const toolText of replayedToolResultTexts(msg.contentBlocks)) {
     tokens += countTokens(toolText) + 4
   }
@@ -243,25 +267,43 @@ function splitMessagesForCompression<T extends CompressibleMessage>(
 }
 
 function buildCompressionInput(
-  messagesToCompress: Array<{ role: string; content: string; contentBlocks?: ContentBlock[] }>,
-  existingSummary: { content: string } | null
+  messagesToCompress: Array<{
+    role: string
+    content: string
+    contentBlocks?: ContentBlock[]
+    entityRefs?: AIEntityRef[]
+  }>,
+  existingSummary: { content: string; entityRefs?: AIEntityRef[] } | null
 ): string {
   const parts: string[] = []
 
   if (existingSummary) {
-    parts.push(`[PREVIOUS SUMMARY — MUST PRESERVE]\n${existingSummary.content}\n`)
+    parts.push(
+      `[PREVIOUS SUMMARY — MUST PRESERVE]\n${appendEntityRefsForModel(existingSummary.content, existingSummary.entityRefs)}\n`
+    )
     parts.push(`[NEW MESSAGES — SUMMARIZE AND MERGE]`)
   }
 
   for (const msg of messagesToCompress) {
     const roleLabel = msg.role === 'user' ? 'User' : 'Assistant'
-    parts.push(`${roleLabel}: ${msg.content}`)
+    parts.push(`${roleLabel}: ${appendEntityRefsForModel(msg.content, msg.entityRefs)}`)
     for (const block of (msg.contentBlocks ?? []).filter(isReplayableToolBlock)) {
       parts.push(`[Tool result: ${block.tool.name}]\n${truncateToolResultText(block.tool.result)}`)
     }
   }
 
   return parts.join('\n\n')
+}
+
+function mergeEntityRefs(...groups: Array<AIEntityRef[] | undefined>): AIEntityRef[] | undefined {
+  const refs = new Map<string, AIEntityRef>()
+  for (const group of groups) {
+    for (const ref of group ?? []) {
+      const key = ref.type === 'contact' ? `contact:${ref.contactKey}` : `session:${ref.sessionId}`
+      refs.set(key, ref)
+    }
+  }
+  return refs.size > 0 ? [...refs.values()] : undefined
 }
 
 function forceTruncate(input: string, targetTokens: number): string {
