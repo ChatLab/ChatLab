@@ -11,6 +11,7 @@ describe('cross-chat agent prompt', () => {
     for (const tool of [
       'resolve_chat_entities',
       'inspect_contact_sessions',
+      'inspect_shared_interactions',
       'search_messages_globally',
       'get_cross_chat_message_context',
       'get_cross_chat_overview',
@@ -21,6 +22,10 @@ describe('cross-chat agent prompt', () => {
     assert.match(prompt, /交集、并集/)
     assert.match(prompt, /不要仅因为消息中出现了 @联系人就机械调用/)
     assert.match(prompt, /roster_only/)
+    assert.match(prompt, /不要为了多人问题机械地先对每个人调用 inspect_contact_sessions/)
+    assert.match(prompt, /所有参与者都出现.*严格交集/)
+    assert.match(prompt, /群名称、成员结构、共同活跃和相邻发言只是调查导航信号/)
+    assert.match(prompt, /partial\/skipped_budget 不是零/)
     assert.match(prompt, /唯一候选自动继续/)
     assert.match(prompt, /多个候选必须停下来请用户确认/)
     assert.match(prompt, /限定 scopes 时，可以不提供关键词/)
@@ -29,7 +34,26 @@ describe('cross-chat agent prompt', () => {
     assert.match(prompt, /sender.*owner/)
     assert.match(prompt, /本人发言.*检索种子/)
     assert.match(prompt, /coverage/)
+    assert.doesNotMatch(prompt, /四个工具/)
     assert.doesNotMatch(prompt, /可以使用.*execute_sql/)
+  })
+
+  it('keeps the English prompt on the same six-tool investigation contract', () => {
+    const prompt = buildCrossChatSystemPrompt('en-US')
+    for (const tool of [
+      'resolve_chat_entities',
+      'inspect_contact_sessions',
+      'inspect_shared_interactions',
+      'search_messages_globally',
+      'get_cross_chat_message_context',
+      'get_cross_chat_overview',
+    ]) {
+      assert.match(prompt, new RegExp(tool))
+    }
+    assert.match(prompt, /strict intersection containing every participant/)
+    assert.match(prompt, /investigation signals, not proof/)
+    assert.match(prompt, /partial or skipped_budget never means zero/)
+    assert.doesNotMatch(prompt, /four tools/)
   })
 })
 

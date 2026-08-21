@@ -34,6 +34,7 @@ import {
   getCrossChatMessageContextTool,
   getCrossChatOverviewTool,
   inspectContactSessionsTool,
+  inspectSharedInteractionsTool,
   resolveChatEntitiesTool,
   searchMessagesGloballyTool,
 } from './definitions/cross-chat-tools'
@@ -89,6 +90,7 @@ export const CROSS_CHAT_AGENT_TOOL_REGISTRY = [
   getCrossChatMessageContextTool,
   getCrossChatOverviewTool,
   inspectContactSessionsTool,
+  inspectSharedInteractionsTool,
 ]
 
 /** 语义检索工具名（runner 动态过滤用） */

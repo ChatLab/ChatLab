@@ -19,6 +19,8 @@ import type {
   CrossChatOverviewResult,
   CrossChatSearchRequest,
   CrossChatSearchResult,
+  CrossChatSharedInteractionsRequest,
+  CrossChatSharedInteractionsResult,
   ToolProgress,
 } from '@openchatlab/shared-types'
 
@@ -364,6 +366,10 @@ export interface CrossChatAnalysisToolService {
     request: CrossChatContactSessionsRequest,
     options?: CrossChatOperationOptions
   ): Promise<CrossChatContactSessionsResult>
+  inspectSharedInteractions(
+    request: CrossChatSharedInteractionsRequest,
+    options?: CrossChatOperationOptions
+  ): Promise<CrossChatSharedInteractionsResult>
   searchMessages(request: CrossChatSearchRequest, options?: CrossChatOperationOptions): Promise<CrossChatSearchResult>
   getMessageContext(request: CrossChatMessageContextRequest): CrossChatMessageContextResult
   getOverview(request: CrossChatOverviewRequest, options?: CrossChatOperationOptions): Promise<CrossChatOverviewResult>
