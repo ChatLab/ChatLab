@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, toRef, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import type { AIEntityRef } from '@openchatlab/shared-types'
@@ -37,6 +37,11 @@ const initializing = ref(true)
 const input = ref('')
 const selectedEntities = ref<AIEntityRef[]>([])
 const isComposing = ref(false)
+let isUnmounted = false
+
+function isGlobalPageActive(): boolean {
+  return !isUnmounted && route.name === 'global-ai'
+}
 
 const pairs = computed(() => groupMessagesToQAPairs(messages.value))
 const { messagesContainer, showScrollToBottom, handleScrollToBottom, scrollToBottom } = useChatScroll(
@@ -50,6 +55,8 @@ const { visiblePairs, hasOlderPairs, loadOlderPairs } = useProgressiveChatHistor
 )
 
 async function syncAIChatIdToRoute(aiChatId: string | null): Promise<void> {
+  if (!isGlobalPageActive()) return
+
   const routeAIChatId = typeof route.query.aiChatId === 'string' ? route.query.aiChatId : null
   if (routeAIChatId === aiChatId) return
 
@@ -166,15 +173,29 @@ watch(
 onMounted(async () => {
   aiChatStore.selectAssistantForSession(chatKey, getDefaultGeneralAssistantId(locale.value))
   await loadConversations()
+  if (!isGlobalPageActive()) return
+
   const preferredAIChatId = typeof route.query.aiChatId === 'string' ? route.query.aiChatId : null
-  if (!preferredAIChatId || !(await aiChatStore.loadAIChat(chatKey, preferredAIChatId))) {
+  const restoredPreferredChat = preferredAIChatId ? await aiChatStore.loadAIChat(chatKey, preferredAIChatId) : false
+  if (!isGlobalPageActive()) return
+
+  if (!restoredPreferredChat) {
     aiChatStore.startNewAIChat(chatKey)
     if (preferredAIChatId) await syncAIChatIdToRoute(null)
   }
+  if (!isGlobalPageActive()) return
+
   initializing.value = false
   await syncAIChatIdToRoute(currentAIChatId.value)
+  if (!isGlobalPageActive()) return
+
   await nextTick()
+  if (!isGlobalPageActive()) return
   scrollToBottom(true)
+})
+
+onUnmounted(() => {
+  isUnmounted = true
 })
 </script>
 
