@@ -77,6 +77,7 @@ async function loadContacts(): Promise<void> {
   try {
     const options = {
       acceptStale: true,
+      timeRangePreset: 'all',
       page: 1,
       pageSize: 100,
       query: query.value.trim() || undefined,
