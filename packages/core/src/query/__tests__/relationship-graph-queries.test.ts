@@ -94,6 +94,10 @@ describe('relationship graph query helpers', () => {
         platform_message_id TEXT,
         reply_to_message_id TEXT
       );
+      CREATE INDEX idx_message_sender ON message(sender_id);
+      CREATE INDEX idx_message_sender_ts ON message(sender_id, ts);
+      CREATE INDEX idx_message_reply_to ON message(reply_to_message_id);
+      CREATE INDEX idx_message_platform_id ON message(platform_message_id);
       INSERT INTO meta (name, platform, type, imported_at, owner_id)
       VALUES ('Group', 'wechat', 'group', 1700000000, 'owner-pid');
       INSERT INTO member (id, platform_id, account_name, group_nickname, aliases, avatar) VALUES
@@ -124,6 +128,43 @@ describe('relationship graph query helpers', () => {
       pairs[0]?.anchors.map((anchor) => [anchor.messageId, anchor.relatedMessageId]),
       [[5, 4]]
     )
+  })
+
+  it('keeps two-speaker look-ahead scans linear for long conversations', () => {
+    const messageCount = 20_000
+    const source = Array.from({ length: messageCount }, (_, index) => ({
+      messageId: index + 1,
+      senderId: (index % 2) + 1,
+      ts: index,
+    }))
+    const maxMessageReads = messageCount * 8
+    let messageReads = 0
+    const messages = new Proxy(source, {
+      get(target, property, receiver) {
+        if (typeof property === 'string' && /^\d+$/.test(property)) {
+          messageReads++
+          if (messageReads > maxMessageReads) throw new Error('message look-ahead scan exceeded its linear bound')
+        }
+        return Reflect.get(target, property, receiver)
+      },
+    })
+
+    const pairs = accumulateSelectedCoOccurrencePairs(messages, [[1, 2]])
+
+    assert.equal(pairs[0]?.coOccurrenceCount, messageCount - 1)
+    assert.ok(messageReads <= maxMessageReads)
+  })
+
+  it('does not treat messages from separate conversation windows as proximity evidence', () => {
+    const pairs = accumulateSelectedCoOccurrencePairs(
+      [
+        { messageId: 1, senderId: 1, ts: 0 },
+        { messageId: 2, senderId: 2, ts: 2 * 86400 },
+      ],
+      [[1, 2]]
+    )
+
+    assert.deepEqual(pairs, [])
   })
 
   afterEach(() => {
@@ -231,6 +272,77 @@ describe('relationship graph query helpers', () => {
         [2, 1, 3, 2],
       ]
     )
+  })
+
+  it('keeps direct reply aggregation bounded for a dense reply history', { timeout: 2_000 }, () => {
+    const messageCount = 5_000
+    raw
+      .prepare(
+        `WITH RECURSIVE sequence(id) AS (
+          SELECT 1
+          UNION ALL
+          SELECT id + 1 FROM sequence WHERE id < ?
+        )
+        INSERT INTO message
+          (id, sender_id, ts, type, content, platform_message_id, reply_to_message_id)
+        SELECT
+          id,
+          CASE WHEN id % 2 = 0 THEN 2 ELSE 3 END,
+          1700000000 + id,
+          0,
+          'message ' || id,
+          'dense-' || id,
+          CASE WHEN id = 1 THEN NULL ELSE 'dense-' || (id - 1) END
+        FROM sequence`
+      )
+      .run(messageCount)
+
+    const facts = getParticipantSetInteractionFacts(db, [2, 3], {
+      maxAnchorsPerPair: 2,
+      maxProximityMessages: 0,
+    })
+    const pair = facts.pairs[0]
+
+    assert.equal(pair.directReplyCount, messageCount - 1)
+    assert.equal(pair.repliesFromSourceToTarget, messageCount / 2)
+    assert.equal(pair.repliesFromTargetToSource, messageCount / 2 - 1)
+    assert.equal(pair.lastDirectReplyTs, 1700000000 + messageCount)
+    assert.deepEqual(
+      pair.anchors.map((anchor) => [anchor.messageId, anchor.relatedMessageId]),
+      [
+        [messageCount, messageCount - 1],
+        [messageCount - 1, messageCount - 2],
+      ]
+    )
+    assert.equal(pair.anchorsTruncated, false)
+
+    const limited = getParticipantSetInteractionFacts(db, [2, 3], {
+      maxAnchorsPerPair: 1,
+      maxProximityMessages: 0,
+    }).pairs[0]
+    assert.deepEqual(
+      limited.anchors.map((anchor) => anchor.messageId),
+      [messageCount]
+    )
+    assert.equal(limited.anchorsTruncated, true)
+  })
+
+  it('reports anchor truncation only when eligible evidence was omitted', () => {
+    const insert = raw.prepare(
+      `INSERT INTO message
+        (id, sender_id, ts, type, content, platform_message_id, reply_to_message_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    insert.run(1, 2, 1704067200, 0, 'alice', 'alice-1', null)
+    insert.run(2, 3, 1704067260, 0, 'bob', 'bob-1', null)
+
+    const complete = getParticipantSetInteractionFacts(db, [2, 3], { maxAnchorsPerPair: 1 })
+    assert.equal(complete.pairs[0].anchors.length, 1)
+    assert.equal(complete.pairs[0].anchorsTruncated, false)
+
+    const truncated = getParticipantSetInteractionFacts(db, [2, 3], { maxAnchorsPerPair: 0 })
+    assert.equal(truncated.pairs[0].anchors.length, 0)
+    assert.equal(truncated.pairs[0].anchorsTruncated, true)
   })
 
   it('filters interaction events by reply time while allowing an older referenced message', () => {

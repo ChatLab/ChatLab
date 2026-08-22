@@ -60,7 +60,7 @@ const CONTACT_SESSIONS_ALGORITHM_VERSION = 'contact-sessions-v1'
 const DEFAULT_INSPECTION_PAGE_SIZE = 50
 const MAX_INSPECTION_PAGE_SIZE = 100
 const SHARED_INTERACTIONS_ALGORITHM_VERSION = 'shared-interactions-v1'
-const PROXIMITY_ALGORITHM_VERSION = 'lookahead-3-decay-120-v1'
+const PROXIMITY_ALGORITHM_VERSION = 'lookahead-3-decay-120-gap-1800-v2'
 const DEFAULT_SHARED_INTERACTIONS_PAGE_SIZE = 20
 const MAX_SHARED_INTERACTIONS_PAGE_SIZE = 50
 const DEFAULT_MAX_ANCHORS_PER_PAIR = 4
@@ -434,6 +434,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
       MAX_MAX_ANCHORS_PER_PAIR
     )
     const maxWallTimeMs = clampInteger(request.maxWallTimeMs, DEFAULT_MAX_WALL_TIME_MS, 1, MAX_MAX_WALL_TIME_MS)
+    const startedAt = this.now()
     const resolvedParticipants = participantRefs.map((ref, index) => {
       if (ref.type === 'owner') {
         return {
@@ -446,7 +447,10 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
           contact: undefined,
         }
       }
-      const detail = this.deps.contactsService.getContactDetail(ref.contactKey, { acceptStale: true })
+      const detail = this.deps.contactsService.getContactDetail(ref.contactKey, {
+        acceptStale: true,
+        timeRangePreset: 'all',
+      })
       return {
         index,
         ref,
@@ -465,6 +469,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
       return emptySharedInteractionsResult(publicParticipants, unresolvedParticipantIndexes, range)
     }
 
+    throwIfAborted(options.signal)
     const sessionScopedIds = resolvedParticipants
       .flatMap((participant) =>
         participant.ref.type === 'contact' && participant.contact?.sessionScoped && participant.contact.sessionId
@@ -477,8 +482,9 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
         ? []
         : sessionScopedIds.length === 1
           ? sessionScopedIds
-          : [...new Set(this.deps.adapter.listSessionIds())]
+          : [...new Set(this.deps.adapter.listSessionCandidateIds?.() ?? this.deps.adapter.listSessionIds())]
     ).sort((left, right) => left.localeCompare(right))
+    throwIfAborted(options.signal)
     const cursorFingerprint = createInspectionFingerprint({
       candidateSessionIds,
       participantRefs,
@@ -487,7 +493,6 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
       maxAnchorsPerPair,
     })
     const cursor = parseInspectionCursor(request.cursor, cursorFingerprint, candidateSessionIds)
-    const startedAt = this.now()
     const sessions: CrossChatSharedInteractionsResult['sessions'] = []
     const failedSessionIds: string[] = []
     const truncatedReasons = new Set<CrossChatSharedInteractionsResult['coverage']['truncatedReasons'][number]>()
@@ -1160,6 +1165,7 @@ function mapSharedInteractionSession(
       fromParticipantIndex: participantIndexByMemberId.get(anchor.fromMemberId) ?? 0,
       toParticipantIndex: participantIndexByMemberId.get(anchor.toMemberId) ?? 0,
     })),
+    anchorsTruncated: pair.anchorsTruncated,
   }))
   const priorityReasons: CrossChatSharedInteractionsResult['sessions'][number]['priorityReasons'] = []
   if (pairs.some((pair) => pair.directReplyCount > 0)) priorityReasons.push('has_direct_reply')

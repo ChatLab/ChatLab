@@ -69,6 +69,7 @@ export interface ParticipantInteractionPairFacts {
   lastProximityTs: number | null
   coActiveDays: number
   anchors: ParticipantInteractionAnchor[]
+  anchorsTruncated: boolean
 }
 
 export interface ParticipantSetInteractionFacts {
@@ -323,12 +324,56 @@ export function getParticipantSetInteractionFacts(
           activeDaysByMemberId.get(targetMemberId) ?? new Set()
         ),
         anchors: [],
+        anchorsTruncated: false,
       })
     }
   }
 
-  const replyRows = db
+  // 回复历史可能远大于最终结果；计数留在 SQLite 聚合，避免把每条回复物化到 Node.js。
+  // target.sender_id 过滤会诱导 SQLite 走 sender 索引；一元加号只排除该索引候选，让引用连接使用平台消息 ID。
+  const replyStatsRows = db
     .prepare(
+      `SELECT
+        msg.sender_id as replySenderId,
+        target.sender_id as targetSenderId,
+        COUNT(*) as directReplyCount,
+        MAX(msg.ts) as lastDirectReplyTs
+       FROM message msg
+       JOIN message target ON msg.reply_to_message_id = target.platform_message_id
+       JOIN member sender ON msg.sender_id = sender.id
+       JOIN member targetMember ON target.sender_id = targetMember.id
+       WHERE msg.reply_to_message_id IS NOT NULL
+         AND ${nonSystemMessageCondition(db, 'msg', 'sender')}
+         AND ${nonSystemMessageCondition(db, 'target', 'targetMember')}
+         AND msg.sender_id IN (${placeholders})
+         AND +target.sender_id IN (${placeholders})
+         AND msg.sender_id <> target.sender_id${timeFilter.sql}
+       GROUP BY msg.sender_id, target.sender_id`
+    )
+    .all(...memberIds, ...memberIds, ...timeFilter.params) as Array<{
+    replySenderId: number
+    targetSenderId: number
+    directReplyCount: number
+    lastDirectReplyTs: number | null
+  }>
+  const maxAnchorsPerPair = Math.max(0, Math.floor(options.maxAnchorsPerPair ?? 4))
+  const replyDirectionCountsByPair = new Map<string, number>()
+  for (const row of replyStatsRows) {
+    const pair = pairMap.get(contactPairKey(row.replySenderId, row.targetSenderId))
+    if (!pair) continue
+    pair.directReplyCount += row.directReplyCount
+    if (row.replySenderId === pair.sourceMemberId) pair.repliesFromSourceToTarget += row.directReplyCount
+    else pair.repliesFromTargetToSource += row.directReplyCount
+    if (row.lastDirectReplyTs !== null) {
+      pair.lastDirectReplyTs = Math.max(pair.lastDirectReplyTs ?? 0, row.lastDirectReplyTs)
+    }
+    const pairKey = contactPairKey(row.replySenderId, row.targetSenderId)
+    replyDirectionCountsByPair.set(pairKey, (replyDirectionCountsByPair.get(pairKey) ?? 0) + 1)
+  }
+
+  // 每个有回复的方向只读取最近一条锚点，最多 5 人时查询次数仍固定在 20 次以内。
+  if (maxAnchorsPerPair > 0 && replyStatsRows.length > 0) {
+    const replyAnchorStatement = db.prepare(
       `SELECT
         msg.id as messageId,
         target.id as relatedMessageId,
@@ -342,39 +387,46 @@ export function getParticipantSetInteractionFacts(
        WHERE msg.reply_to_message_id IS NOT NULL
          AND ${nonSystemMessageCondition(db, 'msg', 'sender')}
          AND ${nonSystemMessageCondition(db, 'target', 'targetMember')}
-         AND msg.sender_id IN (${placeholders})
-         AND target.sender_id IN (${placeholders})${timeFilter.sql}
-       ORDER BY msg.ts DESC, msg.id DESC`
+         AND msg.sender_id = ?
+         AND +target.sender_id = ?${timeFilter.sql}
+       ORDER BY msg.ts DESC, msg.id DESC
+       LIMIT 1`
     )
-    .all(...memberIds, ...memberIds, ...timeFilter.params) as Array<{
-    messageId: number
-    relatedMessageId: number
-    replySenderId: number
-    targetSenderId: number
-    replyTs: number
-  }>
-  const maxAnchorsPerPair = Math.max(0, Math.floor(options.maxAnchorsPerPair ?? 4))
-  const replyDirectionsWithAnchor = new Set<string>()
-  for (const row of replyRows) {
-    if (row.replySenderId === row.targetSenderId) continue
-    const pair = pairMap.get(contactPairKey(row.replySenderId, row.targetSenderId))
-    if (!pair) continue
-    pair.directReplyCount++
-    if (row.replySenderId === pair.sourceMemberId) pair.repliesFromSourceToTarget++
-    else pair.repliesFromTargetToSource++
-    pair.lastDirectReplyTs = Math.max(pair.lastDirectReplyTs ?? 0, row.replyTs)
-    const directionKey = `${row.replySenderId}:${row.targetSenderId}`
-    if (pair.anchors.length < maxAnchorsPerPair && !replyDirectionsWithAnchor.has(directionKey)) {
-      replyDirectionsWithAnchor.add(directionKey)
-      pair.anchors.push({
-        messageId: row.messageId,
-        relatedMessageId: row.relatedMessageId,
-        timestamp: row.replyTs,
+    const anchorsByPair = new Map<string, ParticipantInteractionAnchor[]>()
+    for (const row of replyStatsRows) {
+      const anchor = replyAnchorStatement.get(row.replySenderId, row.targetSenderId, ...timeFilter.params) as
+        | {
+            messageId: number
+            relatedMessageId: number
+            replySenderId: number
+            targetSenderId: number
+            replyTs: number
+          }
+        | undefined
+      if (!anchor) continue
+      const pairKey = contactPairKey(anchor.replySenderId, anchor.targetSenderId)
+      const pairAnchors = anchorsByPair.get(pairKey) ?? []
+      pairAnchors.push({
+        messageId: anchor.messageId,
+        relatedMessageId: anchor.relatedMessageId,
+        timestamp: anchor.replyTs,
         signal: 'direct_reply',
-        fromMemberId: row.replySenderId,
-        toMemberId: row.targetSenderId,
+        fromMemberId: anchor.replySenderId,
+        toMemberId: anchor.targetSenderId,
       })
+      anchorsByPair.set(pairKey, pairAnchors)
     }
+    for (const [pairKey, anchors] of anchorsByPair) {
+      const pair = pairMap.get(pairKey)
+      if (!pair) continue
+      anchors.sort((left, right) => right.timestamp - left.timestamp || right.messageId - left.messageId)
+      pair.anchors.push(...anchors.slice(0, maxAnchorsPerPair))
+    }
+  }
+
+  for (const [pairKey, directionCount] of replyDirectionCountsByPair) {
+    const pair = pairMap.get(pairKey)
+    if (pair && directionCount > maxAnchorsPerPair) pair.anchorsTruncated = true
   }
 
   const maxProximityMessages = Math.max(0, Math.floor(options.maxProximityMessages ?? 200_000))
@@ -407,7 +459,8 @@ export function getParticipantSetInteractionFacts(
     const selectedPairFacts = accumulateSelectedCoOccurrencePairs(
       proximityRows,
       [...pairMap.values()].map((pair) => [pair.sourceMemberId, pair.targetMemberId] as const),
-      { maxAnchorsPerPair }
+      // 多保留一个候选，用于区分“命中上限”和“确实省略了证据”。
+      { maxAnchorsPerPair: maxAnchorsPerPair + 1 }
     )
     for (const selected of selectedPairFacts) {
       const pair = pairMap.get(contactPairKey(selected.sourceId, selected.targetId))
@@ -416,7 +469,10 @@ export function getParticipantSetInteractionFacts(
       pair.coOccurrenceRawScore = selected.rawScore
       pair.lastProximityTs = selected.lastOccurrenceTs
       for (const anchor of selected.anchors) {
-        if (pair.anchors.length >= maxAnchorsPerPair) break
+        if (pair.anchors.length >= maxAnchorsPerPair) {
+          pair.anchorsTruncated = true
+          break
+        }
         pair.anchors.push({
           messageId: anchor.messageId,
           relatedMessageId: anchor.relatedMessageId,

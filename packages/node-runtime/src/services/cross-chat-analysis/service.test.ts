@@ -771,6 +771,183 @@ test('shared interaction inspection finds two non-owner contacts and preserves r
   }
 })
 
+test('shared interaction inspection validates raw candidates within failure and budget boundaries', async () => {
+  const { env, contactsService } = createFixture()
+  const participants = [
+    { type: 'contact' as const, contactKey: 'test:alice' },
+    { type: 'contact' as const, contactKey: 'test:bob' },
+  ]
+  try {
+    const candidateIds = [...env.adapter.listSessionCandidateIds!(), 'damaged']
+    let eagerEnumerationCalled = false
+    const failureAdapter: SessionRuntimeAdapter = {
+      ...env.adapter,
+      listSessionIds: () => {
+        eagerEnumerationCalled = true
+        throw new Error('eager enumeration should not be used')
+      },
+      listSessionCandidateIds: () => candidateIds,
+      openReadonly: (sessionId) => {
+        if (sessionId === 'damaged') throw new Error('fixture failure')
+        return env.adapter.openReadonly(sessionId)
+      },
+    }
+    const failureResult = await createCrossChatAnalysisService({
+      adapter: failureAdapter,
+      contactsService,
+    }).inspectSharedInteractions({ participants })
+
+    assert.equal(eagerEnumerationCalled, false)
+    assert.deepEqual(
+      failureResult.sessions.map((session) => session.sessionId),
+      ['group-work']
+    )
+    assert.deepEqual(failureResult.coverage.failedSessionIds, ['damaged'])
+
+    let identityNow = 0
+    const identityOpenedSessions: string[] = []
+    const slowContactsService: Pick<ContactsService, 'getContactDetail' | 'getContactsPage'> = {
+      ...contactsService,
+      getContactDetail: (key, options) => {
+        const result = contactsService.getContactDetail(key, options)
+        identityNow = 9_000
+        return result
+      },
+    }
+    const identityTimedAdapter: SessionRuntimeAdapter = {
+      ...env.adapter,
+      openReadonly: (sessionId) => {
+        identityOpenedSessions.push(sessionId)
+        return env.adapter.openReadonly(sessionId)
+      },
+    }
+    const identityTimedResult = await createCrossChatAnalysisService({
+      adapter: identityTimedAdapter,
+      contactsService: slowContactsService,
+      now: () => identityNow,
+    }).inspectSharedInteractions({ participants, maxWallTimeMs: 8_000 })
+
+    assert.deepEqual(identityOpenedSessions, [])
+    assert.equal(identityTimedResult.coverage.scannedSessions, 0)
+    assert.ok(identityTimedResult.coverage.truncatedReasons.includes('time_budget'))
+
+    let now = 0
+    const openedSessions: string[] = []
+    const timedAdapter: SessionRuntimeAdapter = {
+      ...env.adapter,
+      listSessionCandidateIds: () => {
+        now = 9_000
+        return env.adapter.listSessionCandidateIds!()
+      },
+      openReadonly: (sessionId) => {
+        openedSessions.push(sessionId)
+        return env.adapter.openReadonly(sessionId)
+      },
+    }
+    const timedResult = await createCrossChatAnalysisService({
+      adapter: timedAdapter,
+      contactsService,
+      now: () => now,
+    }).inspectSharedInteractions({ participants, maxWallTimeMs: 8_000 })
+
+    assert.deepEqual(openedSessions, [])
+    assert.equal(timedResult.coverage.scannedSessions, 0)
+    assert.ok(timedResult.coverage.truncatedReasons.includes('time_budget'))
+    assert.ok(timedResult.coverage.nextCursor)
+
+    const controller = new AbortController()
+    const cancelledAdapter: SessionRuntimeAdapter = {
+      ...env.adapter,
+      listSessionCandidateIds: () => {
+        controller.abort()
+        return env.adapter.listSessionCandidateIds!()
+      },
+    }
+    await assert.rejects(
+      () =>
+        createCrossChatAnalysisService({ adapter: cancelledAdapter, contactsService }).inspectSharedInteractions(
+          { participants },
+          { signal: controller.signal }
+        ),
+      { name: 'AbortError' }
+    )
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('shared interaction inspection excludes cross-window messages from proximity signals', async () => {
+  const { env, contactsService } = createFixture()
+  try {
+    env.seed({
+      id: 'group-distant',
+      name: 'Distant group',
+      type: 'group',
+      members: [
+        { id: 10, platformId: 'alice', name: 'Alice' },
+        { id: 20, platformId: 'bob', name: 'Bob' },
+      ],
+      messages: [
+        { id: 1, senderId: 10, ts: 500, content: 'Alice' },
+        { id: 2, senderId: 20, ts: 500 + 2 * 86400, content: 'Bob much later' },
+      ],
+    })
+    const result = await createCrossChatAnalysisService({
+      adapter: env.adapter,
+      contactsService,
+    }).inspectSharedInteractions({
+      participants: [
+        { type: 'contact', contactKey: 'test:alice' },
+        { type: 'contact', contactKey: 'test:bob' },
+      ],
+    })
+
+    const distant = result.sessions.find((session) => session.sessionId === 'group-distant')
+    assert.ok(distant)
+    assert.equal(distant.pairs[0].coOccurrenceCount, 0)
+    assert.equal(distant.pairs[0].coOccurrenceRawScore, 0)
+    assert.equal(distant.pairs[0].lastProximityTs, null)
+    assert.equal(
+      distant.pairs[0].anchors.some((anchor) => anchor.signal === 'proximity'),
+      false
+    )
+    assert.equal(distant.priorityReasons.includes('has_proximity'), false)
+    assert.equal(result.summary.sessionsWithProximitySignals, 1)
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('shared interaction inspection resolves participants from the all-history contact snapshot', async () => {
+  const { env, contactsService: fixtureContactsService } = createFixture()
+  const detailPresets: Array<string | undefined> = []
+  try {
+    const contactsService: Pick<ContactsService, 'getContactDetail' | 'getContactsPage'> = {
+      ...fixtureContactsService,
+      getContactDetail: (key, options) => {
+        detailPresets.push(options?.timeRangePreset)
+        return options?.timeRangePreset === 'all' ? fixtureContactsService.getContactDetail(key, options) : detail(null)
+      },
+    }
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+
+    const result = await service.inspectSharedInteractions({
+      participants: [
+        { type: 'contact', contactKey: 'test:alice' },
+        { type: 'contact', contactKey: 'test:bob' },
+      ],
+    })
+
+    assert.deepEqual(
+      result.sessions.map((session) => session.sessionId),
+      ['group-work']
+    )
+    assert.deepEqual(detailPresets, ['all', 'all'])
+  } finally {
+    env.cleanup()
+  }
+})
+
 test('shared interaction inspection resumes common sessions without skipping a page', async () => {
   const { env, contactsService } = createFixture()
   try {
