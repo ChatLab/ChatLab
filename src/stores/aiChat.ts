@@ -558,10 +558,13 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     return true
   }
 
-  async function loadAIChat(chatKey: string, aiChatId: string): Promise<boolean> {
+  async function loadAIChatForSelection(
+    chatKey: string,
+    aiChatId: string,
+    selectionGeneration: number
+  ): Promise<boolean> {
     const state = getSessionState(chatKey)
-    if (!state) return false
-    const selectionGeneration = advanceAIChatSelection(chatKey)
+    if (!state || !isLatestAIChatSelection(chatKey, selectionGeneration)) return false
 
     try {
       const conversation = await useAIService().getAIChat(aiChatId)
@@ -597,6 +600,11 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       console.error('[AI] 加载对话历史失败：', error)
       return false
     }
+  }
+
+  async function loadAIChat(chatKey: string, aiChatId: string): Promise<boolean> {
+    if (!getSessionState(chatKey)) return false
+    return loadAIChatForSelection(chatKey, aiChatId, advanceAIChatSelection(chatKey))
   }
 
   function focusAIChat(chatKey: string, aiChatId: string | null): boolean {
@@ -635,24 +643,31 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     }
     const state = getSessionState(chatKey)
     if (!state || state.isAIThinking) return
+    const selectionGeneration = advanceAIChatSelection(chatKey)
 
     if (!assistantStore.isLoaded) {
       await assistantStore.loadAssistants()
+      if (!isLatestAIChatSelection(chatKey, selectionGeneration)) return
     }
 
-    if (preferredAIChatId && (await loadAIChat(chatKey, preferredAIChatId))) {
-      return
+    if (preferredAIChatId) {
+      if (await loadAIChatForSelection(chatKey, preferredAIChatId, selectionGeneration)) return
+      if (!isLatestAIChatSelection(chatKey, selectionGeneration)) return
     }
 
     try {
       const latestAIChat = (await useAIService().getAIChats(state.sessionId))[0]
-      if (latestAIChat && latestAIChat.id !== preferredAIChatId && (await loadAIChat(chatKey, latestAIChat.id))) {
-        return
+      if (!isLatestAIChatSelection(chatKey, selectionGeneration)) return
+      if (latestAIChat && latestAIChat.id !== preferredAIChatId) {
+        if (await loadAIChatForSelection(chatKey, latestAIChat.id, selectionGeneration)) return
+        if (!isLatestAIChatSelection(chatKey, selectionGeneration)) return
       }
     } catch (error) {
+      if (!isLatestAIChatSelection(chatKey, selectionGeneration)) return
       console.error('[AI] Failed to load the latest conversation:', error)
     }
 
+    if (!isLatestAIChatSelection(chatKey, selectionGeneration)) return
     if (!state.selectedAssistantId) {
       const defaultId = getDefaultGeneralAssistantId(state.locale)
       selectAssistantForSession(chatKey, defaultId)
