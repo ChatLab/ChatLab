@@ -37,6 +37,7 @@ const initializing = ref(true)
 const chatInputRef = ref<{ clearDraft: () => void } | null>(null)
 let isUnmounted = false
 let conversationSelectionRequestId = 0
+let contextEstimateRequestId = 0
 
 function isGlobalPageActive(): boolean {
   return !isUnmounted && route.name === 'global-ai'
@@ -161,14 +162,17 @@ watch(currentAIChatId, (aiChatId, previousId) => {
 watch(
   currentAIChatId,
   async (aiChatId) => {
+    const requestId = ++contextEstimateRequestId
     if (!aiChatId) {
       estimatedContextTokens.value = 0
       return
     }
     try {
       const result = await aiService.estimateContextTokens(aiChatId)
+      if (requestId !== contextEstimateRequestId || currentAIChatId.value !== aiChatId) return
       estimatedContextTokens.value = result.success ? result.tokens : 0
     } catch {
+      if (requestId !== contextEstimateRequestId || currentAIChatId.value !== aiChatId) return
       estimatedContextTokens.value = 0
     }
   },
@@ -220,6 +224,7 @@ onMounted(async () => {
 onUnmounted(() => {
   isUnmounted = true
   conversationSelectionRequestId++
+  contextEstimateRequestId++
 })
 </script>
 
