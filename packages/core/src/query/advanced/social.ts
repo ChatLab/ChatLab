@@ -374,8 +374,10 @@ export function accumulateSelectedCoOccurrencePairs(
   options?: ClusterGraphOptions & { maxAnchorsPerPair?: number }
 ): SelectedCoOccurrencePairStats[] {
   const opts = { ...DEFAULT_CLUSTER_OPTIONS, ...options }
+  const lookAhead = Math.max(0, Math.ceil(opts.lookAhead))
   const maxAnchorsPerPair = Math.max(0, Math.floor(options?.maxAnchorsPerPair ?? 2))
   const selectedKeys = new Set(selectedPairs.map(([left, right]) => clusterPairKey(left, right)))
+  const candidateIndexes = buildDistinctSpeakerLookAhead(messages, lookAhead)
   const stats = new Map<
     string,
     {
@@ -390,18 +392,15 @@ export function accumulateSelectedCoOccurrencePairs(
 
   for (let i = 0; i < messages.length - 1; i++) {
     const anchor = messages[i]
-    const seenPartners = new Set<number>()
-    let partnersFound = 0
-    for (let j = i + 1; j < messages.length && partnersFound < opts.lookAhead; j++) {
-      const candidate = messages[j]
-      if (candidate.senderId === anchor.senderId || seenPartners.has(candidate.senderId)) continue
-      seenPartners.add(candidate.senderId)
-      partnersFound++
+    for (let partnerIndex = 0; partnerIndex < lookAhead; partnerIndex++) {
+      const candidateIndex = candidateIndexes[i * lookAhead + partnerIndex]
+      if (candidateIndex < 0) break
+      const candidate = messages[candidateIndex]
       const key = clusterPairKey(anchor.senderId, candidate.senderId)
       if (!selectedKeys.has(key)) continue
       const deltaSeconds = candidate.ts - anchor.ts
       const decayWeight = Math.exp(-deltaSeconds / opts.decaySeconds)
-      const positionWeight = 1 - (partnersFound - 1) * 0.2
+      const positionWeight = 1 - partnerIndex * 0.2
       const weight = decayWeight * positionWeight
       const sourceId = Math.min(anchor.senderId, candidate.senderId)
       const targetId = Math.max(anchor.senderId, candidate.senderId)
@@ -442,6 +441,55 @@ export function accumulateSelectedCoOccurrencePairs(
       .sort((left, right) => right.weight - left.weight || right.timestamp - left.timestamp)
       .slice(0, maxAnchorsPerPair),
   }))
+}
+
+/**
+ * 为每条消息预计算其后最先出现的若干位不同发言人。
+ *
+ * 反向扫描时，链表中只保留每位发言人在当前位置之后的首次出现，且按消息位置升序排列。
+ * 因而每条消息只需读取链表头部的 lookAhead 个节点，避免双人长对话反复扫描到数组末尾。
+ */
+function buildDistinctSpeakerLookAhead(messages: IdentifiedCoOccurrenceMessage[], lookAhead: number): Int32Array {
+  const candidateIndexes = new Int32Array(messages.length * lookAhead)
+  candidateIndexes.fill(-1)
+  if (lookAhead === 0 || messages.length === 0) return candidateIndexes
+
+  const previousIndexes = new Int32Array(messages.length)
+  const nextIndexes = new Int32Array(messages.length)
+  previousIndexes.fill(-1)
+  nextIndexes.fill(-1)
+  const activeIndexBySender = new Map<number, number>()
+  let headIndex = -1
+
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const anchor = messages[index]
+    let candidateIndex = headIndex
+    let found = 0
+    while (candidateIndex >= 0 && found < lookAhead) {
+      if (messages[candidateIndex].senderId !== anchor.senderId) {
+        candidateIndexes[index * lookAhead + found] = candidateIndex
+        found++
+      }
+      candidateIndex = nextIndexes[candidateIndex]
+    }
+
+    const previousOccurrence = activeIndexBySender.get(anchor.senderId)
+    if (previousOccurrence !== undefined) {
+      const previousIndex = previousIndexes[previousOccurrence]
+      const nextIndex = nextIndexes[previousOccurrence]
+      if (previousIndex >= 0) nextIndexes[previousIndex] = nextIndex
+      else headIndex = nextIndex
+      if (nextIndex >= 0) previousIndexes[nextIndex] = previousIndex
+    }
+
+    previousIndexes[index] = -1
+    nextIndexes[index] = headIndex
+    if (headIndex >= 0) previousIndexes[headIndex] = index
+    headIndex = index
+    activeIndexBySender.set(anchor.senderId, index)
+  }
+
+  return candidateIndexes
 }
 
 function retainBestSelectedAnchor(

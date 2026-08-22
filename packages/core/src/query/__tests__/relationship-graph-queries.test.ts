@@ -126,6 +126,31 @@ describe('relationship graph query helpers', () => {
     )
   })
 
+  it('keeps two-speaker look-ahead scans linear for long conversations', () => {
+    const messageCount = 20_000
+    const source = Array.from({ length: messageCount }, (_, index) => ({
+      messageId: index + 1,
+      senderId: (index % 2) + 1,
+      ts: index,
+    }))
+    const maxMessageReads = messageCount * 8
+    let messageReads = 0
+    const messages = new Proxy(source, {
+      get(target, property, receiver) {
+        if (typeof property === 'string' && /^\d+$/.test(property)) {
+          messageReads++
+          if (messageReads > maxMessageReads) throw new Error('message look-ahead scan exceeded its linear bound')
+        }
+        return Reflect.get(target, property, receiver)
+      },
+    })
+
+    const pairs = accumulateSelectedCoOccurrencePairs(messages, [[1, 2]])
+
+    assert.equal(pairs[0]?.coOccurrenceCount, messageCount - 1)
+    assert.ok(messageReads <= maxMessageReads)
+  })
+
   afterEach(() => {
     raw.close()
   })
