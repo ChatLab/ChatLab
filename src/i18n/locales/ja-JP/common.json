@@ -8,6 +8,8 @@
   "capture": "スクリーンショット",
   "close": "閉じる",
   "back": "戻る",
+  "collapseSidebar": "サイドバーを折りたたむ",
+  "expandSidebar": "サイドバーを展開",
   "done": "完了",
   "retry": "リトライ",
   "initFailed": "アプリの初期化に失敗しました",

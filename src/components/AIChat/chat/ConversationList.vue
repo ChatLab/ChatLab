@@ -215,7 +215,8 @@ defineExpose({
     <div
       class="absolute inset-y-0 left-0 overflow-hidden rounded-lg bg-white transition-[width] duration-300 ease-in-out motion-reduce:transition-none dark:bg-sidebar-dark"
       :class="collapsed ? 'pointer-events-none w-0' : 'w-64'"
-      :aria-hidden="collapsed"
+      :inert="collapsed"
+      :aria-hidden="collapsed ? 'true' : undefined"
     >
       <div class="flex h-full w-64 flex-col">
         <div class="h-[52px] shrink-0 border-b border-gray-200 dark:border-gray-800" />
@@ -348,7 +349,11 @@ defineExpose({
     <!-- 常驻工具栏独立于面板，收起过程中不重排 -->
     <div class="pointer-events-none absolute left-0 top-0 z-10 h-[52px] w-[92px]">
       <div v-if="canCollapse" class="pointer-events-auto absolute left-2 top-2">
-        <SidebarCollapseButton :collapsed="collapsed" @click="toggleAIChatSidebar" />
+        <SidebarCollapseButton
+          :collapsed="collapsed"
+          :accessible-label="t(collapsed ? 'common.expandSidebar' : 'common.collapseSidebar')"
+          @click="toggleAIChatSidebar"
+        />
       </div>
       <button
         type="button"
