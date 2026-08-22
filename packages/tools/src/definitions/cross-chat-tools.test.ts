@@ -199,7 +199,11 @@ describe('cross-chat agent registry', () => {
             displayName: '小红',
             platform: 'test',
             aliases: ['小红 A'],
-            sourceSessions: [{ id: 'private-1', name: '小红 A', type: ChatType.PRIVATE }],
+            sourceSessions: Array.from({ length: 5 }, (_, index) => ({
+              id: `group-${index}`,
+              name: `小红所在群 ${index}`,
+              type: ChatType.GROUP,
+            })),
           },
           {
             contactKey: 'test:xiaohong-2',
@@ -226,12 +230,111 @@ describe('cross-chat agent registry', () => {
         }
       },
     } as Partial<CrossChatAnalysisToolService>)
+    context.maxToolResultTokens = 2_000
+    context.countTokens = (text) => Math.ceil(text.length / 4)
     const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'resolve_chat_entities')
     assert.ok(tool)
 
     const result = await tool.handler({ entities: [{ type: 'contact', displayName: '小红' }] }, context)
     assert.deepEqual(resolvedRefs, [])
     assert.equal((result.data as { contactLookups: Array<{ status: string }> }).contactLookups[0]?.status, 'ambiguous')
+    const modelData = JSON.parse(result.content) as {
+      contactLookups: Array<{
+        candidates: Array<{
+          sourceSessionCount: number
+          sourceSessionHints: unknown[]
+          sourceSessionHintsTruncated: boolean
+        }>
+      }>
+    }
+    assert.equal(modelData.contactLookups[0]?.candidates[0]?.sourceSessionCount, 5)
+    assert.equal(modelData.contactLookups[0]?.candidates[0]?.sourceSessionHints.length, 3)
+    assert.equal(modelData.contactLookups[0]?.candidates[0]?.sourceSessionHintsTruncated, true)
+  })
+
+  it('budgets model-visible entity scopes without dropping full tool details', async () => {
+    const resolvedSessions = Array.from({ length: 100 }, (_, index) => ({
+      sessionId: `group-${index}`,
+      sessionName: `工作交流群 ${index}`,
+      sessionType: ChatType.GROUP,
+      platform: 'test' as const,
+      lastMessageTs: 1000 - index,
+      memberId: index + 1,
+      memberPlatformId: 'xiaohong',
+      memberName: '小红',
+    }))
+    const sourceSessions = resolvedSessions.map((session) => ({
+      id: session.sessionId,
+      name: session.sessionName,
+      type: session.sessionType,
+    }))
+    const context = createContext({
+      lookupContact: () => ({
+        query: '小红',
+        status: 'resolved',
+        cacheStatus: 'fresh',
+        totalCandidates: 1,
+        candidates: [
+          {
+            contactKey: 'test:xiaohong',
+            displayName: '小红',
+            platform: 'test',
+            aliases: [],
+            sourceSessions,
+          },
+        ],
+      }),
+      resolveEntities: async () => ({
+        contacts: [
+          {
+            ref: { type: 'contact', contactKey: 'test:xiaohong', displayName: '小红' },
+            status: 'resolved',
+            cacheStatus: 'fresh',
+            sessions: resolvedSessions,
+            unresolvedSessionIds: [],
+            failedSessionIds: [],
+          },
+        ],
+        sessions: [],
+        unresolved: [],
+        coverage: {
+          requestedEntities: 1,
+          resolvedEntities: 1,
+          candidateSessions: resolvedSessions.length,
+          resolvedSessions: resolvedSessions.length,
+          failedSessions: 0,
+        },
+      }),
+    })
+    const countTokens = (text: string) => Math.ceil(text.length / 4)
+    context.maxToolResultTokens = 800
+    context.countTokens = countTokens
+    const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'resolve_chat_entities')
+    assert.ok(tool)
+
+    const result = await tool.handler({ entities: [{ type: 'contact', displayName: '小红' }] }, context)
+    const modelData = JSON.parse(result.content) as {
+      contacts: Array<{ sessionCount: number; returnedSessions: number; sessions: unknown[] }>
+      coverage: { returnedSourceScopes: number; truncated: boolean; truncatedReasons: string[] }
+      contactLookups: Array<{
+        candidates: Array<{ sourceSessionCount: number; sourceSessions?: unknown[] }>
+      }>
+    }
+    const details = result.data as {
+      contacts: Array<{ sessions: unknown[] }>
+      contactLookups: Array<{ candidates: Array<{ sourceSessions: unknown[] }> }>
+    }
+
+    assert.ok(countTokens(result.content) <= 800)
+    assert.equal(modelData.coverage.truncated, true)
+    assert.ok(modelData.coverage.truncatedReasons.includes('tool_result_budget'))
+    assert.ok(modelData.coverage.returnedSourceScopes < resolvedSessions.length)
+    assert.equal(modelData.contacts[0]?.sessionCount, resolvedSessions.length)
+    assert.equal(modelData.contacts[0]?.returnedSessions, modelData.contacts[0]?.sessions.length)
+    assert.equal(modelData.contactLookups[0]?.candidates[0]?.sourceSessionCount, sourceSessions.length)
+    assert.equal(modelData.contactLookups[0]?.candidates[0]?.sourceSessions, undefined)
+    assert.equal(details.contacts[0]?.sessions.length, resolvedSessions.length)
+    assert.equal(details.contactLookups[0]?.candidates[0]?.sourceSessions.length, sourceSessions.length)
   })
 
   it('sanitizes each session before returning global search evidence', async () => {

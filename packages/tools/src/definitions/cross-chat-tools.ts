@@ -1,8 +1,11 @@
 import type {
   AIEntityRef,
   CrossChatContactLookupResult,
+  CrossChatEntityResolution,
   CrossChatEvidencePayload,
   CrossChatMessageSource,
+  CrossChatResolvedContactSession,
+  CrossChatResolvedSession,
   CrossChatSearchScope,
 } from '@openchatlab/shared-types'
 import type { CrossChatToolExecutionContext, JsonSchema, ToolDefinition, ToolResult } from '../types'
@@ -126,7 +129,13 @@ async function resolveHandler(
     signal: context.abortSignal,
   })
   const data = { ...resolution, contactLookups }
-  return { content: JSON.stringify(data), data }
+  const modelData = limitEntityResolutionToBudget(
+    resolution,
+    contactLookups,
+    context.maxToolResultTokens,
+    context.countTokens
+  )
+  return { content: JSON.stringify(modelData), data }
 }
 
 async function searchHandler(
@@ -393,6 +402,189 @@ function limitMessagesToBudget(
   }
   const limited = [...selectedIndexes].sort((left, right) => left - right).map((index) => prepared[index])
   return { messages: limited, truncated: limited.length < prepared.length }
+}
+
+type EntityResolutionScopeItem =
+  | { kind: 'contact'; contactIndex: number; session: CrossChatResolvedContactSession }
+  | { kind: 'session'; sessionIndex: number; session: CrossChatResolvedSession }
+
+function limitEntityResolutionToBudget(
+  resolution: CrossChatEntityResolution,
+  contactLookups: CrossChatContactLookupResult[],
+  maxToolResultTokens: number | undefined,
+  injectedCountTokens?: (text: string) => number
+): unknown {
+  const fullData = { ...resolution, contactLookups }
+  if (!maxToolResultTokens || maxToolResultTokens <= 0) return fullData
+
+  const countTokens = injectedCountTokens ?? estimatePayloadTokens
+  const scopeItems = buildEntityResolutionScopePriority(resolution)
+  let includeLookupHints = true
+  let emptyPayload = buildEntityResolutionPayload(resolution, contactLookups, scopeItems, 0, includeLookupHints)
+  // 先舍弃只用于姓名消歧的来源提示，把预算优先留给后续工具真正需要的精确 scope。
+  if (countTokens(JSON.stringify(emptyPayload)) > maxToolResultTokens) {
+    includeLookupHints = false
+    emptyPayload = buildEntityResolutionPayload(resolution, contactLookups, scopeItems, 0, includeLookupHints)
+  }
+  if (countTokens(JSON.stringify(emptyPayload)) > maxToolResultTokens) {
+    return buildMinimalEntityResolutionPayload(resolution, contactLookups, maxToolResultTokens, countTokens)
+  }
+
+  let low = 0
+  let high = scopeItems.length
+  // 最终 JSON 每次都用平台 tokenizer 复核；二分前缀避免大量来源时反复编码完整增长数组。
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2)
+    const candidate = buildEntityResolutionPayload(resolution, contactLookups, scopeItems, middle, includeLookupHints)
+    if (countTokens(JSON.stringify(candidate)) <= maxToolResultTokens) low = middle
+    else high = middle - 1
+  }
+  return buildEntityResolutionPayload(resolution, contactLookups, scopeItems, low, includeLookupHints)
+}
+
+function buildEntityResolutionScopePriority(resolution: CrossChatEntityResolution): EntityResolutionScopeItem[] {
+  const items: EntityResolutionScopeItem[] = []
+  // 用户显式选择的会话优先；联系人来源按最近时间轮询，避免第一个联系人耗尽全部预算。
+  for (const [sessionIndex, session] of resolution.sessions.entries()) {
+    if (session.status === 'resolved' && session.session) items.push({ kind: 'session', sessionIndex, session })
+  }
+
+  const contactSessions = resolution.contacts.map((contact) =>
+    [...contact.sessions].sort(
+      (left, right) =>
+        (right.lastMessageTs ?? Number.NEGATIVE_INFINITY) - (left.lastMessageTs ?? Number.NEGATIVE_INFINITY)
+    )
+  )
+  for (let depth = 0; ; depth++) {
+    let added = false
+    for (const [contactIndex, sessions] of contactSessions.entries()) {
+      const session = sessions[depth]
+      if (!session) continue
+      items.push({ kind: 'contact', contactIndex, session })
+      added = true
+    }
+    if (!added) break
+  }
+  return items
+}
+
+function buildEntityResolutionPayload(
+  resolution: CrossChatEntityResolution,
+  contactLookups: CrossChatContactLookupResult[],
+  scopeItems: EntityResolutionScopeItem[],
+  selectedScopeCount: number,
+  includeLookupHints: boolean
+): Record<string, unknown> {
+  const selectedContactSessions = new Map<number, CrossChatResolvedContactSession[]>()
+  const selectedSessionIndexes = new Set<number>()
+  for (const item of scopeItems.slice(0, selectedScopeCount)) {
+    if (item.kind === 'session') {
+      selectedSessionIndexes.add(item.sessionIndex)
+      continue
+    }
+    const sessions = selectedContactSessions.get(item.contactIndex) ?? []
+    sessions.push(item.session)
+    selectedContactSessions.set(item.contactIndex, sessions)
+  }
+
+  const truncated = selectedScopeCount < scopeItems.length
+  const contacts = resolution.contacts.map((contact, index) => {
+    const sessions = selectedContactSessions.get(index) ?? []
+    return {
+      ref: contact.ref,
+      status: contact.status,
+      cacheStatus: contact.cacheStatus,
+      sessionCount: contact.sessions.length,
+      returnedSessions: sessions.length,
+      sessions,
+      unresolvedSessionCount: contact.unresolvedSessionIds.length,
+      failedSessionCount: contact.failedSessionIds.length,
+    }
+  })
+  const sessions = resolution.sessions.filter(
+    (session, index) => session.status === 'unresolved' || selectedSessionIndexes.has(index)
+  )
+
+  return {
+    contacts,
+    sessions,
+    unresolved: resolution.unresolved,
+    coverage: {
+      ...resolution.coverage,
+      returnedContactEntities: contacts.length,
+      returnedSessionEntities: sessions.length,
+      returnedSourceScopes: selectedScopeCount,
+      truncated,
+      truncatedReasons: truncated ? ['tool_result_budget'] : [],
+    },
+    contactLookups: buildModelContactLookups(contactLookups, includeLookupHints),
+  }
+}
+
+function buildModelContactLookups(
+  contactLookups: CrossChatContactLookupResult[],
+  includeHints: boolean
+): Array<Record<string, unknown>> {
+  return contactLookups.map((lookup) => ({
+    query: lookup.query,
+    status: lookup.status,
+    cacheStatus: lookup.cacheStatus,
+    totalCandidates: lookup.totalCandidates,
+    candidates: lookup.candidates.map((candidate) => {
+      const hints = includeHints && lookup.status === 'ambiguous' ? candidate.sourceSessions.slice(0, 3) : []
+      return {
+        contactKey: candidate.contactKey,
+        displayName: candidate.displayName,
+        platform: candidate.platform,
+        aliases: candidate.aliases.slice(0, 8),
+        aliasCount: candidate.aliases.length,
+        sourceSessionCount: candidate.sourceSessions.length,
+        sourceSessionHintsReturned: hints.length,
+        sourceSessionHintsTruncated: lookup.status === 'ambiguous' && hints.length < candidate.sourceSessions.length,
+        ...(hints.length > 0
+          ? {
+              sourceSessionHints: hints,
+            }
+          : {}),
+      }
+    }),
+  }))
+}
+
+function buildMinimalEntityResolutionPayload(
+  resolution: CrossChatEntityResolution,
+  contactLookups: CrossChatContactLookupResult[],
+  maxToolResultTokens: number,
+  countTokens: (text: string) => number
+): Record<string, unknown> {
+  const coverage = {
+    ...resolution.coverage,
+    returnedContactEntities: 0,
+    returnedSessionEntities: 0,
+    returnedSourceScopes: 0,
+    truncated: true,
+    truncatedReasons: ['tool_result_budget'],
+  }
+  const candidates: Array<Record<string, unknown>> = [
+    {
+      contacts: [],
+      sessions: [],
+      unresolved: [],
+      coverage,
+      contactLookups: contactLookups.map((lookup) => ({
+        query: lookup.query,
+        status: lookup.status,
+        totalCandidates: lookup.totalCandidates,
+      })),
+    },
+    { coverage },
+    { truncated: true, truncatedReasons: ['tool_result_budget'] },
+  ]
+  return (
+    candidates.find((candidate) => countTokens(JSON.stringify(candidate)) <= maxToolResultTokens) ?? {
+      truncated: true,
+    }
+  )
 }
 
 function estimatePayloadTokens(text: string): number {
