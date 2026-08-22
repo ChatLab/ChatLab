@@ -8,6 +8,8 @@
   "capture": "截圖",
   "close": "關閉",
   "back": "返回上一頁",
+  "collapseSidebar": "收起側邊欄",
+  "expandSidebar": "展開側邊欄",
   "done": "完成",
   "retry": "重試",
   "initFailed": "應用程式初始化失敗",

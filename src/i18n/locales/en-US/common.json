@@ -8,6 +8,8 @@
   "capture": "Capture",
   "close": "Close",
   "back": "Back",
+  "collapseSidebar": "Collapse sidebar",
+  "expandSidebar": "Expand sidebar",
   "done": "Done",
   "retry": "Retry",
   "initFailed": "App initialization failed",

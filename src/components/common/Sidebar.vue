@@ -500,7 +500,11 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
             {{ t('layout.updateNotice.tag') }}
           </button>
         </div>
-        <SidebarCollapseButton :collapsed="isCollapsed" @click="toggleSidebar">
+        <SidebarCollapseButton
+          :collapsed="isCollapsed"
+          :accessible-label="t(isCollapsed ? 'common.expandSidebar' : 'common.collapseSidebar')"
+          @click="toggleSidebar"
+        >
           <img :src="logoSvg" alt="ChatLab" class="size-5 select-none pointer-events-none group-hover:hidden" />
           <UIcon name="i-lucide-panel-right-open" class="size-4 hidden scale-x-[-1] group-hover:block" />
         </SidebarCollapseButton>
