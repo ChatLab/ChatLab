@@ -1160,6 +1160,7 @@ function mapSharedInteractionSession(
       fromParticipantIndex: participantIndexByMemberId.get(anchor.fromMemberId) ?? 0,
       toParticipantIndex: participantIndexByMemberId.get(anchor.toMemberId) ?? 0,
     })),
+    anchorsTruncated: pair.anchorsTruncated,
   }))
   const priorityReasons: CrossChatSharedInteractionsResult['sessions'][number]['priorityReasons'] = []
   if (pairs.some((pair) => pair.directReplyCount > 0)) priorityReasons.push('has_direct_reply')

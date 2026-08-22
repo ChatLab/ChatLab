@@ -69,6 +69,7 @@ export interface ParticipantInteractionPairFacts {
   lastProximityTs: number | null
   coActiveDays: number
   anchors: ParticipantInteractionAnchor[]
+  anchorsTruncated: boolean
 }
 
 export interface ParticipantSetInteractionFacts {
@@ -323,6 +324,7 @@ export function getParticipantSetInteractionFacts(
           activeDaysByMemberId.get(targetMemberId) ?? new Set()
         ),
         anchors: [],
+        anchorsTruncated: false,
       })
     }
   }
@@ -354,7 +356,7 @@ export function getParticipantSetInteractionFacts(
     replyTs: number
   }>
   const maxAnchorsPerPair = Math.max(0, Math.floor(options.maxAnchorsPerPair ?? 4))
-  const replyDirectionsWithAnchor = new Set<string>()
+  const replyDirectionsSeen = new Set<string>()
   for (const row of replyRows) {
     if (row.replySenderId === row.targetSenderId) continue
     const pair = pairMap.get(contactPairKey(row.replySenderId, row.targetSenderId))
@@ -364,16 +366,20 @@ export function getParticipantSetInteractionFacts(
     else pair.repliesFromTargetToSource++
     pair.lastDirectReplyTs = Math.max(pair.lastDirectReplyTs ?? 0, row.replyTs)
     const directionKey = `${row.replySenderId}:${row.targetSenderId}`
-    if (pair.anchors.length < maxAnchorsPerPair && !replyDirectionsWithAnchor.has(directionKey)) {
-      replyDirectionsWithAnchor.add(directionKey)
-      pair.anchors.push({
-        messageId: row.messageId,
-        relatedMessageId: row.relatedMessageId,
-        timestamp: row.replyTs,
-        signal: 'direct_reply',
-        fromMemberId: row.replySenderId,
-        toMemberId: row.targetSenderId,
-      })
+    if (!replyDirectionsSeen.has(directionKey)) {
+      replyDirectionsSeen.add(directionKey)
+      if (pair.anchors.length < maxAnchorsPerPair) {
+        pair.anchors.push({
+          messageId: row.messageId,
+          relatedMessageId: row.relatedMessageId,
+          timestamp: row.replyTs,
+          signal: 'direct_reply',
+          fromMemberId: row.replySenderId,
+          toMemberId: row.targetSenderId,
+        })
+      } else {
+        pair.anchorsTruncated = true
+      }
     }
   }
 
@@ -407,7 +413,8 @@ export function getParticipantSetInteractionFacts(
     const selectedPairFacts = accumulateSelectedCoOccurrencePairs(
       proximityRows,
       [...pairMap.values()].map((pair) => [pair.sourceMemberId, pair.targetMemberId] as const),
-      { maxAnchorsPerPair }
+      // 多保留一个候选，用于区分“命中上限”和“确实省略了证据”。
+      { maxAnchorsPerPair: maxAnchorsPerPair + 1 }
     )
     for (const selected of selectedPairFacts) {
       const pair = pairMap.get(contactPairKey(selected.sourceId, selected.targetId))
@@ -416,7 +423,10 @@ export function getParticipantSetInteractionFacts(
       pair.coOccurrenceRawScore = selected.rawScore
       pair.lastProximityTs = selected.lastOccurrenceTs
       for (const anchor of selected.anchors) {
-        if (pair.anchors.length >= maxAnchorsPerPair) break
+        if (pair.anchors.length >= maxAnchorsPerPair) {
+          pair.anchorsTruncated = true
+          break
+        }
         pair.anchors.push({
           messageId: anchor.messageId,
           relatedMessageId: anchor.relatedMessageId,

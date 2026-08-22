@@ -389,7 +389,12 @@ async function inspectSharedInteractionsHandler(
         }),
     }
   )
-  const data: CrossChatSharedInteractionsResult = budget.limited ? withToolResultBudgetReason(result) : result
+  const pageBudgetTruncated =
+    budget.pageLimited && result.coverage.nextCursor !== null && result.coverage.truncatedReasons.includes('page_size')
+  const anchorBudgetTruncated =
+    budget.anchorsLimited && result.sessions.some((session) => session.pairs.some((pair) => pair.anchorsTruncated))
+  const data: CrossChatSharedInteractionsResult =
+    pageBudgetTruncated || anchorBudgetTruncated ? withToolResultBudgetReason(result) : result
   return { content: JSON.stringify(data), data }
 }
 
@@ -535,12 +540,18 @@ function limitSharedResultToBudget(
   requestedPageSize: number | undefined,
   requestedAnchorsPerPair: number | undefined,
   maxToolResultTokens: number | undefined
-): { pageSize: number | undefined; maxAnchorsPerPair: number | undefined; limited: boolean } {
+): {
+  pageSize: number | undefined
+  maxAnchorsPerPair: number | undefined
+  pageLimited: boolean
+  anchorsLimited: boolean
+} {
   if (!maxToolResultTokens || maxToolResultTokens <= 0) {
     return {
       pageSize: requestedPageSize,
       maxAnchorsPerPair: requestedAnchorsPerPair,
-      limited: false,
+      pageLimited: false,
+      anchorsLimited: false,
     }
   }
 
@@ -565,7 +576,8 @@ function limitSharedResultToBudget(
   return {
     pageSize,
     maxAnchorsPerPair,
-    limited: pageSize < requestedPage || maxAnchorsPerPair < requestedAnchors,
+    pageLimited: pageSize < requestedPage,
+    anchorsLimited: maxAnchorsPerPair < requestedAnchors,
   }
 }
 

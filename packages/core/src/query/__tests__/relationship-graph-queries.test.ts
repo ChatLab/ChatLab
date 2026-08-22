@@ -233,6 +233,24 @@ describe('relationship graph query helpers', () => {
     )
   })
 
+  it('reports anchor truncation only when eligible evidence was omitted', () => {
+    const insert = raw.prepare(
+      `INSERT INTO message
+        (id, sender_id, ts, type, content, platform_message_id, reply_to_message_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    insert.run(1, 2, 1704067200, 0, 'alice', 'alice-1', null)
+    insert.run(2, 3, 1704067260, 0, 'bob', 'bob-1', null)
+
+    const complete = getParticipantSetInteractionFacts(db, [2, 3], { maxAnchorsPerPair: 1 })
+    assert.equal(complete.pairs[0].anchors.length, 1)
+    assert.equal(complete.pairs[0].anchorsTruncated, false)
+
+    const truncated = getParticipantSetInteractionFacts(db, [2, 3], { maxAnchorsPerPair: 0 })
+    assert.equal(truncated.pairs[0].anchors.length, 0)
+    assert.equal(truncated.pairs[0].anchorsTruncated, true)
+  })
+
   it('filters interaction events by reply time while allowing an older referenced message', () => {
     const insert = raw.prepare(
       `INSERT INTO message

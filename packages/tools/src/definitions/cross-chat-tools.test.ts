@@ -98,6 +98,73 @@ function contactSessionsResult(sessionCount: number, sessionName = 'Work group')
   }
 }
 
+function sharedInteractionsResult(anchorsTruncated: boolean): CrossChatSharedInteractionsResult {
+  return {
+    algorithmVersion: 'test',
+    proximityAlgorithmVersion: 'test',
+    participants: [],
+    appliedRange: {
+      startTs: null,
+      endTs: null,
+      dataEarliestMessageTs: 100,
+      dataLatestMessageTs: 200,
+    },
+    summary: {
+      scope: 'complete_result',
+      commonSessions: 1,
+      commonPrivateSessions: 0,
+      commonGroupSessions: 1,
+      sessionsWithDirectReplies: 0,
+      sessionsWithProximitySignals: 1,
+    },
+    sessions: [
+      {
+        sessionId: 'group-shared',
+        sessionName: 'Shared group',
+        sessionType: ChatType.GROUP,
+        platform: 'test',
+        lastMessageTs: 200,
+        memberCount: 5,
+        participants: [],
+        overlapRange: { startTs: 100, endTs: 200 },
+        allParticipantsCoActiveDays: 1,
+        pairs: [
+          {
+            sourceParticipantIndex: 0,
+            targetParticipantIndex: 1,
+            directReplyCount: 0,
+            repliesFromSourceToTarget: 0,
+            repliesFromTargetToSource: 0,
+            lastDirectReplyTs: null,
+            coOccurrenceCount: 1,
+            coOccurrenceRawScore: 1,
+            lastProximityTs: 200,
+            coActiveDays: 1,
+            anchors: [],
+            anchorsTruncated,
+          },
+        ],
+        priorityReasons: ['has_proximity'],
+        proximityStatus: 'complete',
+      },
+    ],
+    coverage: {
+      candidateSessions: 1,
+      scannedSessions: 1,
+      matchedSessions: 1,
+      returnedSessions: 1,
+      failedSessions: 0,
+      failedSessionIds: [],
+      complete: true,
+      nextCursor: null,
+      truncated: false,
+      truncatedReasons: [],
+      unresolvedParticipantIndexes: [],
+      identityCollisionSessions: 0,
+    },
+  }
+}
+
 function createContext(overrides: Partial<CrossChatAnalysisToolService> = {}): CrossChatToolExecutionContext {
   const service: CrossChatAnalysisToolService = {
     lookupContact: (query: string): CrossChatContactLookupResult => ({
@@ -372,7 +439,7 @@ describe('cross-chat agent registry', () => {
     assert.ok(tokenCountCalls > 0)
   })
 
-  it('reduces shared-interaction pages to the tool token budget without hiding truncation', async () => {
+  it('does not report shared-interaction truncation when a reduced budget still returns all data', async () => {
     let sharedRequest: Record<string, unknown> | undefined
     const sharedContext = createContext({
       inspectSharedInteractions: async (request) => {
@@ -400,7 +467,76 @@ describe('cross-chat agent registry', () => {
     )
     assert.equal(sharedRequest?.pageSize, 1)
     assert.equal(sharedRequest?.maxAnchorsPerPair, 2)
-    assert.deepEqual((sharedResult.data as CrossChatSharedInteractionsResult).coverage.truncatedReasons, [
+    assert.equal((sharedResult.data as CrossChatSharedInteractionsResult).coverage.truncated, false)
+    assert.deepEqual((sharedResult.data as CrossChatSharedInteractionsResult).coverage.truncatedReasons, [])
+  })
+
+  it('reports the tool budget when reduced anchor capacity actually omits evidence', async () => {
+    const sharedContext = createContext({
+      inspectSharedInteractions: async () => sharedInteractionsResult(true),
+    })
+    sharedContext.maxToolResultTokens = 2_500
+    const sharedTool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'inspect_shared_interactions')
+    assert.ok(sharedTool)
+
+    const result = await sharedTool.handler(
+      {
+        participants: [
+          { type: 'owner' },
+          { type: 'contact', contact_key: 'test:a' },
+          { type: 'contact', contact_key: 'test:b' },
+          { type: 'contact', contact_key: 'test:c' },
+          { type: 'contact', contact_key: 'test:d' },
+        ],
+        page_size: 20,
+        max_anchors_per_pair: 4,
+      },
+      sharedContext
+    )
+
+    assert.deepEqual((result.data as CrossChatSharedInteractionsResult).coverage.truncatedReasons, [
+      'tool_result_budget',
+    ])
+  })
+
+  it('reports the tool budget when a reduced shared-interaction page leaves continuation', async () => {
+    const sharedContext = createContext({
+      inspectSharedInteractions: async () => {
+        const result = sharedInteractionsResult(false)
+        return {
+          ...result,
+          summary: { ...result.summary, scope: 'current_batch' },
+          coverage: {
+            ...result.coverage,
+            complete: false,
+            nextCursor: 'next-page',
+            truncated: true,
+            truncatedReasons: ['page_size'],
+          },
+        }
+      },
+    })
+    sharedContext.maxToolResultTokens = 2_500
+    const sharedTool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'inspect_shared_interactions')
+    assert.ok(sharedTool)
+
+    const result = await sharedTool.handler(
+      {
+        participants: [
+          { type: 'owner' },
+          { type: 'contact', contact_key: 'test:a' },
+          { type: 'contact', contact_key: 'test:b' },
+          { type: 'contact', contact_key: 'test:c' },
+          { type: 'contact', contact_key: 'test:d' },
+        ],
+        page_size: 20,
+        max_anchors_per_pair: 4,
+      },
+      sharedContext
+    )
+
+    assert.deepEqual((result.data as CrossChatSharedInteractionsResult).coverage.truncatedReasons, [
+      'page_size',
       'tool_result_budget',
     ])
   })
