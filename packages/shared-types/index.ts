@@ -815,6 +815,7 @@ export interface CrossChatParticipantPairFacts {
   lastProximityTs: number | null
   coActiveDays: number
   anchors: CrossChatMessageAnchor[]
+  anchorsTruncated: boolean
 }
 
 export interface CrossChatSharedInteractionSessionItem extends CrossChatSessionDescriptor {

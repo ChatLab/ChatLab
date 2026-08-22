@@ -126,6 +126,8 @@ const inspectContactSessionsSchema: JsonSchema = {
   required: ['contact_key'],
 }
 
+const MAX_SHARED_ANCHORS_PER_PAIR = 8
+
 const inspectSharedInteractionsSchema: JsonSchema = {
   type: 'object',
   properties: {
@@ -147,6 +149,8 @@ const inspectSharedInteractionsSchema: JsonSchema = {
     max_anchors_per_pair: {
       type: 'number',
       description: 'Maximum direct-reply and proximity message anchors returned for each participant pair',
+      minimum: 0,
+      maximum: MAX_SHARED_ANCHORS_PER_PAIR,
     },
     max_wall_time_ms: { type: 'number', description: 'Maximum wall time for this inspection batch' },
     ...timeParamProperties,
@@ -156,7 +160,7 @@ const inspectSharedInteractionsSchema: JsonSchema = {
 
 const DEFAULT_CONTACT_INSPECTION_PAGE_SIZE = 50
 const MAX_CONTACT_INSPECTION_PAGE_SIZE = 100
-const CONTACT_MODEL_LABEL_MAX_LENGTH = 80
+const MODEL_LABEL_MAX_LENGTH = 80
 const DEFAULT_SHARED_INSPECTION_PAGE_SIZE = 20
 const DEFAULT_SHARED_ANCHORS_PER_PAIR = 4
 const TOOL_RESULT_CHARS_PER_TOKEN = 4
@@ -363,7 +367,7 @@ async function inspectSharedInteractionsHandler(
   const participants = parseParticipants(params.participants)
   const requestedPageSize = parseOptionalNumber(params.page_size)
   const requestedAnchorsPerPair = parseOptionalNumber(params.max_anchors_per_pair)
-  const budget = limitSharedResultToBudget(
+  const budget = limitSharedRequestToBudget(
     participants.length,
     requestedPageSize,
     requestedAnchorsPerPair,
@@ -389,8 +393,19 @@ async function inspectSharedInteractionsHandler(
         }),
     }
   )
-  const data: CrossChatSharedInteractionsResult = budget.limited ? withToolResultBudgetReason(result) : result
-  return { content: JSON.stringify(data), data }
+  const pageBudgetTruncated =
+    budget.pageLimited && result.coverage.nextCursor !== null && result.coverage.truncatedReasons.includes('page_size')
+  const anchorBudgetTruncated =
+    budget.anchorsLimited && result.sessions.some((session) => session.pairs.some((pair) => pair.anchorsTruncated))
+  const countTokens = context.countTokens ?? estimatePayloadTokens
+  const payloadExceedsBudget =
+    !!context.maxToolResultTokens &&
+    context.maxToolResultTokens > 0 &&
+    countTokens(JSON.stringify(result)) > context.maxToolResultTokens
+  const data: CrossChatSharedInteractionsResult =
+    pageBudgetTruncated || anchorBudgetTruncated || payloadExceedsBudget ? withToolResultBudgetReason(result) : result
+  const modelData = limitSharedModelResultToBudget(data, context.maxToolResultTokens, countTokens)
+  return { content: JSON.stringify(modelData), data }
 }
 
 export const resolveChatEntitiesTool: ToolDefinition<CrossChatToolExecutionContext> = {
@@ -530,23 +545,33 @@ function limitContactPageSizeToBudget(
   }
 }
 
-function limitSharedResultToBudget(
+function limitSharedRequestToBudget(
   participantCount: number,
   requestedPageSize: number | undefined,
   requestedAnchorsPerPair: number | undefined,
   maxToolResultTokens: number | undefined
-): { pageSize: number | undefined; maxAnchorsPerPair: number | undefined; limited: boolean } {
+): {
+  pageSize: number | undefined
+  maxAnchorsPerPair: number | undefined
+  pageLimited: boolean
+  anchorsLimited: boolean
+} {
+  const normalizedAnchorsPerPair =
+    requestedAnchorsPerPair === undefined
+      ? undefined
+      : Math.min(MAX_SHARED_ANCHORS_PER_PAIR, Math.max(0, Math.floor(requestedAnchorsPerPair)))
   if (!maxToolResultTokens || maxToolResultTokens <= 0) {
     return {
       pageSize: requestedPageSize,
-      maxAnchorsPerPair: requestedAnchorsPerPair,
-      limited: false,
+      maxAnchorsPerPair: normalizedAnchorsPerPair,
+      pageLimited: false,
+      anchorsLimited: false,
     }
   }
 
   const pairCount = (participantCount * (participantCount - 1)) / 2
   const requestedPage = requestedPageSize ?? DEFAULT_SHARED_INSPECTION_PAGE_SIZE
-  const requestedAnchors = requestedAnchorsPerPair ?? DEFAULT_SHARED_ANCHORS_PER_PAIR
+  const requestedAnchors = normalizedAnchorsPerPair ?? DEFAULT_SHARED_ANCHORS_PER_PAIR
   const maxChars = maxToolResultTokens * TOOL_RESULT_CHARS_PER_TOKEN
   let maxAnchorsPerPair = requestedAnchors
 
@@ -565,7 +590,8 @@ function limitSharedResultToBudget(
   return {
     pageSize,
     maxAnchorsPerPair,
-    limited: pageSize < requestedPage || maxAnchorsPerPair < requestedAnchors,
+    pageLimited: pageSize < requestedPage,
+    anchorsLimited: maxAnchorsPerPair < requestedAnchors,
   }
 }
 
@@ -649,11 +675,94 @@ function limitContactResultToBudget(
   )
 }
 
+function limitSharedModelResultToBudget(
+  result: CrossChatSharedInteractionsResult,
+  maxToolResultTokens: number | undefined,
+  countTokens: (text: string) => number
+): unknown {
+  if (!maxToolResultTokens || maxToolResultTokens <= 0) return result
+  if (countTokens(JSON.stringify(result)) <= maxToolResultTokens) return result
+
+  // details 保留完整调查结果；模型可见文本逐级压缩名称和锚点，并优先保留已被 cursor 消费的 session 身份。
+  const compactLabels = {
+    ...result,
+    participants: result.participants.map((participant) => ({
+      ...participant,
+      displayName: truncateModelLabel(participant.displayName),
+    })),
+    sessions: result.sessions.map((session) => ({
+      ...session,
+      sessionName: truncateModelLabel(session.sessionName),
+      participants: session.participants.map((participant) => ({
+        ...participant,
+        memberName: truncateModelLabel(participant.memberName),
+      })),
+    })),
+  }
+  const withAnchorLimit = (maxAnchorsPerPair: number) => ({
+    ...compactLabels,
+    sessions: compactLabels.sessions.map((session) => ({
+      ...session,
+      pairs: session.pairs.map((pair) => ({
+        ...pair,
+        anchors: pair.anchors.slice(0, maxAnchorsPerPair).map(({ sessionId: _sessionId, ...anchor }) => anchor),
+        anchorsTruncated: pair.anchorsTruncated || pair.anchors.length > maxAnchorsPerPair,
+      })),
+    })),
+  })
+  const identityFacts = {
+    algorithmVersion: result.algorithmVersion,
+    proximityAlgorithmVersion: result.proximityAlgorithmVersion,
+    participants: compactLabels.participants.map((participant) => ({
+      index: participant.index,
+      ref: participant.ref,
+      status: participant.status,
+      displayName: participant.displayName,
+      platform: participant.platform,
+    })),
+    appliedRange: result.appliedRange,
+    summary: result.summary,
+    sessions: compactLabels.sessions.map((session) => ({
+      sessionId: session.sessionId,
+      sessionName: session.sessionName,
+      sessionType: session.sessionType,
+      platform: session.platform,
+      lastMessageTs: session.lastMessageTs,
+      memberCount: session.memberCount,
+      priorityReasons: session.priorityReasons,
+      proximityStatus: session.proximityStatus,
+    })),
+    coverage: result.coverage,
+  }
+  const coverageOnly = {
+    summary: result.summary,
+    coverage: result.coverage,
+  }
+  const continuationOnly = {
+    coverage: {
+      complete: result.coverage.complete,
+      nextCursor: result.coverage.nextCursor,
+      truncated: true,
+      truncatedReasons: result.coverage.truncatedReasons,
+    },
+  }
+  const candidates: unknown[] = [
+    compactLabels,
+    withAnchorLimit(2),
+    withAnchorLimit(1),
+    withAnchorLimit(0),
+    identityFacts,
+    coverageOnly,
+    continuationOnly,
+    { truncated: true, truncatedReasons: ['tool_result_budget'] },
+    {},
+  ]
+  return candidates.find((candidate) => countTokens(JSON.stringify(candidate)) <= maxToolResultTokens) ?? {}
+}
+
 function truncateModelLabel(value: string): string {
   const chars = Array.from(value)
-  return chars.length > CONTACT_MODEL_LABEL_MAX_LENGTH
-    ? `${chars.slice(0, CONTACT_MODEL_LABEL_MAX_LENGTH).join('')}…`
-    : value
+  return chars.length > MODEL_LABEL_MAX_LENGTH ? `${chars.slice(0, MODEL_LABEL_MAX_LENGTH).join('')}…` : value
 }
 
 async function preprocessBySession(

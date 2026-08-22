@@ -110,7 +110,7 @@ interface ContactsFactsCacheContext {
 
 export function computeContactsSnapshot(options: ComputeContactsSnapshotOptions): ContactsSnapshot {
   const startedAt = options.now?.() ?? Date.now()
-  const sessionIds = options.adapter.listSessionIds()
+  const sessionIds = options.adapter.listSessionCandidateIds?.() ?? options.adapter.listSessionIds()
   const factsCache = options.factsCacheDir ? createFactsCacheContext(options.factsCacheDir) : null
   const timeRange = resolveContactsTimeRange(
     options.timeRangePreset,
