@@ -334,6 +334,17 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
   const { aiGlobalSettings } = storeToRefs(promptStore)
 
   let pendingFocusReturnChatKey: string | null = null
+  const aiChatSelectionGenerations = new Map<string, number>()
+
+  function advanceAIChatSelection(chatKey: string): number {
+    const generation = (aiChatSelectionGenerations.get(chatKey) ?? 0) + 1
+    aiChatSelectionGenerations.set(chatKey, generation)
+    return generation
+  }
+
+  function isLatestAIChatSelection(chatKey: string, generation: number): boolean {
+    return aiChatSelectionGenerations.get(chatKey) === generation
+  }
 
   function generateId(prefix: string): string {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -550,9 +561,12 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
   async function loadAIChat(chatKey: string, aiChatId: string): Promise<boolean> {
     const state = getSessionState(chatKey)
     if (!state) return false
+    const selectionGeneration = advanceAIChatSelection(chatKey)
 
     try {
       const conversation = await useAIService().getAIChat(aiChatId)
+      if (!isLatestAIChatSelection(chatKey, selectionGeneration)) return false
+
       const belongsToState =
         conversation?.kind === state.kind && (state.kind === 'global' || conversation.sessionId === state.sessionId)
       if (!conversation || !belongsToState) return false
@@ -564,6 +578,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           useAIService().getMessages(aiChatId),
           useAIService().getAIChatTokenUsage(aiChatId),
         ])
+        if (!isLatestAIChatSelection(chatKey, selectionGeneration)) return false
+
         buffer.messages.splice(0, buffer.messages.length, ...history.map((msg) => toRuntimeMessage(msg)))
         buffer.sourceMessages.splice(0, buffer.sourceMessages.length)
         buffer.currentKeywords.splice(0, buffer.currentKeywords.length)
@@ -571,11 +587,13 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         buffer.loaded = true
       }
 
+      if (!isLatestAIChatSelection(chatKey, selectionGeneration)) return false
       buffer.assistantId = conversation.assistantId
       bindDisplayedBuffer(state, aiChatId)
       applySessionAssistantSelection(chatKey)
       return true
     } catch (error) {
+      if (!isLatestAIChatSelection(chatKey, selectionGeneration)) return false
       console.error('[AI] 加载对话历史失败：', error)
       return false
     }
@@ -590,6 +608,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       return false
     }
 
+    advanceAIChatSelection(chatKey)
     bindDisplayedBuffer(state, bufferKey)
     applySessionAssistantSelection(chatKey)
     return true
@@ -637,6 +656,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     const state = getSessionState(chatKey)
     if (!state || state.isAIThinking) return false
 
+    advanceAIChatSelection(chatKey)
     const draftBuffer = createAIChatBuffer(state.selectedAssistantId)
     state.aiChatBuffers[DRAFT_AI_CHAT_KEY] = draftBuffer
     bindDisplayedBuffer(state, DRAFT_AI_CHAT_KEY)
