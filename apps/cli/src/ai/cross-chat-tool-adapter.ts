@@ -4,7 +4,7 @@ import type {
   PreprocessConfig,
   SessionRuntimeAdapter,
 } from '@openchatlab/node-runtime'
-import { preprocessCrossChatMessages } from '@openchatlab/node-runtime'
+import { countTokens, preprocessCrossChatMessages } from '@openchatlab/node-runtime'
 import {
   CROSS_CHAT_AGENT_TOOL_REGISTRY,
   executeToolForAgent,
@@ -23,6 +23,7 @@ export function createCliCrossChatTools(options: {
     locale: options.locale,
     analysisService: options.analysisService,
     maxToolResultTokens: options.maxToolResultTokens,
+    countTokens,
     preprocessMessagesBySession: (sessionId, messages) =>
       preprocessCrossChatMessages(
         options.sessionAdapter,

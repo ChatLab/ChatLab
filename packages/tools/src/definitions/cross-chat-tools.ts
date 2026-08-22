@@ -100,7 +100,10 @@ const overviewSchema: JsonSchema = {
   required: ['scopes'],
 }
 
-function resolveHandler(params: Record<string, unknown>, context: CrossChatToolExecutionContext): ToolResult {
+async function resolveHandler(
+  params: Record<string, unknown>,
+  context: CrossChatToolExecutionContext
+): Promise<ToolResult> {
   const inputs = parseEntityInputs(params.entities)
   const refs: AIEntityRef[] = []
   const contactLookups: CrossChatContactLookupResult[] = []
@@ -119,7 +122,9 @@ function resolveHandler(params: Record<string, unknown>, context: CrossChatToolE
     }
     refs.push(input as AIEntityRef)
   }
-  const resolution = context.analysisService.resolveEntities(dedupeEntityRefs(refs))
+  const resolution = await context.analysisService.resolveEntities(dedupeEntityRefs(refs), {
+    signal: context.abortSignal,
+  })
   const data = { ...resolution, contactLookups }
   return { content: JSON.stringify(data), data }
 }
@@ -169,7 +174,9 @@ async function searchHandler(
     coverage: buildCoverage(budgetTruncated),
     messages: messages.map(toModelMessage),
   })
-  const limited = limitMessagesToBudget(safeMessages, context.maxToolResultTokens, buildModelData)
+  const limited = limitMessagesToBudget(safeMessages, context.maxToolResultTokens, buildModelData, {
+    countTokens: context.countTokens,
+  })
   const modelData = buildModelData(limited.messages, limited.truncated)
   const evidence: CrossChatEvidencePayload = {
     version: 1,
@@ -204,6 +211,7 @@ async function contextHandler(
   const limited = limitMessagesToBudget(safeMessages, context.maxToolResultTokens, buildModelData, {
     priorityIndexes: buildContextPriority(safeMessages, messageId),
     continueAfterOverflow: true,
+    countTokens: context.countTokens,
   })
   const data = buildModelData(limited.messages, limited.truncated)
   return { content: JSON.stringify(data), data }
@@ -354,7 +362,11 @@ function limitMessagesToBudget(
   messages: CrossChatMessageSource[],
   maxToolResultTokens: number | undefined,
   buildPayload: (messages: CrossChatMessageSource[], truncated: boolean) => unknown,
-  options: { priorityIndexes?: number[]; continueAfterOverflow?: boolean } = {}
+  options: {
+    priorityIndexes?: number[]
+    continueAfterOverflow?: boolean
+    countTokens?: (text: string) => number
+  } = {}
 ): { messages: CrossChatMessageSource[]; truncated: boolean } {
   const prepared = messages.map((message) => ({
     ...message,
@@ -364,7 +376,7 @@ function limitMessagesToBudget(
     return { messages: prepared, truncated: false }
   }
 
-  const maxChars = maxToolResultTokens * 4
+  const countTokens = options.countTokens ?? estimatePayloadTokens
   const priorityIndexes = options.priorityIndexes ?? prepared.map((_, index) => index)
   const selectedIndexes = new Set<number>()
   for (const index of priorityIndexes) {
@@ -372,8 +384,8 @@ function limitMessagesToBudget(
     const candidateIndexes = [...selectedIndexes, index].sort((left, right) => left - right)
     const candidateMessages = candidateIndexes.map((candidateIndex) => prepared[candidateIndex])
     const truncated = candidateMessages.length < prepared.length
-    const estimatedChars = JSON.stringify(buildPayload(candidateMessages, truncated)).length
-    if (estimatedChars > maxChars) {
+    const serializedCandidate = JSON.stringify(buildPayload(candidateMessages, truncated))
+    if (countTokens(serializedCandidate) > maxToolResultTokens) {
       if (options.continueAfterOverflow) continue
       break
     }
@@ -381,6 +393,26 @@ function limitMessagesToBudget(
   }
   const limited = [...selectedIndexes].sort((left, right) => left - right).map((index) => prepared[index])
   return { messages: limited, truncated: limited.length < prepared.length }
+}
+
+function estimatePayloadTokens(text: string): number {
+  // Browser/MCP 等未注入 Node tokenizer 的调用方仍需避免按 ASCII 密度低估中文结果。
+  let cjkChars = 0
+  let otherChars = 0
+  for (const char of text) {
+    const codePoint = char.codePointAt(0) ?? 0
+    if (
+      (codePoint >= 0x3400 && codePoint <= 0x4dbf) ||
+      (codePoint >= 0x4e00 && codePoint <= 0x9fff) ||
+      (codePoint >= 0x3040 && codePoint <= 0x30ff) ||
+      (codePoint >= 0xac00 && codePoint <= 0xd7af)
+    ) {
+      cjkChars++
+    } else {
+      otherChars++
+    }
+  }
+  return Math.ceil(cjkChars / 1.6 + otherChars / 4)
 }
 
 function buildContextPriority(messages: CrossChatMessageSource[], anchorMessageId: number): number[] {

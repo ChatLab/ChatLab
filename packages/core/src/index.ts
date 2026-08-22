@@ -62,6 +62,7 @@ export {
   getNonSystemMembersForContacts,
   getPrivateContactFacts,
   isValidContactPlatformId,
+  resolveContactMember,
   resolveOwnerMember,
   buildContactKey,
   shouldScopeContactToSession,

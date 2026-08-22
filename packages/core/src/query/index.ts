@@ -85,6 +85,7 @@ export {
   getNonSystemMembersForContacts,
   getPrivateContactFacts,
   isValidContactPlatformId,
+  resolveContactMember,
   resolveOwnerMember,
 } from './contact-queries'
 
