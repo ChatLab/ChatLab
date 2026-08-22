@@ -4,6 +4,7 @@ import {
   getSearchMessageContext as getCoreSearchMessageContext,
   getSessionMeta,
   getSessionOverview,
+  resolveOwnerMember,
   searchMessagesByKeywords,
   type DatabaseAdapter,
 } from '@openchatlab/core'
@@ -255,15 +256,19 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     const maxWallTimeMs = clampInteger(request.maxWallTimeMs, DEFAULT_MAX_WALL_TIME_MS, 1, MAX_MAX_WALL_TIME_MS)
     const startedAt = this.now()
     const failedSessionIds = new Set<string>()
-    const { candidates, candidateSessionCount } = this.resolveSearchCandidates(
+    const { candidates, candidateSessionCount, eligibleCandidateCount, timedOut } = await this.resolveSearchCandidates(
       request.scopes,
       failedSessionIds,
       sender,
-      ownerResolution
+      ownerResolution,
+      maxSessions,
+      startedAt + maxWallTimeMs,
+      options.signal
     )
-    const selected = candidates.slice(0, maxSessions)
+    const selected = candidates
     const truncatedReasons = new Set<CrossChatTruncationReason>()
-    if (candidates.length > selected.length) truncatedReasons.add('session_budget')
+    if (eligibleCandidateCount > selected.length) truncatedReasons.add('session_budget')
+    if (timedOut) truncatedReasons.add('time_budget')
 
     const messages: CrossChatMessageSource[] = []
     let totalMatches = 0
@@ -424,7 +429,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     }
   }
 
-  private resolveSearchCandidates(
+  private async resolveSearchCandidates(
     scopes: CrossChatSearchScope[] | undefined,
     failedSessionIds: Set<string>,
     sender: 'all' | 'owner',
@@ -432,47 +437,76 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
       resolvedSessions: number
       missingOwnerSessions: number
       unresolvedOwnerSessions: number
-    }
-  ): { candidates: SearchCandidate[]; candidateSessionCount: number } {
+    },
+    maxSessions = DEFAULT_MAX_SESSIONS,
+    deadline = Number.POSITIVE_INFINITY,
+    signal?: AbortSignal
+  ): Promise<{
+    candidates: SearchCandidate[]
+    candidateSessionCount: number
+    eligibleCandidateCount: number
+    timedOut: boolean
+  }> {
+    throwIfAborted(signal)
     const normalizedScopes: CrossChatSearchScope[] = scopes
       ? normalizeScopes(scopes)
-      : this.deps.adapter.listSessionIds().map((sessionId) => ({ sessionId }))
+      : (this.deps.adapter.listSessionCandidateIds?.() ?? this.deps.adapter.listSessionIds()).map((sessionId) => ({
+          sessionId,
+        }))
     const candidates: SearchCandidate[] = []
+    let eligibleCandidateCount = 0
+    let timedOut = false
     for (const scope of normalizedScopes) {
+      throwIfAborted(signal)
+      if (this.now() >= deadline) {
+        timedOut = true
+        break
+      }
       const descriptor = this.tryGetSessionDescriptor(scope.sessionId)
       if (!descriptor) {
         failedSessionIds.add(scope.sessionId)
+        await yieldToEventLoop()
         continue
+      }
+      if (this.now() >= deadline) {
+        timedOut = true
+        break
       }
       if (sender === 'owner') {
         const db = this.deps.adapter.openReadonly(scope.sessionId)
         if (!db) {
           failedSessionIds.add(scope.sessionId)
+          await yieldToEventLoop()
           continue
         }
         const meta = getSessionMeta(db)
         if (!meta?.ownerId?.trim()) {
           if (ownerResolution) ownerResolution.missingOwnerSessions++
+          await yieldToEventLoop()
           continue
         }
-        const owner = getMembers(db).find((member) => member.platformId === meta.ownerId)
+        const owner = resolveOwnerMember(db)
         if (!owner) {
           if (ownerResolution) ownerResolution.unresolvedOwnerSessions++
+          await yieldToEventLoop()
           continue
         }
         if (ownerResolution) ownerResolution.resolvedSessions++
-        candidates.push({ descriptor, memberIds: [owner.id] })
-        continue
+        eligibleCandidateCount++
+        addBoundedSearchCandidate(candidates, { descriptor, memberIds: [owner.id] }, maxSessions)
+      } else {
+        eligibleCandidateCount++
+        addBoundedSearchCandidate(candidates, { descriptor, memberIds: scope.memberIds }, maxSessions)
       }
-      candidates.push({ descriptor, memberIds: scope.memberIds })
+      await yieldToEventLoop()
     }
+    throwIfAborted(signal)
+    if (!timedOut && this.now() >= deadline) timedOut = true
     return {
-      candidates: candidates.sort(
-        (left, right) =>
-          (right.descriptor.lastMessageTs ?? Number.NEGATIVE_INFINITY) -
-          (left.descriptor.lastMessageTs ?? Number.NEGATIVE_INFINITY)
-      ),
+      candidates,
       candidateSessionCount: normalizedScopes.length,
+      eligibleCandidateCount,
+      timedOut,
     }
   }
 
@@ -504,6 +538,23 @@ function normalizeRecentDays(value: number | undefined): number | undefined {
 interface SearchCandidate {
   descriptor: CrossChatSessionDescriptor
   memberIds?: number[]
+}
+
+function addBoundedSearchCandidate(
+  candidates: SearchCandidate[],
+  candidate: SearchCandidate,
+  maxSessions: number
+): void {
+  candidates.push(candidate)
+  candidates.sort(compareSearchCandidates)
+  if (candidates.length > maxSessions) candidates.length = maxSessions
+}
+
+function compareSearchCandidates(left: SearchCandidate, right: SearchCandidate): number {
+  return (
+    (right.descriptor.lastMessageTs ?? Number.NEGATIVE_INFINITY) -
+    (left.descriptor.lastMessageTs ?? Number.NEGATIVE_INFINITY)
+  )
 }
 
 function getSessionDescriptor(sessionId: string, db: DatabaseAdapter): CrossChatSessionDescriptor | null {
