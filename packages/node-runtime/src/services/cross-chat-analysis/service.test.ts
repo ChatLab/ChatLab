@@ -771,6 +771,36 @@ test('shared interaction inspection finds two non-owner contacts and preserves r
   }
 })
 
+test('shared interaction inspection resolves participants from the all-history contact snapshot', async () => {
+  const { env, contactsService: fixtureContactsService } = createFixture()
+  const detailPresets: Array<string | undefined> = []
+  try {
+    const contactsService: Pick<ContactsService, 'getContactDetail' | 'getContactsPage'> = {
+      ...fixtureContactsService,
+      getContactDetail: (key, options) => {
+        detailPresets.push(options?.timeRangePreset)
+        return options?.timeRangePreset === 'all' ? fixtureContactsService.getContactDetail(key, options) : detail(null)
+      },
+    }
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+
+    const result = await service.inspectSharedInteractions({
+      participants: [
+        { type: 'contact', contactKey: 'test:alice' },
+        { type: 'contact', contactKey: 'test:bob' },
+      ],
+    })
+
+    assert.deepEqual(
+      result.sessions.map((session) => session.sessionId),
+      ['group-work']
+    )
+    assert.deepEqual(detailPresets, ['all', 'all'])
+  } finally {
+    env.cleanup()
+  }
+})
+
 test('shared interaction inspection resumes common sessions without skipping a page', async () => {
   const { env, contactsService } = createFixture()
   try {
