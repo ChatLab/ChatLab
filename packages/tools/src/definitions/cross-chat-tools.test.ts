@@ -375,6 +375,41 @@ describe('cross-chat agent registry', () => {
     )
   })
 
+  it('clamps shared anchor limits before budget estimation', async () => {
+    const requests: Array<Record<string, unknown>> = []
+    const context = createContext({
+      inspectSharedInteractions: async (request) => {
+        requests.push(request as unknown as Record<string, unknown>)
+        return createContext().analysisService.inspectSharedInteractions({ participants: [] })
+      },
+    })
+    const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'inspect_shared_interactions')
+    assert.ok(tool)
+    assert.equal(tool.inputSchema.properties.max_anchors_per_pair?.minimum, 0)
+    assert.equal(tool.inputSchema.properties.max_anchors_per_pair?.maximum, 8)
+
+    await tool.handler(
+      {
+        participants: [{ type: 'owner' }, { type: 'contact', contact_key: 'test:alice' }],
+        max_anchors_per_pair: 1e100,
+      },
+      context
+    )
+    context.maxToolResultTokens = 1_000_000
+    await tool.handler(
+      {
+        participants: [{ type: 'owner' }, { type: 'contact', contact_key: 'test:alice' }],
+        max_anchors_per_pair: 9,
+      },
+      context
+    )
+
+    assert.deepEqual(
+      requests.map((request) => request.maxAnchorsPerPair),
+      [8, 8]
+    )
+  })
+
   it('requires a stable contact key and forwards contact-session inspection options', async () => {
     let captured: Record<string, unknown> | undefined
     const context = createContext({

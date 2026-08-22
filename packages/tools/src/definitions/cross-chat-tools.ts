@@ -126,6 +126,8 @@ const inspectContactSessionsSchema: JsonSchema = {
   required: ['contact_key'],
 }
 
+const MAX_SHARED_ANCHORS_PER_PAIR = 8
+
 const inspectSharedInteractionsSchema: JsonSchema = {
   type: 'object',
   properties: {
@@ -147,6 +149,8 @@ const inspectSharedInteractionsSchema: JsonSchema = {
     max_anchors_per_pair: {
       type: 'number',
       description: 'Maximum direct-reply and proximity message anchors returned for each participant pair',
+      minimum: 0,
+      maximum: MAX_SHARED_ANCHORS_PER_PAIR,
     },
     max_wall_time_ms: { type: 'number', description: 'Maximum wall time for this inspection batch' },
     ...timeParamProperties,
@@ -552,10 +556,14 @@ function limitSharedRequestToBudget(
   pageLimited: boolean
   anchorsLimited: boolean
 } {
+  const normalizedAnchorsPerPair =
+    requestedAnchorsPerPair === undefined
+      ? undefined
+      : Math.min(MAX_SHARED_ANCHORS_PER_PAIR, Math.max(0, Math.floor(requestedAnchorsPerPair)))
   if (!maxToolResultTokens || maxToolResultTokens <= 0) {
     return {
       pageSize: requestedPageSize,
-      maxAnchorsPerPair: requestedAnchorsPerPair,
+      maxAnchorsPerPair: normalizedAnchorsPerPair,
       pageLimited: false,
       anchorsLimited: false,
     }
@@ -563,7 +571,7 @@ function limitSharedRequestToBudget(
 
   const pairCount = (participantCount * (participantCount - 1)) / 2
   const requestedPage = requestedPageSize ?? DEFAULT_SHARED_INSPECTION_PAGE_SIZE
-  const requestedAnchors = requestedAnchorsPerPair ?? DEFAULT_SHARED_ANCHORS_PER_PAIR
+  const requestedAnchors = normalizedAnchorsPerPair ?? DEFAULT_SHARED_ANCHORS_PER_PAIR
   const maxChars = maxToolResultTokens * TOOL_RESULT_CHARS_PER_TOKEN
   let maxAnchorsPerPair = requestedAnchors
 
