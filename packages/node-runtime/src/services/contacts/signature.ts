@@ -12,7 +12,8 @@ export function buildContactsSignature(
     `algorithm:${CONTACTS_ALGORITHM_VERSION}`,
     `range:${normalizeContactsTimeRangePreset(timeRangePreset)}`,
   ]
-  for (const sessionId of [...adapter.listSessionIds()].sort()) {
+  const sessionIds = adapter.listSessionCandidateIds?.() ?? adapter.listSessionIds()
+  for (const sessionId of [...sessionIds].sort()) {
     const dbPath = adapter.getDbPath(sessionId)
     parts.push(`${sessionId}:${getDbFileVersion(dbPath)}`)
   }

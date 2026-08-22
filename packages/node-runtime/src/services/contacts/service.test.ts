@@ -69,6 +69,7 @@ class TestEnv {
 
     this.adapter = {
       listSessionIds: () => [...this.dbPaths.keys()],
+      listSessionCandidateIds: () => [...this.dbPaths.keys()],
       openReadonly: (id) => open(id, true),
       openWritable: (id) => open(id, false),
       closeSession: () => {},
@@ -162,6 +163,59 @@ class TestEnv {
     fs.rmSync(this.dir, { recursive: true, force: true })
   }
 }
+
+test('contact detail and snapshot computation isolate damaged database candidates', async (t) => {
+  const env = new TestEnv()
+  const damagedDbPath = path.join(env.dir, 'damaged.db')
+  fs.writeFileSync(damagedDbPath, 'not a sqlite database')
+
+  env.seed({
+    id: 'private-a',
+    platform: 'weixin',
+    type: 'private',
+    ownerId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner' },
+      { id: 2, platformId: 'alice' },
+    ],
+    messages: privateMessages(5, 1, 1704103200),
+  })
+
+  const candidateIds = [...env.adapter.listSessionCandidateIds!(), 'damaged']
+  const adapter: SessionRuntimeAdapter = {
+    ...env.adapter,
+    listSessionIds: () => {
+      throw new Error('eager database validation should not be used')
+    },
+    listSessionCandidateIds: () => candidateIds,
+    getDbPath: (sessionId) => (sessionId === 'damaged' ? damagedDbPath : env.adapter.getDbPath(sessionId)),
+    openReadonly: (sessionId) => {
+      if (sessionId === 'damaged') throw new Error('damaged database')
+      return env.adapter.openReadonly(sessionId)
+    },
+  }
+  const service = createContactsService({
+    adapter,
+    systemDir: env.dir,
+    runner: () => new Promise<ContactsSnapshot>(() => {}),
+  })
+  t.after(async () => {
+    await service.close()
+    env.cleanup()
+  })
+
+  const detail = service.getContactDetail('weixin:alice', { acceptStale: true, timeRangePreset: 'all' })
+  assert.equal(detail.contact, null)
+  assert.equal(detail.task?.status, 'running')
+  assert.equal(detail.task?.totalSessions, 2)
+
+  const snapshot = computeContactsSnapshot({ adapter, signature: 'sig-1', timeRangePreset: 'all' })
+  assert.equal(
+    snapshot.contacts.some((contact) => contact.key === 'weixin:alice'),
+    true
+  )
+  assert.equal(snapshot.diagnostics.skippedFailedSessions, 1)
+})
 
 function privateMessages(count: number, startId: number, startTs: number): SeedMessage[] {
   return Array.from({ length: count }, (_, index) => ({

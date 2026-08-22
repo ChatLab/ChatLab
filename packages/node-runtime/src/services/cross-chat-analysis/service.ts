@@ -434,6 +434,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
       MAX_MAX_ANCHORS_PER_PAIR
     )
     const maxWallTimeMs = clampInteger(request.maxWallTimeMs, DEFAULT_MAX_WALL_TIME_MS, 1, MAX_MAX_WALL_TIME_MS)
+    const startedAt = this.now()
     const resolvedParticipants = participantRefs.map((ref, index) => {
       if (ref.type === 'owner') {
         return {
@@ -468,7 +469,6 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
       return emptySharedInteractionsResult(publicParticipants, unresolvedParticipantIndexes, range)
     }
 
-    const startedAt = this.now()
     throwIfAborted(options.signal)
     const sessionScopedIds = resolvedParticipants
       .flatMap((participant) =>

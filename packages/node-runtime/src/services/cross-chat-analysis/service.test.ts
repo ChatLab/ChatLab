@@ -804,6 +804,33 @@ test('shared interaction inspection validates raw candidates within failure and 
     )
     assert.deepEqual(failureResult.coverage.failedSessionIds, ['damaged'])
 
+    let identityNow = 0
+    const identityOpenedSessions: string[] = []
+    const slowContactsService: Pick<ContactsService, 'getContactDetail' | 'getContactsPage'> = {
+      ...contactsService,
+      getContactDetail: (key, options) => {
+        const result = contactsService.getContactDetail(key, options)
+        identityNow = 9_000
+        return result
+      },
+    }
+    const identityTimedAdapter: SessionRuntimeAdapter = {
+      ...env.adapter,
+      openReadonly: (sessionId) => {
+        identityOpenedSessions.push(sessionId)
+        return env.adapter.openReadonly(sessionId)
+      },
+    }
+    const identityTimedResult = await createCrossChatAnalysisService({
+      adapter: identityTimedAdapter,
+      contactsService: slowContactsService,
+      now: () => identityNow,
+    }).inspectSharedInteractions({ participants, maxWallTimeMs: 8_000 })
+
+    assert.deepEqual(identityOpenedSessions, [])
+    assert.equal(identityTimedResult.coverage.scannedSessions, 0)
+    assert.ok(identityTimedResult.coverage.truncatedReasons.includes('time_budget'))
+
     let now = 0
     const openedSessions: string[] = []
     const timedAdapter: SessionRuntimeAdapter = {
