@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import {
   getNonSystemMembersForContacts,
   getParticipantSessionFacts,
+  getParticipantSetInteractionFacts,
   getMembers,
   getRecentMessages,
   getSearchMessageContext as getCoreSearchMessageContext,
@@ -10,7 +11,9 @@ import {
   resolveContactMember,
   resolveOwnerMember,
   searchMessagesByKeywords,
+  type ContactMemberRef,
   type DatabaseAdapter,
+  type ParticipantSetInteractionFacts,
 } from '@openchatlab/core'
 import {
   ChatType,
@@ -27,11 +30,14 @@ import {
   type CrossChatOverviewItem,
   type CrossChatOverviewRequest,
   type CrossChatOverviewResult,
+  type CrossChatParticipantRef,
   type CrossChatResolvedContact,
   type CrossChatResolvedSession,
   type CrossChatSearchRequest,
   type CrossChatSearchResult,
   type CrossChatSearchScope,
+  type CrossChatSharedInteractionsRequest,
+  type CrossChatSharedInteractionsResult,
   type CrossChatSessionDescriptor,
   type CrossChatTruncationReason,
   type CrossChatUnresolvedEntity,
@@ -53,6 +59,12 @@ const MAX_RECENT_DAYS = 3650
 const CONTACT_SESSIONS_ALGORITHM_VERSION = 'contact-sessions-v1'
 const DEFAULT_INSPECTION_PAGE_SIZE = 50
 const MAX_INSPECTION_PAGE_SIZE = 100
+const SHARED_INTERACTIONS_ALGORITHM_VERSION = 'shared-interactions-v1'
+const PROXIMITY_ALGORITHM_VERSION = 'lookahead-3-decay-120-gap-1800-v2'
+const DEFAULT_SHARED_INTERACTIONS_PAGE_SIZE = 20
+const MAX_SHARED_INTERACTIONS_PAGE_SIZE = 50
+const DEFAULT_MAX_ANCHORS_PER_PAIR = 4
+const MAX_MAX_ANCHORS_PER_PAIR = 8
 
 export interface CrossChatAnalysisServiceDeps {
   adapter: SessionRuntimeAdapter
@@ -67,6 +79,10 @@ export interface CrossChatAnalysisService {
     request: CrossChatContactSessionsRequest,
     options?: CrossChatOperationOptions
   ): Promise<CrossChatContactSessionsResult>
+  inspectSharedInteractions(
+    request: CrossChatSharedInteractionsRequest,
+    options?: CrossChatOperationOptions
+  ): Promise<CrossChatSharedInteractionsResult>
   searchMessages(request: CrossChatSearchRequest, options?: CrossChatOperationOptions): Promise<CrossChatSearchResult>
   getMessageContext(request: CrossChatMessageContextRequest): CrossChatMessageContextResult
   getOverview(request: CrossChatOverviewRequest, options?: CrossChatOperationOptions): Promise<CrossChatOverviewResult>
@@ -394,6 +410,210 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
         truncated: truncatedReasons.size > 0,
         truncatedReasons: [...truncatedReasons],
         contactCacheStatus: detail.cache.status,
+      },
+    }
+  }
+
+  async inspectSharedInteractions(
+    request: CrossChatSharedInteractionsRequest,
+    options: CrossChatOperationOptions = {}
+  ): Promise<CrossChatSharedInteractionsResult> {
+    throwIfAborted(options.signal)
+    const participantRefs = normalizeParticipantRefs(request.participants)
+    const range = normalizeInspectionRange(request.startTs, request.endTs)
+    const pageSize = clampInteger(
+      request.pageSize,
+      DEFAULT_SHARED_INTERACTIONS_PAGE_SIZE,
+      1,
+      MAX_SHARED_INTERACTIONS_PAGE_SIZE
+    )
+    const maxAnchorsPerPair = clampInteger(
+      request.maxAnchorsPerPair,
+      DEFAULT_MAX_ANCHORS_PER_PAIR,
+      0,
+      MAX_MAX_ANCHORS_PER_PAIR
+    )
+    const maxWallTimeMs = clampInteger(request.maxWallTimeMs, DEFAULT_MAX_WALL_TIME_MS, 1, MAX_MAX_WALL_TIME_MS)
+    const startedAt = this.now()
+    const resolvedParticipants = participantRefs.map((ref, index) => {
+      if (ref.type === 'owner') {
+        return {
+          index,
+          ref,
+          status: 'resolved' as const,
+          displayName: 'owner',
+          platform: undefined,
+          cacheStatus: undefined,
+          contact: undefined,
+        }
+      }
+      const detail = this.deps.contactsService.getContactDetail(ref.contactKey, {
+        acceptStale: true,
+        timeRangePreset: 'all',
+      })
+      return {
+        index,
+        ref,
+        status: detail.contact ? ('resolved' as const) : ('unresolved' as const),
+        displayName: detail.contact?.displayName ?? ref.contactKey,
+        platform: detail.contact?.platform,
+        cacheStatus: detail.cache.status,
+        contact: detail.contact,
+      }
+    })
+    const unresolvedParticipantIndexes = resolvedParticipants
+      .filter((participant) => participant.status === 'unresolved')
+      .map((participant) => participant.index)
+    const publicParticipants = resolvedParticipants.map(({ contact: _contact, ...participant }) => participant)
+    if (unresolvedParticipantIndexes.length > 0) {
+      return emptySharedInteractionsResult(publicParticipants, unresolvedParticipantIndexes, range)
+    }
+
+    throwIfAborted(options.signal)
+    const sessionScopedIds = resolvedParticipants
+      .flatMap((participant) =>
+        participant.ref.type === 'contact' && participant.contact?.sessionScoped && participant.contact.sessionId
+          ? [participant.contact.sessionId]
+          : []
+      )
+      .filter((sessionId, index, all) => all.indexOf(sessionId) === index)
+    const candidateSessionIds = (
+      sessionScopedIds.length > 1
+        ? []
+        : sessionScopedIds.length === 1
+          ? sessionScopedIds
+          : [...new Set(this.deps.adapter.listSessionCandidateIds?.() ?? this.deps.adapter.listSessionIds())]
+    ).sort((left, right) => left.localeCompare(right))
+    throwIfAborted(options.signal)
+    const cursorFingerprint = createInspectionFingerprint({
+      candidateSessionIds,
+      participantRefs,
+      startTs: range.startTs,
+      endTs: range.endTs,
+      maxAnchorsPerPair,
+    })
+    const cursor = parseInspectionCursor(request.cursor, cursorFingerprint, candidateSessionIds)
+    const sessions: CrossChatSharedInteractionsResult['sessions'] = []
+    const failedSessionIds: string[] = []
+    const truncatedReasons = new Set<CrossChatSharedInteractionsResult['coverage']['truncatedReasons'][number]>()
+    const ownerResolution = participantRefs.some((ref) => ref.type === 'owner')
+      ? { resolvedSessions: 0, missingOwnerSessions: 0, unresolvedOwnerSessions: 0 }
+      : undefined
+    let identityCollisionSessions = 0
+    let scannedSessions = 0
+    let nextCandidateIndex = cursor.nextCandidateIndex
+    let dataEarliestMessageTs: number | null = null
+    let dataLatestMessageTs: number | null = null
+
+    options.onProgress?.({ processedSessions: 0, totalSessions: candidateSessionIds.length })
+    while (nextCandidateIndex < candidateSessionIds.length && sessions.length < pageSize) {
+      throwIfAborted(options.signal)
+      if (this.now() - startedAt >= maxWallTimeMs) {
+        truncatedReasons.add('time_budget')
+        break
+      }
+      const sessionId = candidateSessionIds[nextCandidateIndex]
+      options.onProgress?.({
+        processedSessions: nextCandidateIndex,
+        totalSessions: candidateSessionIds.length,
+        currentSessionId: sessionId,
+      })
+      try {
+        const db = this.deps.adapter.openReadonly(sessionId)
+        if (!db) {
+          failedSessionIds.push(sessionId)
+        } else {
+          const descriptor = getSessionDescriptor(sessionId, db)
+          const meta = getSessionMeta(db)
+          if (descriptor && meta) {
+            const members = getNonSystemMembersForContacts(db)
+            const participantMembers = resolvedParticipants.map((participant) => {
+              if (participant.ref.type === 'owner') {
+                if (!meta.ownerId?.trim()) {
+                  if (ownerResolution) ownerResolution.missingOwnerSessions++
+                  return null
+                }
+                const owner = members.find((member) => member.platformId === meta.ownerId)
+                if (!owner) {
+                  if (ownerResolution) ownerResolution.unresolvedOwnerSessions++
+                  return null
+                }
+                if (ownerResolution) ownerResolution.resolvedSessions++
+                return owner
+              }
+              if (!participant.contact || participant.contact.platform !== meta.platform) return null
+              return members.find((member) => member.platformId === participant.contact?.platformId) ?? null
+            })
+            if (participantMembers.every((member) => member !== null)) {
+              const resolvedMembers = participantMembers.filter((member) => member !== null)
+              if (new Set(resolvedMembers.map((member) => member.id)).size !== resolvedMembers.length) {
+                identityCollisionSessions++
+              } else {
+                const facts = getParticipantSetInteractionFacts(
+                  db,
+                  resolvedMembers.map((member) => member.id),
+                  {
+                    ...range,
+                    maxAnchorsPerPair,
+                  }
+                )
+                const participantIndexByMemberId = new Map(
+                  resolvedMembers.map((member, index) => [member.id, resolvedParticipants[index].index])
+                )
+                const item = mapSharedInteractionSession(descriptor, resolvedMembers, participantIndexByMemberId, facts)
+                sessions.push(item)
+                dataEarliestMessageTs = minNullable(dataEarliestMessageTs, facts.sessionFirstMessageTs)
+                dataLatestMessageTs = maxNullable(dataLatestMessageTs, facts.sessionLastMessageTs)
+                if (facts.proximityStatus !== 'complete') truncatedReasons.add('message_budget')
+              }
+            }
+          }
+        }
+      } catch (error) {
+        failedSessionIds.push(sessionId)
+        appLogger.warn('cross-chat-analysis', `failed to inspect shared interactions: ${sessionId}`, error)
+      } finally {
+        scannedSessions++
+        nextCandidateIndex++
+      }
+      await yieldToEventLoop()
+    }
+
+    if (sessions.length >= pageSize && nextCandidateIndex < candidateSessionIds.length) {
+      truncatedReasons.add('page_size')
+    }
+    sessions.sort(compareSharedInteractionSessions)
+    const complete = nextCandidateIndex >= candidateSessionIds.length
+    const nextCursor = complete
+      ? null
+      : createInspectionCursor(cursorFingerprint, candidateSessionIds[nextCandidateIndex - 1] ?? null)
+    options.onProgress?.({ processedSessions: nextCandidateIndex, totalSessions: candidateSessionIds.length })
+
+    return {
+      algorithmVersion: SHARED_INTERACTIONS_ALGORITHM_VERSION,
+      proximityAlgorithmVersion: PROXIMITY_ALGORITHM_VERSION,
+      participants: publicParticipants,
+      appliedRange: {
+        ...range,
+        dataEarliestMessageTs,
+        dataLatestMessageTs,
+      },
+      summary: summarizeSharedInteractions(sessions, !request.cursor && complete),
+      sessions,
+      coverage: {
+        candidateSessions: candidateSessionIds.length,
+        scannedSessions,
+        matchedSessions: sessions.length,
+        returnedSessions: sessions.length,
+        failedSessions: failedSessionIds.length,
+        failedSessionIds,
+        complete,
+        nextCursor,
+        truncated: truncatedReasons.size > 0,
+        truncatedReasons: [...truncatedReasons],
+        unresolvedParticipantIndexes,
+        identityCollisionSessions,
+        ownerResolution,
       },
     }
   }
@@ -886,6 +1106,174 @@ function summarizeContactSessions(
     firstOwnMessageTs,
     lastOwnMessageTs,
   }
+}
+
+function normalizeParticipantRefs(participants: CrossChatParticipantRef[]): CrossChatParticipantRef[] {
+  if (!Array.isArray(participants)) throw new Error('participants must be an array')
+  const deduplicated = new Map<string, CrossChatParticipantRef>()
+  for (const participant of participants) {
+    if (participant?.type === 'owner') {
+      deduplicated.set('owner', { type: 'owner' })
+      continue
+    }
+    if (participant?.type === 'contact') {
+      const contactKey = participant.contactKey?.trim()
+      if (!contactKey) throw new Error('participant contactKey is required')
+      deduplicated.set(`contact:${contactKey}`, { type: 'contact', contactKey })
+      continue
+    }
+    throw new Error('participant type must be owner or contact')
+  }
+  const refs = [...deduplicated.values()]
+  if (refs.length < 2 || refs.length > 5) throw new Error('participants must contain 2 to 5 distinct people')
+  return refs
+}
+
+function mapSharedInteractionSession(
+  descriptor: CrossChatSessionDescriptor,
+  members: ContactMemberRef[],
+  participantIndexByMemberId: Map<number, number>,
+  facts: ParticipantSetInteractionFacts
+): CrossChatSharedInteractionsResult['sessions'][number] {
+  const participants = facts.participants.map((participant, index) => ({
+    participantIndex: participantIndexByMemberId.get(participant.memberId) ?? index,
+    memberId: participant.memberId,
+    memberName: members[index]?.name ?? String(participant.memberId),
+    messageCount: participant.messageCount,
+    firstMessageTs: participant.firstMessageTs,
+    lastMessageTs: participant.lastMessageTs,
+    activeDays: participant.activeDays,
+    presenceObservedInRange: participant.messageCount > 0,
+  }))
+  const pairs = facts.pairs.map((pair) => ({
+    sourceParticipantIndex: participantIndexByMemberId.get(pair.sourceMemberId) ?? 0,
+    targetParticipantIndex: participantIndexByMemberId.get(pair.targetMemberId) ?? 0,
+    directReplyCount: pair.directReplyCount,
+    repliesFromSourceToTarget: pair.repliesFromSourceToTarget,
+    repliesFromTargetToSource: pair.repliesFromTargetToSource,
+    lastDirectReplyTs: pair.lastDirectReplyTs,
+    coOccurrenceCount: pair.coOccurrenceCount,
+    coOccurrenceRawScore: pair.coOccurrenceRawScore,
+    lastProximityTs: pair.lastProximityTs,
+    coActiveDays: pair.coActiveDays,
+    anchors: pair.anchors.map((anchor) => ({
+      sessionId: descriptor.sessionId,
+      messageId: anchor.messageId,
+      relatedMessageId: anchor.relatedMessageId,
+      timestamp: anchor.timestamp,
+      signal: anchor.signal,
+      fromParticipantIndex: participantIndexByMemberId.get(anchor.fromMemberId) ?? 0,
+      toParticipantIndex: participantIndexByMemberId.get(anchor.toMemberId) ?? 0,
+    })),
+    anchorsTruncated: pair.anchorsTruncated,
+  }))
+  const priorityReasons: CrossChatSharedInteractionsResult['sessions'][number]['priorityReasons'] = []
+  if (pairs.some((pair) => pair.directReplyCount > 0)) priorityReasons.push('has_direct_reply')
+  if (pairs.some((pair) => (pair.coOccurrenceCount ?? 0) > 0)) priorityReasons.push('has_proximity')
+  if (participants.every((participant) => participant.presenceObservedInRange)) {
+    priorityReasons.push('all_participants_spoke')
+  }
+  return {
+    ...descriptor,
+    lastMessageTs: facts.sessionLastMessageTs,
+    memberCount: descriptor.sessionType === ChatType.GROUP ? facts.memberCount : null,
+    participants,
+    overlapRange: facts.overlapRange,
+    allParticipantsCoActiveDays: facts.allParticipantsCoActiveDays,
+    pairs,
+    priorityReasons,
+    proximityStatus: facts.proximityStatus,
+  }
+}
+
+function summarizeSharedInteractions(
+  sessions: CrossChatSharedInteractionsResult['sessions'],
+  completeResult: boolean
+): CrossChatSharedInteractionsResult['summary'] {
+  return {
+    scope: completeResult ? 'complete_result' : 'current_batch',
+    commonSessions: sessions.length,
+    commonPrivateSessions: sessions.filter((session) => session.sessionType === ChatType.PRIVATE).length,
+    commonGroupSessions: sessions.filter((session) => session.sessionType === ChatType.GROUP).length,
+    sessionsWithDirectReplies: sessions.filter((session) => session.pairs.some((pair) => pair.directReplyCount > 0))
+      .length,
+    sessionsWithProximitySignals: sessions.filter((session) =>
+      session.pairs.some((pair) => (pair.coOccurrenceCount ?? 0) > 0)
+    ).length,
+  }
+}
+
+function emptySharedInteractionsResult(
+  participants: CrossChatSharedInteractionsResult['participants'],
+  unresolvedParticipantIndexes: number[],
+  range: { startTs: number | null; endTs: number | null }
+): CrossChatSharedInteractionsResult {
+  return {
+    algorithmVersion: SHARED_INTERACTIONS_ALGORITHM_VERSION,
+    proximityAlgorithmVersion: PROXIMITY_ALGORITHM_VERSION,
+    participants,
+    appliedRange: {
+      ...range,
+      dataEarliestMessageTs: null,
+      dataLatestMessageTs: null,
+    },
+    summary: {
+      scope: 'complete_result',
+      commonSessions: 0,
+      commonPrivateSessions: 0,
+      commonGroupSessions: 0,
+      sessionsWithDirectReplies: 0,
+      sessionsWithProximitySignals: 0,
+    },
+    sessions: [],
+    coverage: {
+      candidateSessions: 0,
+      scannedSessions: 0,
+      matchedSessions: 0,
+      returnedSessions: 0,
+      failedSessions: 0,
+      failedSessionIds: [],
+      complete: true,
+      nextCursor: null,
+      truncated: false,
+      truncatedReasons: [],
+      unresolvedParticipantIndexes,
+      identityCollisionSessions: 0,
+      ownerResolution: participants.some((participant) => participant.ref.type === 'owner')
+        ? { resolvedSessions: 0, missingOwnerSessions: 0, unresolvedOwnerSessions: 0 }
+        : undefined,
+    },
+  }
+}
+
+function compareSharedInteractionSessions(
+  left: CrossChatSharedInteractionsResult['sessions'][number],
+  right: CrossChatSharedInteractionsResult['sessions'][number]
+): number {
+  const leftReplies = left.pairs.reduce((sum, pair) => sum + pair.directReplyCount, 0)
+  const rightReplies = right.pairs.reduce((sum, pair) => sum + pair.directReplyCount, 0)
+  if (leftReplies !== rightReplies) return rightReplies - leftReplies
+  const leftProximity = left.pairs.reduce((sum, pair) => sum + (pair.coOccurrenceRawScore ?? 0), 0)
+  const rightProximity = right.pairs.reduce((sum, pair) => sum + (pair.coOccurrenceRawScore ?? 0), 0)
+  if (leftProximity !== rightProximity) return rightProximity - leftProximity
+  const leftCoActiveDays = left.pairs.reduce((sum, pair) => sum + pair.coActiveDays, 0)
+  const rightCoActiveDays = right.pairs.reduce((sum, pair) => sum + pair.coActiveDays, 0)
+  if (leftCoActiveDays !== rightCoActiveDays) return rightCoActiveDays - leftCoActiveDays
+  const leftLastInteractionTs = latestPairInteractionTs(left.pairs)
+  const rightLastInteractionTs = latestPairInteractionTs(right.pairs)
+  if (leftLastInteractionTs !== rightLastInteractionTs) return rightLastInteractionTs - leftLastInteractionTs
+  if (left.memberCount !== right.memberCount) {
+    return (left.memberCount ?? Number.POSITIVE_INFINITY) - (right.memberCount ?? Number.POSITIVE_INFINITY)
+  }
+  return left.sessionId.localeCompare(right.sessionId)
+}
+
+function latestPairInteractionTs(pairs: CrossChatSharedInteractionsResult['sessions'][number]['pairs']): number {
+  let latest = 0
+  for (const pair of pairs) {
+    latest = Math.max(latest, pair.lastDirectReplyTs ?? 0, pair.lastProximityTs ?? 0)
+  }
+  return latest
 }
 
 function emptyContactSessionsResult(

@@ -815,6 +815,7 @@ export interface CrossChatParticipantPairFacts {
   lastProximityTs: number | null
   coActiveDays: number
   anchors: CrossChatMessageAnchor[]
+  anchorsTruncated: boolean
 }
 
 export interface CrossChatSharedInteractionSessionItem extends CrossChatSessionDescriptor {
@@ -846,6 +847,7 @@ export interface CrossChatSharedInteractionsResult {
   sessions: CrossChatSharedInteractionSessionItem[]
   coverage: CrossChatInspectionCoverage & {
     unresolvedParticipantIndexes: number[]
+    identityCollisionSessions: number
     ownerResolution?: {
       resolvedSessions: number
       missingOwnerSessions: number

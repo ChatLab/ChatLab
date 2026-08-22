@@ -8,7 +8,12 @@ import { afterEach, beforeEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import path from 'node:path'
 import Database from 'better-sqlite3'
-import { getGroupRelationshipGraphFacts, resolveOwnerMember } from '../contact-queries'
+import {
+  getGroupRelationshipGraphFacts,
+  getParticipantSetInteractionFacts,
+  resolveOwnerMember,
+} from '../contact-queries'
+import { accumulateSelectedCoOccurrencePairs } from '../advanced/social'
 import type { DatabaseAdapter, PreparedStatement, RunResult } from '../../interfaces'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
@@ -96,9 +101,66 @@ describe('relationship graph query helpers', () => {
         (2, 'alice-pid', 'Alice', 'Alice G', '["Ally"]', 'alice.png'),
         (3, 'bob-pid', 'Bob', NULL, '[]', NULL),
         (4, 'carol-pid', 'Carol', NULL, '[]', NULL),
+        (5, 'dave-pid', 'Dave', NULL, '[]', NULL),
         (99, 'system', 'System', NULL, '[]', NULL);
     `)
     db = new Adapter(raw)
+  })
+
+  it('retains only the strongest requested proximity anchors while scanning', () => {
+    const pairs = accumulateSelectedCoOccurrencePairs(
+      [
+        { messageId: 1, senderId: 1, ts: 0 },
+        { messageId: 2, senderId: 2, ts: 100 },
+        { messageId: 3, senderId: 9, ts: 150 },
+        { messageId: 4, senderId: 1, ts: 200 },
+        { messageId: 5, senderId: 2, ts: 201 },
+      ],
+      [[1, 2]],
+      { lookAhead: 1, maxAnchorsPerPair: 1 }
+    )
+
+    assert.deepEqual(
+      pairs[0]?.anchors.map((anchor) => [anchor.messageId, anchor.relatedMessageId]),
+      [[5, 4]]
+    )
+  })
+
+  it('keeps two-speaker look-ahead scans linear for long conversations', () => {
+    const messageCount = 20_000
+    const source = Array.from({ length: messageCount }, (_, index) => ({
+      messageId: index + 1,
+      senderId: (index % 2) + 1,
+      ts: index,
+    }))
+    const maxMessageReads = messageCount * 8
+    let messageReads = 0
+    const messages = new Proxy(source, {
+      get(target, property, receiver) {
+        if (typeof property === 'string' && /^\d+$/.test(property)) {
+          messageReads++
+          if (messageReads > maxMessageReads) throw new Error('message look-ahead scan exceeded its linear bound')
+        }
+        return Reflect.get(target, property, receiver)
+      },
+    })
+
+    const pairs = accumulateSelectedCoOccurrencePairs(messages, [[1, 2]])
+
+    assert.equal(pairs[0]?.coOccurrenceCount, messageCount - 1)
+    assert.ok(messageReads <= maxMessageReads)
+  })
+
+  it('does not treat messages from separate conversation windows as proximity evidence', () => {
+    const pairs = accumulateSelectedCoOccurrencePairs(
+      [
+        { messageId: 1, senderId: 1, ts: 0 },
+        { messageId: 2, senderId: 2, ts: 2 * 86400 },
+      ],
+      [[1, 2]]
+    )
+
+    assert.deepEqual(pairs, [])
   })
 
   afterEach(() => {
@@ -124,7 +186,7 @@ describe('relationship graph query helpers', () => {
     assert.equal(facts.ownerMessageCount, 1)
     assert.deepEqual(
       facts.members.map((member) => member.contact.platformId),
-      ['alice-pid', 'bob-pid', 'carol-pid']
+      ['alice-pid', 'bob-pid', 'carol-pid', 'dave-pid']
     )
     assert.equal(
       facts.members.find((member) => member.contact.platformId === 'owner-pid'),
@@ -161,8 +223,128 @@ describe('relationship graph query helpers', () => {
         ['alice-pid', 1],
         ['bob-pid', 0],
         ['carol-pid', 0],
+        ['dave-pid', 0],
       ]
     )
     assert.equal(facts.edges.length, 0)
+  })
+
+  it('returns exact participant activity, directional replies, co-active days, and evidence anchors', () => {
+    const insert = raw.prepare(
+      `INSERT INTO message
+        (id, sender_id, ts, type, content, platform_message_id, reply_to_message_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    insert.run(1, 2, 1704067200, 0, 'alice day one', 'alice-1', null)
+    insert.run(2, 3, 1704067260, 0, 'bob replies alice', 'bob-1', 'alice-1')
+    insert.run(3, 3, 1704153600, 0, 'bob day two', 'bob-2', null)
+    insert.run(4, 2, 1704153660, 0, 'alice replies bob', 'alice-2', 'bob-2')
+
+    const facts = getParticipantSetInteractionFacts(db, [2, 3], { maxAnchorsPerPair: 4 })
+
+    assert.deepEqual(
+      facts.participants.map((participant) => [participant.memberId, participant.messageCount, participant.activeDays]),
+      [
+        [2, 2, 2],
+        [3, 2, 2],
+      ]
+    )
+    assert.deepEqual(facts.overlapRange, { startTs: 1704067260, endTs: 1704153600 })
+    assert.equal(facts.allParticipantsCoActiveDays, 2)
+    assert.equal(facts.proximityStatus, 'complete')
+    assert.equal(facts.pairs.length, 1)
+    const pair = facts.pairs[0]
+    assert.equal(pair.directReplyCount, 2)
+    assert.equal(pair.repliesFromSourceToTarget, 1)
+    assert.equal(pair.repliesFromTargetToSource, 1)
+    assert.equal(pair.coActiveDays, 2)
+    assert.ok((pair.coOccurrenceCount ?? 0) > 0)
+    assert.deepEqual(
+      pair.anchors
+        .filter((anchor) => anchor.signal === 'direct_reply')
+        .map((anchor) => [anchor.messageId, anchor.relatedMessageId, anchor.fromMemberId, anchor.toMemberId]),
+      [
+        [4, 3, 2, 3],
+        [2, 1, 3, 2],
+      ]
+    )
+  })
+
+  it('reports anchor truncation only when eligible evidence was omitted', () => {
+    const insert = raw.prepare(
+      `INSERT INTO message
+        (id, sender_id, ts, type, content, platform_message_id, reply_to_message_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    insert.run(1, 2, 1704067200, 0, 'alice', 'alice-1', null)
+    insert.run(2, 3, 1704067260, 0, 'bob', 'bob-1', null)
+
+    const complete = getParticipantSetInteractionFacts(db, [2, 3], { maxAnchorsPerPair: 1 })
+    assert.equal(complete.pairs[0].anchors.length, 1)
+    assert.equal(complete.pairs[0].anchorsTruncated, false)
+
+    const truncated = getParticipantSetInteractionFacts(db, [2, 3], { maxAnchorsPerPair: 0 })
+    assert.equal(truncated.pairs[0].anchors.length, 0)
+    assert.equal(truncated.pairs[0].anchorsTruncated, true)
+  })
+
+  it('filters interaction events by reply time while allowing an older referenced message', () => {
+    const insert = raw.prepare(
+      `INSERT INTO message
+        (id, sender_id, ts, type, content, platform_message_id, reply_to_message_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    insert.run(1, 2, 1600000000, 0, 'old alice', 'old-alice', null)
+    insert.run(2, 3, 1600000001, 0, 'old bob reply', 'old-bob', 'old-alice')
+    insert.run(3, 2, 1700000000, 0, 'new alice', 'new-alice', null)
+    insert.run(4, 3, 1700000001, 0, 'new bob replies old alice', 'new-bob', 'old-alice')
+    insert.run(5, 2, 1700000002, 0, 'new alice replies bob', 'new-alice-2', 'new-bob')
+
+    const facts = getParticipantSetInteractionFacts(db, [2, 3], {
+      startTs: 1700000000,
+      endTs: 1700000100,
+      maxAnchorsPerPair: 4,
+      maxProximityMessages: 1,
+    })
+
+    assert.equal(facts.proximityStatus, 'partial')
+    assert.deepEqual(
+      facts.participants.map((participant) => [participant.memberId, participant.messageCount]),
+      [
+        [2, 2],
+        [3, 1],
+      ]
+    )
+    assert.equal(facts.pairs[0].directReplyCount, 2)
+    assert.deepEqual(
+      facts.pairs[0].anchors
+        .filter((anchor) => anchor.signal === 'direct_reply')
+        .map((anchor) => [anchor.messageId, anchor.relatedMessageId]),
+      [
+        [5, 4],
+        [4, 1],
+      ]
+    )
+  })
+
+  it('keeps non-selected speakers in the proximity window and marks budget-limited zeroes as unknown', () => {
+    const insert = raw.prepare(
+      `INSERT INTO message
+        (id, sender_id, ts, type, content, platform_message_id, reply_to_message_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    insert.run(1, 2, 1704103200, 0, 'alice', 'alice-1', null)
+    insert.run(2, 4, 1704103201, 0, 'carol', 'carol-1', null)
+    insert.run(3, 1, 1704103202, 0, 'owner', 'owner-1', null)
+    insert.run(4, 5, 1704103203, 0, 'dave', 'dave-1', null)
+    insert.run(5, 3, 1704103204, 0, 'bob', 'bob-1', null)
+
+    const complete = getParticipantSetInteractionFacts(db, [2, 3])
+    assert.equal(complete.pairs[0].coOccurrenceCount, 0)
+
+    const partial = getParticipantSetInteractionFacts(db, [2, 3], { maxProximityMessages: 1 })
+    assert.equal(partial.proximityStatus, 'partial')
+    assert.equal(partial.pairs[0].coOccurrenceCount, null)
+    assert.equal(partial.pairs[0].coOccurrenceRawScore, null)
   })
 })

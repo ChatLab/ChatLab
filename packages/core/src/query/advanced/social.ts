@@ -283,6 +283,10 @@ export interface CoOccurrenceMessage {
   ts: number
 }
 
+export interface IdentifiedCoOccurrenceMessage extends CoOccurrenceMessage {
+  messageId: number
+}
+
 export interface CoOccurrencePairStats {
   sourceId: number
   targetId: number
@@ -291,7 +295,21 @@ export interface CoOccurrencePairStats {
   lastOccurrenceTs: number
 }
 
+export interface SelectedCoOccurrenceAnchor {
+  messageId: number
+  relatedMessageId: number
+  fromMemberId: number
+  toMemberId: number
+  timestamp: number
+  weight: number
+}
+
+export interface SelectedCoOccurrencePairStats extends CoOccurrencePairStats {
+  anchors: SelectedCoOccurrenceAnchor[]
+}
+
 const DEFAULT_CLUSTER_OPTIONS = { lookAhead: 3, decaySeconds: 120, topEdges: 100 }
+const DEFAULT_SELECTED_PROXIMITY_MAX_GAP_SECONDS = 1800
 
 function roundNum(value: number, digits = 4): number {
   const factor = 10 ** digits
@@ -345,6 +363,158 @@ export function accumulateCoOccurrencePairs(
   }
 
   return pairs
+}
+
+/**
+ * Compute only requested member pairs while preserving the full message stream
+ * when deciding which distinct speakers occupy the look-ahead window.
+ */
+export function accumulateSelectedCoOccurrencePairs(
+  messages: IdentifiedCoOccurrenceMessage[],
+  selectedPairs: Array<readonly [number, number]>,
+  options?: ClusterGraphOptions & { maxAnchorsPerPair?: number; maxGapSeconds?: number }
+): SelectedCoOccurrencePairStats[] {
+  const opts = { ...DEFAULT_CLUSTER_OPTIONS, ...options }
+  const lookAhead = Math.max(0, Math.ceil(opts.lookAhead))
+  const maxAnchorsPerPair = Math.max(0, Math.floor(options?.maxAnchorsPerPair ?? 2))
+  const maxGapSeconds = Math.max(0, options?.maxGapSeconds ?? DEFAULT_SELECTED_PROXIMITY_MAX_GAP_SECONDS)
+  const selectedKeys = new Set(selectedPairs.map(([left, right]) => clusterPairKey(left, right)))
+  const candidateIndexes = buildDistinctSpeakerLookAhead(messages, lookAhead)
+  const stats = new Map<
+    string,
+    {
+      sourceId: number
+      targetId: number
+      rawScore: number
+      coOccurrenceCount: number
+      lastOccurrenceTs: number
+      anchors: SelectedCoOccurrenceAnchor[]
+    }
+  >()
+
+  for (let i = 0; i < messages.length - 1; i++) {
+    const anchor = messages[i]
+    for (let partnerIndex = 0; partnerIndex < lookAhead; partnerIndex++) {
+      const candidateIndex = candidateIndexes[i * lookAhead + partnerIndex]
+      if (candidateIndex < 0) break
+      const candidate = messages[candidateIndex]
+      const deltaSeconds = candidate.ts - anchor.ts
+      if (deltaSeconds > maxGapSeconds) break
+      const key = clusterPairKey(anchor.senderId, candidate.senderId)
+      if (!selectedKeys.has(key)) continue
+      const decayWeight = Math.exp(-deltaSeconds / opts.decaySeconds)
+      const positionWeight = 1 - partnerIndex * 0.2
+      const weight = decayWeight * positionWeight
+      const sourceId = Math.min(anchor.senderId, candidate.senderId)
+      const targetId = Math.max(anchor.senderId, candidate.senderId)
+      const current = stats.get(key) ?? {
+        sourceId,
+        targetId,
+        rawScore: 0,
+        coOccurrenceCount: 0,
+        lastOccurrenceTs: 0,
+        anchors: [],
+      }
+      current.rawScore += weight
+      current.coOccurrenceCount++
+      current.lastOccurrenceTs = Math.max(current.lastOccurrenceTs, candidate.ts)
+      retainBestSelectedAnchor(
+        current.anchors,
+        {
+          messageId: candidate.messageId,
+          relatedMessageId: anchor.messageId,
+          fromMemberId: anchor.senderId,
+          toMemberId: candidate.senderId,
+          timestamp: candidate.ts,
+          weight,
+        },
+        maxAnchorsPerPair
+      )
+      stats.set(key, current)
+    }
+  }
+
+  return [...stats.values()].map((item) => ({
+    sourceId: item.sourceId,
+    targetId: item.targetId,
+    rawScore: item.rawScore,
+    coOccurrenceCount: item.coOccurrenceCount,
+    lastOccurrenceTs: item.lastOccurrenceTs,
+    anchors: item.anchors
+      .sort((left, right) => right.weight - left.weight || right.timestamp - left.timestamp)
+      .slice(0, maxAnchorsPerPair),
+  }))
+}
+
+/**
+ * 为每条消息预计算其后最先出现的若干位不同发言人。
+ *
+ * 反向扫描时，链表中只保留每位发言人在当前位置之后的首次出现，且按消息位置升序排列。
+ * 因而每条消息只需读取链表头部的 lookAhead 个节点，避免双人长对话反复扫描到数组末尾。
+ */
+function buildDistinctSpeakerLookAhead(messages: IdentifiedCoOccurrenceMessage[], lookAhead: number): Int32Array {
+  const candidateIndexes = new Int32Array(messages.length * lookAhead)
+  candidateIndexes.fill(-1)
+  if (lookAhead === 0 || messages.length === 0) return candidateIndexes
+
+  const previousIndexes = new Int32Array(messages.length)
+  const nextIndexes = new Int32Array(messages.length)
+  previousIndexes.fill(-1)
+  nextIndexes.fill(-1)
+  const activeIndexBySender = new Map<number, number>()
+  let headIndex = -1
+
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const anchor = messages[index]
+    let candidateIndex = headIndex
+    let found = 0
+    while (candidateIndex >= 0 && found < lookAhead) {
+      if (messages[candidateIndex].senderId !== anchor.senderId) {
+        candidateIndexes[index * lookAhead + found] = candidateIndex
+        found++
+      }
+      candidateIndex = nextIndexes[candidateIndex]
+    }
+
+    const previousOccurrence = activeIndexBySender.get(anchor.senderId)
+    if (previousOccurrence !== undefined) {
+      const previousIndex = previousIndexes[previousOccurrence]
+      const nextIndex = nextIndexes[previousOccurrence]
+      if (previousIndex >= 0) nextIndexes[previousIndex] = nextIndex
+      else headIndex = nextIndex
+      if (nextIndex >= 0) previousIndexes[nextIndex] = previousIndex
+    }
+
+    previousIndexes[index] = -1
+    nextIndexes[index] = headIndex
+    if (headIndex >= 0) previousIndexes[headIndex] = index
+    headIndex = index
+    activeIndexBySender.set(anchor.senderId, index)
+  }
+
+  return candidateIndexes
+}
+
+function retainBestSelectedAnchor(
+  anchors: SelectedCoOccurrenceAnchor[],
+  candidate: SelectedCoOccurrenceAnchor,
+  limit: number
+): void {
+  if (limit === 0) return
+  if (anchors.length < limit) {
+    anchors.push(candidate)
+    return
+  }
+
+  let worstIndex = 0
+  for (let index = 1; index < anchors.length; index++) {
+    if (compareSelectedAnchorQuality(anchors[index], anchors[worstIndex]) < 0) worstIndex = index
+  }
+  if (compareSelectedAnchorQuality(candidate, anchors[worstIndex]) > 0) anchors[worstIndex] = candidate
+}
+
+function compareSelectedAnchorQuality(left: SelectedCoOccurrenceAnchor, right: SelectedCoOccurrenceAnchor): number {
+  return left.weight - right.weight || left.timestamp - right.timestamp
 }
 
 export function getClusterGraph(

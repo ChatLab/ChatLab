@@ -1,6 +1,6 @@
 import type { DatabaseAdapter } from '../interfaces'
 import { hasColumn } from './filters'
-import { accumulateCoOccurrencePairs } from './advanced/social'
+import { accumulateCoOccurrencePairs, accumulateSelectedCoOccurrencePairs } from './advanced/social'
 
 const SYSTEM_MESSAGE_TYPES = [80, 81] as const
 const SYSTEM_MESSAGE_TYPES_SQL = SYSTEM_MESSAGE_TYPES.join(', ')
@@ -30,6 +30,54 @@ export interface ParticipantSessionFacts {
   firstOwnMessageTs: number | null
   lastOwnMessageTs: number | null
   activeDays: number
+  memberCount: number
+  sessionFirstMessageTs: number | null
+  sessionLastMessageTs: number | null
+}
+
+export interface ParticipantSetInteractionFactsOptions extends ParticipantSessionFactsOptions {
+  maxAnchorsPerPair?: number
+  maxProximityMessages?: number
+}
+
+export interface ParticipantInteractionAnchor {
+  messageId: number
+  relatedMessageId?: number
+  timestamp: number
+  signal: 'direct_reply' | 'proximity'
+  fromMemberId: number
+  toMemberId: number
+}
+
+export interface ParticipantInteractionMemberFacts {
+  memberId: number
+  messageCount: number
+  firstMessageTs: number | null
+  lastMessageTs: number | null
+  activeDays: number
+}
+
+export interface ParticipantInteractionPairFacts {
+  sourceMemberId: number
+  targetMemberId: number
+  directReplyCount: number
+  repliesFromSourceToTarget: number
+  repliesFromTargetToSource: number
+  lastDirectReplyTs: number | null
+  coOccurrenceCount: number | null
+  coOccurrenceRawScore: number | null
+  lastProximityTs: number | null
+  coActiveDays: number
+  anchors: ParticipantInteractionAnchor[]
+  anchorsTruncated: boolean
+}
+
+export interface ParticipantSetInteractionFacts {
+  participants: ParticipantInteractionMemberFacts[]
+  overlapRange: { startTs: number; endTs: number } | null
+  allParticipantsCoActiveDays: number
+  pairs: ParticipantInteractionPairFacts[]
+  proximityStatus: 'complete' | 'partial' | 'skipped_budget'
   memberCount: number
   sessionFirstMessageTs: number | null
   sessionLastMessageTs: number | null
@@ -193,6 +241,231 @@ export function getParticipantSessionFacts(
     firstOwnMessageTs: row?.firstOwnMessageTs ?? null,
     lastOwnMessageTs: row?.lastOwnMessageTs ?? null,
     activeDays: row?.activeDays ?? 0,
+    memberCount: getNonSystemMembersForContacts(db).length,
+    sessionFirstMessageTs: dataRange?.firstMessageTs ?? null,
+    sessionLastMessageTs: dataRange?.lastMessageTs ?? null,
+  }
+}
+
+export function getParticipantSetInteractionFacts(
+  db: DatabaseAdapter,
+  rawMemberIds: number[],
+  options: ParticipantSetInteractionFactsOptions = {}
+): ParticipantSetInteractionFacts {
+  const memberIds = [...new Set(rawMemberIds)]
+  if (memberIds.length < 2) throw new Error('At least two distinct member IDs are required')
+  const placeholders = memberIds.map(() => '?').join(', ')
+  const timeFilter = createBoundedMessageTimeFilter('msg', options)
+  const activityRows = db
+    .prepare(
+      `SELECT
+        msg.sender_id as memberId,
+        COUNT(*) as messageCount,
+        MIN(msg.ts) as firstMessageTs,
+        MAX(msg.ts) as lastMessageTs,
+        COUNT(DISTINCT strftime('%Y-%m-%d', msg.ts, 'unixepoch', 'localtime')) as activeDays
+       FROM message msg
+       JOIN member m ON msg.sender_id = m.id
+       WHERE ${nonSystemMessageCondition(db, 'msg', 'm')}
+         AND msg.sender_id IN (${placeholders})${timeFilter.sql}
+       GROUP BY msg.sender_id`
+    )
+    .all(...memberIds, ...timeFilter.params) as Array<{
+    memberId: number
+    messageCount: number
+    firstMessageTs: number | null
+    lastMessageTs: number | null
+    activeDays: number
+  }>
+  const activityByMemberId = new Map(activityRows.map((row) => [row.memberId, row]))
+  const participants = memberIds.map((memberId): ParticipantInteractionMemberFacts => {
+    const row = activityByMemberId.get(memberId)
+    return {
+      memberId,
+      messageCount: row?.messageCount ?? 0,
+      firstMessageTs: row?.firstMessageTs ?? null,
+      lastMessageTs: row?.lastMessageTs ?? null,
+      activeDays: row?.activeDays ?? 0,
+    }
+  })
+
+  const activeDayRows = db
+    .prepare(
+      `SELECT
+        msg.sender_id as memberId,
+        strftime('%Y-%m-%d', msg.ts, 'unixepoch', 'localtime') as activeDay
+       FROM message msg
+       JOIN member m ON msg.sender_id = m.id
+       WHERE ${nonSystemMessageCondition(db, 'msg', 'm')}
+         AND msg.sender_id IN (${placeholders})${timeFilter.sql}
+       GROUP BY msg.sender_id, activeDay`
+    )
+    .all(...memberIds, ...timeFilter.params) as Array<{ memberId: number; activeDay: string }>
+  const activeDaysByMemberId = new Map(memberIds.map((memberId) => [memberId, new Set<string>()]))
+  for (const row of activeDayRows) activeDaysByMemberId.get(row.memberId)?.add(row.activeDay)
+
+  const pairMap = new Map<string, ParticipantInteractionPairFacts>()
+  for (let sourceIndex = 0; sourceIndex < memberIds.length - 1; sourceIndex++) {
+    for (let targetIndex = sourceIndex + 1; targetIndex < memberIds.length; targetIndex++) {
+      const sourceMemberId = memberIds[sourceIndex]
+      const targetMemberId = memberIds[targetIndex]
+      pairMap.set(contactPairKey(sourceMemberId, targetMemberId), {
+        sourceMemberId,
+        targetMemberId,
+        directReplyCount: 0,
+        repliesFromSourceToTarget: 0,
+        repliesFromTargetToSource: 0,
+        lastDirectReplyTs: null,
+        coOccurrenceCount: 0,
+        coOccurrenceRawScore: 0,
+        lastProximityTs: null,
+        coActiveDays: countSetIntersection(
+          activeDaysByMemberId.get(sourceMemberId) ?? new Set(),
+          activeDaysByMemberId.get(targetMemberId) ?? new Set()
+        ),
+        anchors: [],
+        anchorsTruncated: false,
+      })
+    }
+  }
+
+  const replyRows = db
+    .prepare(
+      `SELECT
+        msg.id as messageId,
+        target.id as relatedMessageId,
+        msg.sender_id as replySenderId,
+        target.sender_id as targetSenderId,
+        msg.ts as replyTs
+       FROM message msg
+       JOIN message target ON msg.reply_to_message_id = target.platform_message_id
+       JOIN member sender ON msg.sender_id = sender.id
+       JOIN member targetMember ON target.sender_id = targetMember.id
+       WHERE msg.reply_to_message_id IS NOT NULL
+         AND ${nonSystemMessageCondition(db, 'msg', 'sender')}
+         AND ${nonSystemMessageCondition(db, 'target', 'targetMember')}
+         AND msg.sender_id IN (${placeholders})
+         AND target.sender_id IN (${placeholders})${timeFilter.sql}
+       ORDER BY msg.ts DESC, msg.id DESC`
+    )
+    .all(...memberIds, ...memberIds, ...timeFilter.params) as Array<{
+    messageId: number
+    relatedMessageId: number
+    replySenderId: number
+    targetSenderId: number
+    replyTs: number
+  }>
+  const maxAnchorsPerPair = Math.max(0, Math.floor(options.maxAnchorsPerPair ?? 4))
+  const replyDirectionsSeen = new Set<string>()
+  for (const row of replyRows) {
+    if (row.replySenderId === row.targetSenderId) continue
+    const pair = pairMap.get(contactPairKey(row.replySenderId, row.targetSenderId))
+    if (!pair) continue
+    pair.directReplyCount++
+    if (row.replySenderId === pair.sourceMemberId) pair.repliesFromSourceToTarget++
+    else pair.repliesFromTargetToSource++
+    pair.lastDirectReplyTs = Math.max(pair.lastDirectReplyTs ?? 0, row.replyTs)
+    const directionKey = `${row.replySenderId}:${row.targetSenderId}`
+    if (!replyDirectionsSeen.has(directionKey)) {
+      replyDirectionsSeen.add(directionKey)
+      if (pair.anchors.length < maxAnchorsPerPair) {
+        pair.anchors.push({
+          messageId: row.messageId,
+          relatedMessageId: row.relatedMessageId,
+          timestamp: row.replyTs,
+          signal: 'direct_reply',
+          fromMemberId: row.replySenderId,
+          toMemberId: row.targetSenderId,
+        })
+      } else {
+        pair.anchorsTruncated = true
+      }
+    }
+  }
+
+  const maxProximityMessages = Math.max(0, Math.floor(options.maxProximityMessages ?? 200_000))
+  let proximityStatus: ParticipantSetInteractionFacts['proximityStatus'] = 'complete'
+  if (maxProximityMessages === 0) {
+    proximityStatus = 'skipped_budget'
+    for (const pair of pairMap.values()) {
+      pair.coOccurrenceCount = null
+      pair.coOccurrenceRawScore = null
+    }
+  } else {
+    const proximityRows = db
+      .prepare(
+        `SELECT msg.id as messageId, msg.sender_id as senderId, msg.ts as ts
+         FROM message msg
+         JOIN member m ON msg.sender_id = m.id
+         WHERE ${nonSystemMessageCondition(db, 'msg', 'm')}${timeFilter.sql}
+         ORDER BY msg.ts ASC, msg.id ASC
+         LIMIT ?`
+      )
+      .all(...timeFilter.params, maxProximityMessages + 1) as Array<{
+      messageId: number
+      senderId: number
+      ts: number
+    }>
+    if (proximityRows.length > maxProximityMessages) {
+      proximityRows.length = maxProximityMessages
+      proximityStatus = 'partial'
+    }
+    const selectedPairFacts = accumulateSelectedCoOccurrencePairs(
+      proximityRows,
+      [...pairMap.values()].map((pair) => [pair.sourceMemberId, pair.targetMemberId] as const),
+      // 多保留一个候选，用于区分“命中上限”和“确实省略了证据”。
+      { maxAnchorsPerPair: maxAnchorsPerPair + 1 }
+    )
+    for (const selected of selectedPairFacts) {
+      const pair = pairMap.get(contactPairKey(selected.sourceId, selected.targetId))
+      if (!pair) continue
+      pair.coOccurrenceCount = selected.coOccurrenceCount
+      pair.coOccurrenceRawScore = selected.rawScore
+      pair.lastProximityTs = selected.lastOccurrenceTs
+      for (const anchor of selected.anchors) {
+        if (pair.anchors.length >= maxAnchorsPerPair) {
+          pair.anchorsTruncated = true
+          break
+        }
+        pair.anchors.push({
+          messageId: anchor.messageId,
+          relatedMessageId: anchor.relatedMessageId,
+          timestamp: anchor.timestamp,
+          signal: 'proximity',
+          fromMemberId: anchor.fromMemberId,
+          toMemberId: anchor.toMemberId,
+        })
+      }
+    }
+    if (proximityStatus === 'partial') {
+      for (const pair of pairMap.values()) {
+        if (pair.coOccurrenceCount === 0) {
+          pair.coOccurrenceCount = null
+          pair.coOccurrenceRawScore = null
+          pair.lastProximityTs = null
+        }
+      }
+    }
+  }
+
+  const activeDaySets = memberIds.map((memberId) => activeDaysByMemberId.get(memberId) ?? new Set<string>())
+  const firstMessageTimestamps = participants.map((participant) => participant.firstMessageTs)
+  const lastMessageTimestamps = participants.map((participant) => participant.lastMessageTs)
+  const dataRange = db
+    .prepare(
+      `SELECT MIN(msg.ts) as firstMessageTs, MAX(msg.ts) as lastMessageTs
+       FROM message msg
+       JOIN member m ON msg.sender_id = m.id
+       WHERE ${nonSystemMessageCondition(db, 'msg', 'm')}`
+    )
+    .get() as { firstMessageTs: number | null; lastMessageTs: number | null } | undefined
+
+  return {
+    participants,
+    overlapRange: calculateOverlapRange(firstMessageTimestamps, lastMessageTimestamps),
+    allParticipantsCoActiveDays: countMultipleSetIntersection(activeDaySets),
+    pairs: [...pairMap.values()],
+    proximityStatus,
     memberCount: getNonSystemMembersForContacts(db).length,
     sessionFirstMessageTs: dataRange?.firstMessageTs ?? null,
     sessionLastMessageTs: dataRange?.lastMessageTs ?? null,
@@ -547,6 +820,40 @@ function createReplyTimeFilter(startTs: number | null | undefined): { sql: strin
   return typeof startTs === 'number'
     ? { sql: ' AND msg.ts >= ? AND target.ts >= ?', params: [startTs, startTs] }
     : { sql: '', params: [] }
+}
+
+function contactPairKey(left: number, right: number): string {
+  return left < right ? `${left}:${right}` : `${right}:${left}`
+}
+
+function countSetIntersection(left: Set<string>, right: Set<string>): number {
+  const smaller = left.size <= right.size ? left : right
+  const larger = smaller === left ? right : left
+  let count = 0
+  for (const value of smaller) {
+    if (larger.has(value)) count++
+  }
+  return count
+}
+
+function countMultipleSetIntersection(sets: Set<string>[]): number {
+  if (sets.length === 0) return 0
+  return sets.slice(1).reduce((intersection, current) => {
+    for (const value of intersection) {
+      if (!current.has(value)) intersection.delete(value)
+    }
+    return intersection
+  }, new Set(sets[0])).size
+}
+
+function calculateOverlapRange(
+  firstTimestamps: Array<number | null>,
+  lastTimestamps: Array<number | null>
+): { startTs: number; endTs: number } | null {
+  if (firstTimestamps.some((value) => value === null) || lastTimestamps.some((value) => value === null)) return null
+  const startTs = Math.max(...(firstTimestamps as number[]))
+  const endTs = Math.min(...(lastTimestamps as number[]))
+  return startTs <= endTs ? { startTs, endTs } : null
 }
 
 interface ContactMemberRow {
