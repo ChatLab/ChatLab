@@ -471,6 +471,41 @@ describe('cross-chat agent registry', () => {
     assert.deepEqual((sharedResult.data as CrossChatSharedInteractionsResult).coverage.truncatedReasons, [])
   })
 
+  it('keeps shared interactions within the model token budget without dropping full tool details', async () => {
+    const longSessionName = '超长共同群聊名称'.repeat(500)
+    let tokenCountCalls = 0
+    const countTokens = (text: string) => {
+      tokenCountCalls++
+      return Math.ceil(Array.from(text).length / 4)
+    }
+    const sharedContext = createContext({
+      inspectSharedInteractions: async () => {
+        const result = sharedInteractionsResult(false)
+        result.sessions[0].sessionName = longSessionName
+        return result
+      },
+    })
+    sharedContext.maxToolResultTokens = 1_000
+    sharedContext.countTokens = countTokens
+    const sharedTool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'inspect_shared_interactions')
+    assert.ok(sharedTool)
+
+    const result = await sharedTool.handler(
+      {
+        participants: [{ type: 'owner' }, { type: 'contact', contact_key: 'test:a' }],
+      },
+      sharedContext
+    )
+    const data = result.data as CrossChatSharedInteractionsResult
+    const modelData = JSON.parse(result.content) as { sessions?: Array<{ sessionName?: string }> }
+
+    assert.equal(data.sessions[0]?.sessionName, longSessionName)
+    assert.notEqual(modelData.sessions?.[0]?.sessionName, longSessionName)
+    assert.ok(data.coverage.truncatedReasons.includes('tool_result_budget'))
+    assert.ok(countTokens(result.content) <= sharedContext.maxToolResultTokens)
+    assert.ok(tokenCountCalls > 0)
+  })
+
   it('reports the tool budget when reduced anchor capacity actually omits evidence', async () => {
     const sharedContext = createContext({
       inspectSharedInteractions: async () => sharedInteractionsResult(true),
