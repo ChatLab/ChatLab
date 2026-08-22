@@ -333,7 +333,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
   const llmStore = useLLMStore()
   const { aiGlobalSettings } = storeToRefs(promptStore)
 
-  let pendingFocusReturn = false
+  let pendingFocusReturnChatKey: string | null = null
 
   function generateId(prefix: string): string {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -597,18 +597,22 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
   function focusActiveTaskAIChat(): boolean {
     if (!activeTask.value) return false
-    pendingFocusReturn = true
-    return focusAIChat(activeTask.value.chatKey, activeTask.value.aiChatId)
+
+    const task = activeTask.value
+    const focused = focusAIChat(task.chatKey, task.aiChatId)
+    pendingFocusReturnChatKey = focused && task.kind === 'session' ? task.chatKey : null
+    return focused
   }
 
   /**
    * 每次 ChatExplorer 挂载时调用。
    * 如果存在有效的记忆助手则直接进入对应助手，否则回到助手选择页。
-   * 从浮动任务条返回（pendingFocusReturn）时跳过重置以保留对话状态。
+   * 从浮动任务条返回当前会话时跳过重置，以保留正在运行的对话状态。
    */
   async function resetToSelectorOnEnter(chatKey: string, preferredAIChatId?: string | null): Promise<void> {
-    if (pendingFocusReturn) {
-      pendingFocusReturn = false
+    const shouldPreserveFocusedTask = pendingFocusReturnChatKey === chatKey
+    pendingFocusReturnChatKey = null
+    if (shouldPreserveFocusedTask) {
       return
     }
     const state = getSessionState(chatKey)
