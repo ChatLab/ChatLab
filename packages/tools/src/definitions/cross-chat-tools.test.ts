@@ -36,6 +36,67 @@ function messageSource(
   }
 }
 
+function contactSessionsResult(sessionCount: number, sessionName = 'Work group'): CrossChatContactSessionsResult {
+  return {
+    algorithmVersion: 'test',
+    contact: {
+      contactKey: 'test:alice',
+      displayName: 'Alice',
+      platform: 'test',
+      sessionScoped: false,
+    },
+    appliedRange: {
+      startTs: null,
+      endTs: null,
+      dataEarliestMessageTs: 100,
+      dataLatestMessageTs: 200,
+    },
+    summary: {
+      scope: 'current_batch',
+      matchedSessions: sessionCount,
+      privateSessions: 0,
+      groupSessions: sessionCount,
+      spokeSessions: sessionCount,
+      rosterOnlySessions: 0,
+      ownMessageCount: sessionCount * 10,
+      firstOwnMessageTs: 100,
+      lastOwnMessageTs: 200,
+    },
+    sessions: Array.from({ length: sessionCount }, (_, index) => ({
+      sessionId: `group-${index}`,
+      sessionName,
+      sessionType: ChatType.GROUP,
+      platform: 'test',
+      lastMessageTs: 200,
+      memberId: index + 1,
+      memberName: 'Alice',
+      presence: 'spoke',
+      presenceObservedInRange: true,
+      ownMessageCount: 10,
+      sessionMessageCount: 100,
+      messageShare: 0.1,
+      firstOwnMessageTs: 100,
+      lastOwnMessageTs: 200,
+      activeDays: 2,
+      memberCount: 20,
+      sessionFirstMessageTs: 90,
+    })),
+    coverage: {
+      candidateSessions: 20,
+      scannedSessions: sessionCount,
+      matchedSessions: sessionCount,
+      returnedSessions: sessionCount,
+      failedSessions: 0,
+      failedSessionIds: [],
+      complete: false,
+      nextCursor: 'next-page',
+      truncated: true,
+      truncatedReasons: ['page_size'],
+      contactCacheStatus: 'fresh',
+    },
+  }
+}
+
 function createContext(overrides: Partial<CrossChatAnalysisToolService> = {}): CrossChatToolExecutionContext {
   const service: CrossChatAnalysisToolService = {
     lookupContact: (query: string): CrossChatContactLookupResult => ({
@@ -207,6 +268,38 @@ describe('cross-chat agent registry', () => {
       maxWallTimeMs: 5000,
     })
     await assert.rejects(async () => tool.handler({ contact_key: '' }, context), /contact_key is required/)
+  })
+
+  it('keeps contact inspection within the model token budget without dropping full tool details', async () => {
+    let capturedPageSize: number | undefined
+    const longSessionName = '超长群聊名称'.repeat(500)
+    let tokenCountCalls = 0
+    const countTokens = (text: string) => {
+      tokenCountCalls++
+      return Math.ceil(Array.from(text).length / 4)
+    }
+    const context = createContext({
+      inspectContactSessions: async (request) => {
+        capturedPageSize = request.pageSize
+        return contactSessionsResult(request.pageSize ?? 12, longSessionName)
+      },
+    })
+    context.maxToolResultTokens = 1_000
+    context.countTokens = countTokens
+    const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'inspect_contact_sessions')
+    assert.ok(tool)
+
+    const result = await tool.handler({ contact_key: 'test:alice', page_size: 12 }, context)
+    const data = result.data as CrossChatContactSessionsResult
+    const modelData = JSON.parse(result.content) as { sessions?: Array<{ sessionName?: string }> }
+
+    assert.ok(capturedPageSize && capturedPageSize < 12)
+    assert.equal(data.sessions.length, capturedPageSize)
+    assert.equal(data.sessions[0]?.sessionName, longSessionName)
+    assert.notEqual(modelData.sessions?.[0]?.sessionName, longSessionName)
+    assert.ok(data.coverage.truncatedReasons.includes('tool_result_budget'))
+    assert.ok(countTokens(result.content) <= context.maxToolResultTokens)
+    assert.ok(tokenCountCalls > 0)
   })
 
   it('resolves a unique contact name before continuing with stable scopes', async () => {

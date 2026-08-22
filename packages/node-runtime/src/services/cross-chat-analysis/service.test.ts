@@ -466,6 +466,103 @@ test('contact session inspection scans imported sessions and separates own messa
   }
 })
 
+test('contact session inspection uses the all-history contact snapshot', async () => {
+  const { env, contactsService: fixtureContactsService } = createFixture()
+  const detailPresets: Array<string | undefined> = []
+  try {
+    const contactsService: Pick<ContactsService, 'getContactDetail' | 'getContactsPage'> = {
+      ...fixtureContactsService,
+      getContactDetail: (key, options) => {
+        detailPresets.push(options?.timeRangePreset)
+        return options?.timeRangePreset === 'all' ? fixtureContactsService.getContactDetail(key, options) : detail(null)
+      },
+    }
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+
+    const result = await service.inspectContactSessions({ contactKey: 'test:alice' })
+
+    assert.equal(result.contact?.contactKey, 'test:alice')
+    assert.deepEqual(
+      result.sessions.map((session) => session.sessionId),
+      ['group-work', 'private-alice']
+    )
+    assert.deepEqual(detailPresets, ['all'])
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('contact session inspection validates raw candidates inside failure, time, and cancellation boundaries', async () => {
+  const { env, contactsService } = createFixture()
+  try {
+    const candidateIds = [...env.adapter.listSessionCandidateIds!(), 'damaged']
+    let eagerEnumerationCalled = false
+    const failureAdapter: SessionRuntimeAdapter = {
+      ...env.adapter,
+      listSessionIds: () => {
+        eagerEnumerationCalled = true
+        throw new Error('eager enumeration should not be used')
+      },
+      listSessionCandidateIds: () => candidateIds,
+      openReadonly: (sessionId) => {
+        if (sessionId === 'damaged') throw new Error('fixture failure')
+        return env.adapter.openReadonly(sessionId)
+      },
+    }
+    const failureResult = await createCrossChatAnalysisService({
+      adapter: failureAdapter,
+      contactsService,
+    }).inspectContactSessions({ contactKey: 'test:alice' })
+
+    assert.equal(eagerEnumerationCalled, false)
+    assert.deepEqual(
+      failureResult.sessions.map((session) => session.sessionId),
+      ['group-work', 'private-alice']
+    )
+    assert.deepEqual(failureResult.coverage.failedSessionIds, ['damaged'])
+
+    let now = 0
+    const openedSessions: string[] = []
+    const timedAdapter: SessionRuntimeAdapter = {
+      ...env.adapter,
+      openReadonly: (sessionId) => {
+        openedSessions.push(sessionId)
+        const db = env.adapter.openReadonly(sessionId)
+        now += 9_000
+        return db
+      },
+    }
+    const timedResult = await createCrossChatAnalysisService({
+      adapter: timedAdapter,
+      contactsService,
+      now: () => now,
+    }).inspectContactSessions({ contactKey: 'test:alice', maxWallTimeMs: 8_000 })
+
+    assert.equal(openedSessions.length, 1)
+    assert.equal(timedResult.coverage.scannedSessions, 1)
+    assert.ok(timedResult.coverage.truncatedReasons.includes('time_budget'))
+    assert.ok(timedResult.coverage.nextCursor)
+
+    const controller = new AbortController()
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+    await assert.rejects(
+      () =>
+        service.inspectContactSessions(
+          { contactKey: 'test:alice' },
+          {
+            signal: controller.signal,
+            onProgress: (progress) => {
+              if (progress.currentSessionId === 'group-work') controller.abort()
+            },
+          }
+        ),
+      { name: 'AbortError' }
+    )
+  } finally {
+    env.cleanup()
+  }
+})
+
 test('contact session inspection honors time ranges, session-scoped identity, and continuation cursors', async () => {
   const { env, contactsService } = createFixture()
   try {

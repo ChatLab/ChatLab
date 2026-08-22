@@ -267,17 +267,23 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     const includeRosterOnly = request.includeRosterOnly !== false
     const pageSize = clampInteger(request.pageSize, DEFAULT_INSPECTION_PAGE_SIZE, 1, MAX_INSPECTION_PAGE_SIZE)
     const maxWallTimeMs = clampInteger(request.maxWallTimeMs, DEFAULT_MAX_WALL_TIME_MS, 1, MAX_MAX_WALL_TIME_MS)
-    const detail = this.deps.contactsService.getContactDetail(contactKey, { acceptStale: true })
+    const detail = this.deps.contactsService.getContactDetail(contactKey, {
+      acceptStale: true,
+      timeRangePreset: 'all',
+    })
     const contact = detail.contact
     if (!contact) {
       return emptyContactSessionsResult(detail.cache.status, range)
     }
 
+    const startedAt = this.now()
     const candidateSessionIds = contact.sessionScoped
       ? contact.sessionId
         ? [contact.sessionId]
         : []
-      : [...new Set(this.deps.adapter.listSessionIds())].sort((left, right) => left.localeCompare(right))
+      : [...new Set(this.deps.adapter.listSessionCandidateIds?.() ?? this.deps.adapter.listSessionIds())].sort(
+          (left, right) => left.localeCompare(right)
+        )
     const cursorFingerprint = createInspectionFingerprint({
       candidateSessionIds,
       contactKey,
@@ -286,7 +292,6 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
       includeRosterOnly,
     })
     const cursor = parseInspectionCursor(request.cursor, cursorFingerprint, candidateSessionIds)
-    const startedAt = this.now()
     const sessions: CrossChatContactSessionsResult['sessions'] = []
     const failedSessionIds: string[] = []
     const truncatedReasons = new Set<CrossChatContactSessionsResult['coverage']['truncatedReasons'][number]>()

@@ -124,6 +124,13 @@ const inspectContactSessionsSchema: JsonSchema = {
   required: ['contact_key'],
 }
 
+const DEFAULT_CONTACT_INSPECTION_PAGE_SIZE = 50
+const MAX_CONTACT_INSPECTION_PAGE_SIZE = 100
+const CONTACT_MODEL_LABEL_MAX_LENGTH = 80
+const TOOL_RESULT_CHARS_PER_TOKEN = 4
+const TOOL_RESULT_BASE_CHARS = 1_500
+const CONTACT_SESSION_ESTIMATED_CHARS = 650
+
 async function resolveHandler(
   params: Record<string, unknown>,
   context: CrossChatToolExecutionContext
@@ -279,6 +286,8 @@ async function inspectContactSessionsHandler(
   context: CrossChatToolExecutionContext
 ): Promise<ToolResult> {
   const timeFilter = parseExtendedTimeParams(params)
+  const requestedPageSize = parseOptionalNumber(params.page_size)
+  const budgetedPageSize = limitContactPageSizeToBudget(requestedPageSize, context.maxToolResultTokens)
   const result = await context.analysisService.inspectContactSessions(
     {
       contactKey: requireString(params.contact_key, 'contact_key'),
@@ -286,7 +295,7 @@ async function inspectContactSessionsHandler(
       endTs: timeFilter?.endTs,
       includeRosterOnly: params.include_roster_only === undefined ? true : requireBoolean(params.include_roster_only),
       cursor: typeof params.cursor === 'string' && params.cursor.trim() ? params.cursor.trim() : undefined,
-      pageSize: parseOptionalNumber(params.page_size),
+      pageSize: budgetedPageSize.value,
       maxWallTimeMs: parseOptionalNumber(params.max_wall_time_ms),
     },
     {
@@ -299,8 +308,15 @@ async function inspectContactSessionsHandler(
         }),
     }
   )
-  const data: CrossChatContactSessionsResult = result
-  return { content: JSON.stringify(data), data }
+  const countTokens = context.countTokens ?? estimatePayloadTokens
+  const pageBudgetTruncated = budgetedPageSize.limited && result.coverage.truncatedReasons.includes('page_size')
+  const payloadExceedsBudget =
+    !!context.maxToolResultTokens &&
+    context.maxToolResultTokens > 0 &&
+    countTokens(JSON.stringify(result)) > context.maxToolResultTokens
+  const data = pageBudgetTruncated || payloadExceedsBudget ? withContactToolResultBudgetReason(result) : result
+  const modelData = limitContactResultToBudget(data, context.maxToolResultTokens, countTokens)
+  return { content: JSON.stringify(modelData), data }
 }
 
 export const resolveChatEntitiesTool: ToolDefinition<CrossChatToolExecutionContext> = {
@@ -397,6 +413,112 @@ function parseScopes(value: unknown): CrossChatSearchScope[] {
       label: typeof item.label === 'string' ? item.label : undefined,
     }
   })
+}
+
+function limitContactPageSizeToBudget(
+  requestedPageSize: number | undefined,
+  maxToolResultTokens: number | undefined
+): { value: number | undefined; limited: boolean } {
+  if (!maxToolResultTokens || maxToolResultTokens <= 0) {
+    return { value: requestedPageSize, limited: false }
+  }
+
+  const requested = Math.min(
+    MAX_CONTACT_INSPECTION_PAGE_SIZE,
+    Math.max(1, Math.floor(requestedPageSize ?? DEFAULT_CONTACT_INSPECTION_PAGE_SIZE))
+  )
+  // service 调用前先收缩分页，保证 nextCursor 指向模型实际看过的最后一批结果，而不是截断后的尾部。
+  const maxChars = maxToolResultTokens * TOOL_RESULT_CHARS_PER_TOKEN
+  const budgeted = Math.max(1, Math.floor((maxChars - TOOL_RESULT_BASE_CHARS) / CONTACT_SESSION_ESTIMATED_CHARS))
+  return {
+    value: budgeted < requested ? budgeted : requestedPageSize,
+    limited: budgeted < requested,
+  }
+}
+
+function withContactToolResultBudgetReason(result: CrossChatContactSessionsResult): CrossChatContactSessionsResult {
+  return {
+    ...result,
+    coverage: {
+      ...result.coverage,
+      truncated: true,
+      truncatedReasons: [...new Set([...result.coverage.truncatedReasons, 'tool_result_budget' as const])],
+    },
+  }
+}
+
+function limitContactResultToBudget(
+  result: CrossChatContactSessionsResult,
+  maxToolResultTokens: number | undefined,
+  countTokens: (text: string) => number
+): unknown {
+  if (!maxToolResultTokens || maxToolResultTokens <= 0) return result
+  if (countTokens(JSON.stringify(result)) <= maxToolResultTokens) return result
+
+  // details 保留完整结构供 UI 和日志追溯；这里只逐级压缩模型可见文本，并始终保留 coverage/continuation。
+  const compactLabels = {
+    ...result,
+    contact: result.contact ? { ...result.contact, displayName: truncateModelLabel(result.contact.displayName) } : null,
+    sessions: result.sessions.map((session) => ({
+      ...session,
+      sessionName: truncateModelLabel(session.sessionName),
+      memberName: truncateModelLabel(session.memberName),
+    })),
+  }
+  const coreFacts = {
+    algorithmVersion: result.algorithmVersion,
+    contact: compactLabels.contact,
+    appliedRange: result.appliedRange,
+    summary: result.summary,
+    sessions: result.sessions.map((session) => ({
+      sessionId: session.sessionId,
+      sessionName: truncateModelLabel(session.sessionName),
+      sessionType: session.sessionType,
+      platform: session.platform,
+      presence: session.presence,
+      ownMessageCount: session.ownMessageCount,
+      sessionMessageCount: session.sessionMessageCount,
+      firstOwnMessageTs: session.firstOwnMessageTs,
+      lastOwnMessageTs: session.lastOwnMessageTs,
+      activeDays: session.activeDays,
+      memberCount: session.memberCount,
+      sessionFirstMessageTs: session.sessionFirstMessageTs,
+      lastMessageTs: session.lastMessageTs,
+    })),
+    coverage: result.coverage,
+  }
+  const identityFacts = {
+    contact: result.contact
+      ? {
+          contactKey: result.contact.contactKey,
+          displayName: truncateModelLabel(result.contact.displayName),
+          platform: result.contact.platform,
+        }
+      : null,
+    sessions: result.sessions.map((session) => ({
+      sessionId: session.sessionId,
+      sessionType: session.sessionType,
+      presence: session.presence,
+      ownMessageCount: session.ownMessageCount,
+      lastOwnMessageTs: session.lastOwnMessageTs,
+    })),
+    coverage: result.coverage,
+  }
+  const coverageOnly = { coverage: result.coverage }
+  const candidates: unknown[] = [compactLabels, coreFacts, identityFacts, coverageOnly]
+  return (
+    candidates.find((candidate) => countTokens(JSON.stringify(candidate)) <= maxToolResultTokens) ?? {
+      truncated: true,
+      truncatedReasons: ['tool_result_budget'],
+    }
+  )
+}
+
+function truncateModelLabel(value: string): string {
+  const chars = Array.from(value)
+  return chars.length > CONTACT_MODEL_LABEL_MAX_LENGTH
+    ? `${chars.slice(0, CONTACT_MODEL_LABEL_MAX_LENGTH).join('')}…`
+    : value
 }
 
 async function preprocessBySession(
