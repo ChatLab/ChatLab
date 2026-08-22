@@ -309,6 +309,7 @@ export interface SelectedCoOccurrencePairStats extends CoOccurrencePairStats {
 }
 
 const DEFAULT_CLUSTER_OPTIONS = { lookAhead: 3, decaySeconds: 120, topEdges: 100 }
+const DEFAULT_SELECTED_PROXIMITY_MAX_GAP_SECONDS = 1800
 
 function roundNum(value: number, digits = 4): number {
   const factor = 10 ** digits
@@ -371,11 +372,12 @@ export function accumulateCoOccurrencePairs(
 export function accumulateSelectedCoOccurrencePairs(
   messages: IdentifiedCoOccurrenceMessage[],
   selectedPairs: Array<readonly [number, number]>,
-  options?: ClusterGraphOptions & { maxAnchorsPerPair?: number }
+  options?: ClusterGraphOptions & { maxAnchorsPerPair?: number; maxGapSeconds?: number }
 ): SelectedCoOccurrencePairStats[] {
   const opts = { ...DEFAULT_CLUSTER_OPTIONS, ...options }
   const lookAhead = Math.max(0, Math.ceil(opts.lookAhead))
   const maxAnchorsPerPair = Math.max(0, Math.floor(options?.maxAnchorsPerPair ?? 2))
+  const maxGapSeconds = Math.max(0, options?.maxGapSeconds ?? DEFAULT_SELECTED_PROXIMITY_MAX_GAP_SECONDS)
   const selectedKeys = new Set(selectedPairs.map(([left, right]) => clusterPairKey(left, right)))
   const candidateIndexes = buildDistinctSpeakerLookAhead(messages, lookAhead)
   const stats = new Map<
@@ -396,9 +398,10 @@ export function accumulateSelectedCoOccurrencePairs(
       const candidateIndex = candidateIndexes[i * lookAhead + partnerIndex]
       if (candidateIndex < 0) break
       const candidate = messages[candidateIndex]
+      const deltaSeconds = candidate.ts - anchor.ts
+      if (deltaSeconds > maxGapSeconds) break
       const key = clusterPairKey(anchor.senderId, candidate.senderId)
       if (!selectedKeys.has(key)) continue
-      const deltaSeconds = candidate.ts - anchor.ts
       const decayWeight = Math.exp(-deltaSeconds / opts.decaySeconds)
       const positionWeight = 1 - partnerIndex * 0.2
       const weight = decayWeight * positionWeight

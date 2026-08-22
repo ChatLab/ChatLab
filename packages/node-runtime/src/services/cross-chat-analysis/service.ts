@@ -60,7 +60,7 @@ const CONTACT_SESSIONS_ALGORITHM_VERSION = 'contact-sessions-v1'
 const DEFAULT_INSPECTION_PAGE_SIZE = 50
 const MAX_INSPECTION_PAGE_SIZE = 100
 const SHARED_INTERACTIONS_ALGORITHM_VERSION = 'shared-interactions-v1'
-const PROXIMITY_ALGORITHM_VERSION = 'lookahead-3-decay-120-v1'
+const PROXIMITY_ALGORITHM_VERSION = 'lookahead-3-decay-120-gap-1800-v2'
 const DEFAULT_SHARED_INTERACTIONS_PAGE_SIZE = 20
 const MAX_SHARED_INTERACTIONS_PAGE_SIZE = 50
 const DEFAULT_MAX_ANCHORS_PER_PAIR = 4
@@ -468,6 +468,8 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
       return emptySharedInteractionsResult(publicParticipants, unresolvedParticipantIndexes, range)
     }
 
+    const startedAt = this.now()
+    throwIfAborted(options.signal)
     const sessionScopedIds = resolvedParticipants
       .flatMap((participant) =>
         participant.ref.type === 'contact' && participant.contact?.sessionScoped && participant.contact.sessionId
@@ -480,8 +482,9 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
         ? []
         : sessionScopedIds.length === 1
           ? sessionScopedIds
-          : [...new Set(this.deps.adapter.listSessionIds())]
+          : [...new Set(this.deps.adapter.listSessionCandidateIds?.() ?? this.deps.adapter.listSessionIds())]
     ).sort((left, right) => left.localeCompare(right))
+    throwIfAborted(options.signal)
     const cursorFingerprint = createInspectionFingerprint({
       candidateSessionIds,
       participantRefs,
@@ -490,7 +493,6 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
       maxAnchorsPerPair,
     })
     const cursor = parseInspectionCursor(request.cursor, cursorFingerprint, candidateSessionIds)
-    const startedAt = this.now()
     const sessions: CrossChatSharedInteractionsResult['sessions'] = []
     const failedSessionIds: string[] = []
     const truncatedReasons = new Set<CrossChatSharedInteractionsResult['coverage']['truncatedReasons'][number]>()

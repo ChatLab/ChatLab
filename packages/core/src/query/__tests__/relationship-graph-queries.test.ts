@@ -151,6 +151,18 @@ describe('relationship graph query helpers', () => {
     assert.ok(messageReads <= maxMessageReads)
   })
 
+  it('does not treat messages from separate conversation windows as proximity evidence', () => {
+    const pairs = accumulateSelectedCoOccurrencePairs(
+      [
+        { messageId: 1, senderId: 1, ts: 0 },
+        { messageId: 2, senderId: 2, ts: 2 * 86400 },
+      ],
+      [[1, 2]]
+    )
+
+    assert.deepEqual(pairs, [])
+  })
+
   afterEach(() => {
     raw.close()
   })
