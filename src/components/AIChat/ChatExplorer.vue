@@ -353,8 +353,15 @@ async function handleAssistantUpgradeConfirm(): Promise<void> {
 }
 
 // 发送消息
-async function handleSend(payload: { content: string; mentionedMembers: MentionedMemberContext[] }) {
-  const result = await sendMessage(payload.content, { mentionedMembers: payload.mentionedMembers })
+async function handleSend(payload: {
+  content: string
+  mentionedMembers: MentionedMemberContext[]
+  onAccepted: () => void
+}) {
+  const result = await sendMessage(payload.content, {
+    mentionedMembers: payload.mentionedMembers,
+    onAccepted: payload.onAccepted,
+  })
   if (!result.success) {
     if (result.reason === 'busy') {
       showRunningTaskToast()

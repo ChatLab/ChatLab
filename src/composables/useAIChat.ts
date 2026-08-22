@@ -13,6 +13,7 @@ import type {
   ToolBlockContent,
   MentionedMemberContext,
   ContentBlock,
+  SendMessageOptions,
   SendMessageResult,
 } from '@/stores/aiChat'
 import type { TokenUsage, AgentRuntimeStatus } from '@electron/shared/types'
@@ -27,6 +28,7 @@ export type {
   ToolBlockContent,
   MentionedMemberContext,
   ContentBlock,
+  SendMessageOptions,
   SendMessageResult,
 }
 
@@ -66,8 +68,7 @@ export function useAIChat(
     sessionTokenUsage: toRef(state, 'sessionTokenUsage'),
     agentStatus: toRef(state, 'agentStatus'),
     selectedAssistantId: toRef(state, 'selectedAssistantId'),
-    sendMessage: (content: string, options?: { mentionedMembers?: MentionedMemberContext[] }) =>
-      aiChatStore.sendMessage(chatKey, content, options),
+    sendMessage: (content: string, options?: SendMessageOptions) => aiChatStore.sendMessage(chatKey, content, options),
     editMessageAndRegenerate: (messageId: string, content: string, options?: { overwriteSubsequent?: boolean }) =>
       aiChatStore.editMessageAndRegenerate(chatKey, messageId, content, options),
     loadAIChat: (aiChatId: string) => aiChatStore.loadAIChat(chatKey, aiChatId),

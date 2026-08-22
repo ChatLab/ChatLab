@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { ref } from 'vue'
 
 test('restores the latest valid AI chat without leaking stale navigation state', async (t) => {
+  let hasLLMConfig = false
   const makeConversation = (id: string, sessionId = 'session-one') => ({
     id,
     sessionId,
@@ -52,6 +53,9 @@ test('restores the latest valid AI chat without leaking stale navigation state',
       completionTokens: 1,
       totalTokens: 2,
     }),
+    createAIChat: async () => {
+      throw new Error('create failed')
+    },
   }
   const assistantStore = {
     isLoaded: true,
@@ -80,7 +84,7 @@ test('restores the latest valid AI chat without leaking stale navigation state',
       namedExports: {
         useAIService: () => aiService,
         useDataService: () => ({}),
-        useLLMService: () => ({}),
+        useLLMService: () => ({ hasConfig: async () => hasLLMConfig }),
       },
     }),
     t.mock.module('@/services/ai-stream/service', {
@@ -148,6 +152,36 @@ test('restores the latest valid AI chat without leaking stale navigation state',
 
   assert.equal(fourth.state.currentAIChatId, 'chat-user-choice')
   assert.equal(fourth.state.messages[0]?.content, 'Saved answer for chat-user-choice')
+
+  const fifth = store.ensureSessionState({
+    sessionId: 'session-five',
+    sessionName: 'Fifth session',
+    chatType: 'private',
+    locale: 'zh-CN',
+  })
+  store.selectAssistantForSession(fifth.chatKey, 'assistant-one')
+  let acceptedCount = 0
+  const onAccepted = () => acceptedCount++
+
+  const noConfigResult = await store.sendMessage(fifth.chatKey, 'Keep this draft', { onAccepted })
+  assert.equal(noConfigResult.reason, 'no_config')
+  assert.equal(acceptedCount, 0)
+
+  fifth.state.isAIThinking = true
+  const busyResult = await store.sendMessage(fifth.chatKey, 'Keep this draft', { onAccepted })
+  fifth.state.isAIThinking = false
+  assert.equal(busyResult.reason, 'busy')
+  assert.equal(acceptedCount, 0)
+
+  hasLLMConfig = true
+  t.mock.method(console, 'error', () => undefined)
+  const acceptedResult = await store.sendMessage(fifth.chatKey, 'Accepted draft', { onAccepted })
+  assert.equal(acceptedResult.reason, 'error')
+  assert.equal(acceptedCount, 1)
+  assert.equal(
+    fifth.state.messages.some((message) => message.role === 'user' && message.content === 'Accepted draft'),
+    true
+  )
 
   const global = store.ensureGlobalState('zh-CN')
   store.activeTask = {

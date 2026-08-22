@@ -208,6 +208,13 @@ export interface SendMessageResult {
   activeTask?: AIBackgroundTask | null
 }
 
+export interface SendMessageOptions {
+  mentionedMembers?: MentionedMemberContext[]
+  entityRefs?: AIEntityRef[]
+  /** Called once the user message has passed preflight checks and entered the visible conversation. */
+  onAccepted?: () => void
+}
+
 const DRAFT_AI_CHAT_KEY = '__draft__'
 
 function buildTimeFilterKey(timeFilter?: { startTs: number; endTs: number }): string {
@@ -1012,7 +1019,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
   async function sendMessage(
     chatKey: string,
     content: string,
-    options?: { mentionedMembers?: MentionedMemberContext[]; entityRefs?: AIEntityRef[] }
+    options?: SendMessageOptions
   ): Promise<SendMessageResult> {
     const state = getSessionState(chatKey)
     if (!state) {
@@ -1114,6 +1121,11 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         })
       }
       targetBuffer.messages.push(aiMessage)
+      try {
+        options?.onAccepted?.()
+      } catch (error) {
+        console.error('[AI] Failed to acknowledge accepted user message:', error)
+      }
       let aiMessageIndex = targetBuffer.messages.length - 1
       let hasStreamError = false
       const toolLifecycle = createToolLifecycleTracker()

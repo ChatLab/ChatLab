@@ -35,7 +35,14 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  send: [payload: { content: string; mentionedMembers: MentionedMemberContext[]; entityRefs: AIEntityRef[] }]
+  send: [
+    payload: {
+      content: string
+      mentionedMembers: MentionedMemberContext[]
+      entityRefs: AIEntityRef[]
+      onAccepted: () => void
+    },
+  ]
   stop: []
   manageSkills: []
   skillActivated: [skill: SkillSummary]
@@ -368,6 +375,18 @@ function fillInput(content: string) {
   nextTick(focusEditor)
 }
 
+function clearDraft() {
+  inputValue.value = ''
+  selectedMentionIds.value = []
+  mentionSearchTerm.value = ''
+  dismissedSlashValue.value = null
+  resetSlashState()
+
+  if (props.skillsEnabled && activeSkillId.value) {
+    skillStore.activateSkill(null)
+  }
+}
+
 function handleMentionsChange(ids: string[]) {
   selectedMentionIds.value = ids
 }
@@ -380,29 +399,40 @@ function handleMentionSearchTerm(value: string) {
 function handleSubmit() {
   if (!canSubmit.value) return
 
-  const candidates = selectedMentionIds.value.flatMap((id) => {
+  const content = inputValue.value.trim()
+  const submittedMentionIds = [...selectedMentionIds.value]
+  const candidates = submittedMentionIds.flatMap((id) => {
     const candidate = mentionRegistry.get(id)
     return candidate ? [candidate] : []
   })
+  const submittedSkillId = props.skillsEnabled ? activeSkillId.value : null
+
+  const onAccepted = () => {
+    const mentionsUnchanged =
+      selectedMentionIds.value.length === submittedMentionIds.length &&
+      selectedMentionIds.value.every((id, index) => id === submittedMentionIds[index])
+    if (inputValue.value.trim() !== content || !mentionsUnchanged) return
+
+    inputValue.value = ''
+    selectedMentionIds.value = []
+    mentionSearchTerm.value = ''
+    dismissedSlashValue.value = null
+
+    if (submittedSkillId && activeSkillId.value === submittedSkillId) {
+      skillStore.activateSkill(null)
+    }
+  }
 
   emit('send', {
-    content: inputValue.value.trim(),
+    content,
     mentionedMembers: candidates.flatMap((candidate) =>
       candidate.mentionedMember
         ? [{ ...candidate.mentionedMember, aliases: [...candidate.mentionedMember.aliases] }]
         : []
     ),
     entityRefs: candidates.flatMap((candidate) => (candidate.entityRef ? [{ ...candidate.entityRef }] : [])),
+    onAccepted,
   })
-
-  inputValue.value = ''
-  selectedMentionIds.value = []
-  mentionSearchTerm.value = ''
-  dismissedSlashValue.value = null
-
-  if (props.skillsEnabled && activeSkillId.value) {
-    skillStore.activateSkill(null)
-  }
 }
 
 function handleSelectSkill(skill: SkillSummary) {
@@ -541,6 +571,7 @@ onBeforeUnmount(() => {
 })
 
 defineExpose({
+  clearDraft,
   fillInput,
   openSkillSelector,
 })
