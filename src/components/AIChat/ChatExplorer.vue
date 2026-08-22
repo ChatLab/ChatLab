@@ -84,8 +84,16 @@ const {
 )
 
 let isAIChatInitialized = false
+let isUnmounted = false
+
+function isCurrentSessionRoute(): boolean {
+  const routeName = (props.chatType ?? 'group') === 'private' ? 'private-chat' : 'group-chat'
+  return !isUnmounted && route.name === routeName && String(route.params.id ?? '') === props.sessionId
+}
 
 async function syncAIChatIdToRoute(aiChatId: string | null): Promise<void> {
+  if (!isCurrentSessionRoute()) return
+
   const routeAIChatId = typeof route.query.aiChatId === 'string' ? route.query.aiChatId : null
   if (routeAIChatId === aiChatId) return
 
@@ -98,15 +106,20 @@ async function syncAIChatIdToRoute(aiChatId: string | null): Promise<void> {
 }
 
 void initialization.finally(() => {
+  if (!isCurrentSessionRoute()) return
+
   emit('restore-loading-change', false)
   isAIChatInitialized = true
   void syncAIChatIdToRoute(currentAIChatId.value)
 })
 
-onUnmounted(() => emit('restore-loading-change', false))
+onUnmounted(() => {
+  isUnmounted = true
+  emit('restore-loading-change', false)
+})
 
 watch(currentAIChatId, (aiChatId) => {
-  if (isAIChatInitialized) void syncAIChatIdToRoute(aiChatId)
+  if (isAIChatInitialized && isCurrentSessionRoute()) void syncAIChatIdToRoute(aiChatId)
 })
 
 // 智能滚动
