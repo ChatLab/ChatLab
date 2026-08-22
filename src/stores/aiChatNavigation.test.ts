@@ -3,7 +3,7 @@ import test from 'node:test'
 import { createPinia, setActivePinia } from 'pinia'
 import { ref } from 'vue'
 
-test('restores the requested AI chat only when it belongs to the current session', async (t) => {
+test('restores requested AI chats without leaking global task navigation state', async (t) => {
   const aiService = {
     getAIChat: async (id: string) =>
       id === 'chat-one'
@@ -92,4 +92,24 @@ test('restores the requested AI chat only when it belongs to the current session
 
   assert.equal(second.state.currentAIChatId, null)
   assert.equal(second.state.messages.length, 0)
+
+  const global = store.ensureGlobalState('zh-CN')
+  store.activeTask = {
+    requestId: 'global-request',
+    kind: 'global',
+    chatKey: global.chatKey,
+    sessionId: '',
+    sessionName: 'Global AI analysis',
+    chatType: 'group',
+    aiChatId: null,
+    questionPreview: 'Global question',
+    startedAt: 1,
+  }
+
+  assert.equal(store.focusActiveTaskAIChat(), true)
+  assert.equal(store.startNewAIChat(first.chatKey), true)
+  await store.resetToSelectorOnEnter(first.chatKey, 'chat-one')
+
+  assert.equal(first.state.currentAIChatId, 'chat-one')
+  assert.equal(first.state.messages[0]?.content, 'Saved answer')
 })
