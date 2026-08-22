@@ -34,6 +34,7 @@ const currentAIChatId = toRef(state, 'currentAIChatId')
 const conversations = ref<AIChat[]>([])
 const conversationsLoading = ref(false)
 const initializing = ref(true)
+const chatInputRef = ref<{ clearDraft: () => void } | null>(null)
 let isUnmounted = false
 let conversationSelectionRequestId = 0
 
@@ -97,6 +98,7 @@ async function selectConversation(aiChatId: string): Promise<void> {
 function startNewConversation(): void {
   conversationSelectionRequestId++
   if (!aiChatStore.startNewAIChat(chatKey)) return
+  chatInputRef.value?.clearDraft()
   initializing.value = false
   void syncAIChatIdToRoute(null)
 }
@@ -121,8 +123,15 @@ async function deleteConversation(aiChatId: string): Promise<void> {
   }
 }
 
-async function handleSend(payload: { content: string; entityRefs: AIEntityRef[] }): Promise<void> {
-  const result = await aiChatStore.sendMessage(chatKey, payload.content, { entityRefs: payload.entityRefs })
+async function handleSend(payload: {
+  content: string
+  entityRefs: AIEntityRef[]
+  onAccepted: () => void
+}): Promise<void> {
+  const result = await aiChatStore.sendMessage(chatKey, payload.content, {
+    entityRefs: payload.entityRefs,
+    onAccepted: payload.onAccepted,
+  })
   if (result.success) {
     scrollToBottom(true)
     await loadConversations()
@@ -338,7 +347,7 @@ onUnmounted(() => {
             class="relative mx-auto max-w-3xl overflow-visible rounded-2xl bg-white shadow-[0_2px_14px_rgba(0,0,0,0.04)] ring-1 ring-gray-200/60 transition-all focus-within:ring-primary-500/40 focus-within:shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:bg-page-dark dark:ring-white/5"
           >
             <AIChatInput
-              :key="currentAIChatId || 'global-draft'"
+              ref="chatInputRef"
               embedded
               :disabled="isAIThinking"
               :status="isAIThinking ? 'streaming' : 'ready'"

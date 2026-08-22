@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import UEditor from '@nuxt/ui/components/Editor.vue'
 import AIChatMentionMenu from './AIChatMentionMenu.vue'
+import { resolveMentionMenuKeyboardAction } from './mention-menu-keyboard'
 
 interface EditorNode {
   type?: string
@@ -198,19 +199,15 @@ function activateMentionMenuKeyboardSelection() {
 function handleMentionMenuKeydown(event: KeyboardEvent) {
   if (!mentionMenuHost?.firstElementChild) return
 
-  if (!hasMentionMenuKeyboardSelection && event.key === 'ArrowDown') {
+  const action = resolveMentionMenuKeyboardAction({
+    key: event.key,
+    isComposing: event.isComposing,
+    hasKeyboardSelection: hasMentionMenuKeyboardSelection,
+  })
+  if (action === 'activate' || action === 'activate-and-block') {
     activateMentionMenuKeyboardSelection()
-    event.preventDefault()
-    event.stopImmediatePropagation()
-    return
   }
-
-  if (!hasMentionMenuKeyboardSelection && event.key === 'ArrowUp') {
-    activateMentionMenuKeyboardSelection()
-    return
-  }
-
-  if (!hasMentionMenuKeyboardSelection && (event.key === 'Enter' || event.key === 'Tab')) {
+  if (action === 'block' || action === 'activate-and-block') {
     event.preventDefault()
     event.stopImmediatePropagation()
   }
