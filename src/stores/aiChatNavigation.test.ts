@@ -17,14 +17,27 @@ test('restores the latest valid AI chat without leaking stale navigation state',
   const slowConversation = new Promise<ReturnType<typeof makeConversation>>((resolve) => {
     resolveSlowConversation = resolve
   })
+  let resolveStaleList!: (conversations: ReturnType<typeof makeConversation>[]) => void
+  const staleList = new Promise<ReturnType<typeof makeConversation>[]>((resolve) => {
+    resolveStaleList = resolve
+  })
+  let staleListRequestCount = 0
   const aiService = {
     getAIChat: async (id: string) => {
       if (id === 'chat-slow') return slowConversation
       if (id === 'chat-one' || id === 'chat-newest') return makeConversation(id)
+      if (id === 'chat-restored' || id === 'chat-user-choice') return makeConversation(id, 'session-four')
       return id === 'chat-latest' ? makeConversation(id, 'session-three') : null
     },
-    getAIChats: async (sessionId: string) =>
-      sessionId === 'session-three' ? [makeConversation('chat-latest', sessionId)] : [],
+    getAIChats: async (sessionId: string) => {
+      if (sessionId === 'session-three') return [makeConversation('chat-latest', sessionId)]
+      if (sessionId === 'session-four') {
+        staleListRequestCount++
+        if (staleListRequestCount === 1) return staleList
+        return [makeConversation('chat-restored', sessionId)]
+      }
+      return []
+    },
     getMessages: async (aiChatId: string) => [
       {
         id: `message-${aiChatId}`,
@@ -119,6 +132,22 @@ test('restores the latest valid AI chat without leaking stale navigation state',
 
   assert.equal(third.state.currentAIChatId, 'chat-latest')
   assert.equal(third.state.messages[0]?.content, 'Saved answer for chat-latest')
+
+  const fourth = store.ensureSessionState({
+    sessionId: 'session-four',
+    sessionName: 'Fourth session',
+    chatType: 'private',
+    locale: 'zh-CN',
+  })
+  const staleRestore = store.resetToSelectorOnEnter(fourth.chatKey)
+  await store.resetToSelectorOnEnter(fourth.chatKey)
+  assert.equal(await store.loadAIChat(fourth.chatKey, 'chat-user-choice'), true)
+
+  resolveStaleList([makeConversation('chat-restored', 'session-four')])
+  await staleRestore
+
+  assert.equal(fourth.state.currentAIChatId, 'chat-user-choice')
+  assert.equal(fourth.state.messages[0]?.content, 'Saved answer for chat-user-choice')
 
   const global = store.ensureGlobalState('zh-CN')
   store.activeTask = {
