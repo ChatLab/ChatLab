@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AIEntityRef, ContactListItem, ContactsResponse } from '@openchatlab/shared-types'
 import { useDataService } from '@/services'
@@ -25,7 +25,9 @@ const contactResponses = ref<ContactsResponse[]>([])
 const loadingContacts = ref(false)
 const contactError = ref('')
 let searchTimer: ReturnType<typeof setTimeout> | null = null
+let pollTimer: ReturnType<typeof setTimeout> | null = null
 let requestId = 0
+const CONTACTS_POLL_INTERVAL_MS = 1500
 
 const normalizedQuery = computed(() => query.value.trim().toLocaleLowerCase())
 const groups = computed(() => {
@@ -70,12 +72,39 @@ function remove(entity: AIEntityRef): void {
   )
 }
 
-async function loadContacts(): Promise<void> {
+function stopContactsPolling(): void {
+  if (!pollTimer) return
+  clearTimeout(pollTimer)
+  pollTimer = null
+}
+
+function scheduleContactsPolling(responses: ContactsResponse[]): void {
+  stopContactsPolling()
+  if (!open.value || activeType.value !== 'contacts') return
+  if (!responses.some((response) => response.task?.status === 'running')) return
+
+  pollTimer = setTimeout(() => {
+    pollTimer = null
+    void loadContacts({ silent: true })
+  }, CONTACTS_POLL_INTERVAL_MS)
+}
+
+function stopPendingContactWork(): void {
+  requestId++
+  loadingContacts.value = false
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+    searchTimer = null
+  }
+  stopContactsPolling()
+}
+
+async function loadContacts(loadOptions?: { silent?: boolean }): Promise<void> {
   const currentRequest = ++requestId
-  loadingContacts.value = true
+  if (!loadOptions?.silent) loadingContacts.value = true
   contactError.value = ''
   try {
-    const options = {
+    const requestOptions = {
       acceptStale: true,
       timeRangePreset: 'all',
       page: 1,
@@ -83,8 +112,8 @@ async function loadContacts(): Promise<void> {
       query: query.value.trim() || undefined,
     } as const
     const responses = await Promise.all([
-      dataService.getContacts({ ...options, pool: 'friend' }),
-      dataService.getContacts({ ...options, pool: 'non_friend' }),
+      dataService.getContacts({ ...requestOptions, pool: 'friend' }),
+      dataService.getContacts({ ...requestOptions, pool: 'non_friend' }),
     ])
     if (currentRequest !== requestId) return
 
@@ -92,24 +121,45 @@ async function loadContacts(): Promise<void> {
     responses.flatMap((response) => response.contacts).forEach((contact) => byKey.set(contact.key, contact))
     contacts.value = [...byKey.values()]
     contactResponses.value = responses
+    scheduleContactsPolling(responses)
   } catch (error) {
     if (currentRequest !== requestId) return
+    stopContactsPolling()
     contactError.value = error instanceof Error ? error.message : String(error)
     contacts.value = []
     contactResponses.value = []
   } finally {
-    if (currentRequest === requestId) loadingContacts.value = false
+    if (currentRequest === requestId && !loadOptions?.silent) loadingContacts.value = false
   }
 }
 
 watch(open, (isOpen) => {
-  if (isOpen) void loadContacts()
+  if (isOpen) {
+    void loadContacts()
+  } else {
+    stopPendingContactWork()
+  }
+})
+
+watch(activeType, (type) => {
+  if (!open.value) return
+  stopPendingContactWork()
+  if (type === 'contacts') void loadContacts()
 })
 
 watch(query, () => {
   if (!open.value || activeType.value !== 'contacts') return
+  requestId++
   if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => void loadContacts(), 250)
+  stopContactsPolling()
+  searchTimer = setTimeout(() => {
+    searchTimer = null
+    void loadContacts()
+  }, 250)
+})
+
+onUnmounted(() => {
+  stopPendingContactWork()
 })
 </script>
 
@@ -160,7 +210,7 @@ watch(query, () => {
               </div>
               <div v-else-if="contactError" class="px-3 py-8 text-center text-xs text-red-500">
                 <p>{{ t('ai.global.entityPicker.loadFailed') }}</p>
-                <UButton size="xs" variant="link" class="mt-1" @click="loadContacts">
+                <UButton size="xs" variant="link" class="mt-1" @click="loadContacts()">
                   {{ t('common.retry') }}
                 </UButton>
               </div>

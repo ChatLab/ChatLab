@@ -38,6 +38,7 @@ const input = ref('')
 const selectedEntities = ref<AIEntityRef[]>([])
 const isComposing = ref(false)
 let isUnmounted = false
+let conversationSelectionRequestId = 0
 
 function isGlobalPageActive(): boolean {
   return !isUnmounted && route.name === 'global-ai'
@@ -80,18 +81,26 @@ async function loadConversations(): Promise<void> {
 }
 
 async function selectConversation(aiChatId: string): Promise<void> {
-  if (!(await aiChatStore.loadAIChat(chatKey, aiChatId))) {
+  const currentRequest = ++conversationSelectionRequestId
+  const loaded = await aiChatStore.loadAIChat(chatKey, aiChatId)
+  if (currentRequest !== conversationSelectionRequestId || !isGlobalPageActive()) return
+
+  if (!loaded) {
     toast.fail(t('ai.global.toast.loadFailed'))
     return
   }
+  initializing.value = false
   selectedEntities.value = []
   await syncAIChatIdToRoute(aiChatId)
+  if (currentRequest !== conversationSelectionRequestId || !isGlobalPageActive()) return
   await nextTick()
   scrollToBottom(true)
 }
 
 function startNewConversation(): void {
+  conversationSelectionRequestId++
   if (!aiChatStore.startNewAIChat(chatKey)) return
+  initializing.value = false
   selectedEntities.value = []
   input.value = ''
   void syncAIChatIdToRoute(null)
@@ -175,9 +184,10 @@ onMounted(async () => {
   await loadConversations()
   if (!isGlobalPageActive()) return
 
+  const currentSelectionRequest = ++conversationSelectionRequestId
   const preferredAIChatId = typeof route.query.aiChatId === 'string' ? route.query.aiChatId : null
   const restoredPreferredChat = preferredAIChatId ? await aiChatStore.loadAIChat(chatKey, preferredAIChatId) : false
-  if (!isGlobalPageActive()) return
+  if (currentSelectionRequest !== conversationSelectionRequestId || !isGlobalPageActive()) return
 
   if (!restoredPreferredChat) {
     aiChatStore.startNewAIChat(chatKey)
@@ -196,6 +206,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   isUnmounted = true
+  conversationSelectionRequestId++
 })
 </script>
 

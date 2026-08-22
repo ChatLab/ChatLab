@@ -3,26 +3,31 @@ import test from 'node:test'
 import { createPinia, setActivePinia } from 'pinia'
 import { ref } from 'vue'
 
-test('restores requested AI chats without leaking global task navigation state', async (t) => {
+test('restores only the latest requested AI chat without leaking navigation state', async (t) => {
+  const makeConversation = (id: string) => ({
+    id,
+    sessionId: 'session-one',
+    kind: 'session' as const,
+    title: 'Saved chat',
+    assistantId: 'assistant-one',
+    createdAt: 1,
+    updatedAt: 1,
+  })
+  let resolveSlowConversation!: (conversation: ReturnType<typeof makeConversation>) => void
+  const slowConversation = new Promise<ReturnType<typeof makeConversation>>((resolve) => {
+    resolveSlowConversation = resolve
+  })
   const aiService = {
-    getAIChat: async (id: string) =>
-      id === 'chat-one'
-        ? {
-            id,
-            sessionId: 'session-one',
-            kind: 'session' as const,
-            title: 'Saved chat',
-            assistantId: 'assistant-one',
-            createdAt: 1,
-            updatedAt: 1,
-          }
-        : null,
-    getMessages: async () => [
+    getAIChat: async (id: string) => {
+      if (id === 'chat-slow') return slowConversation
+      return id === 'chat-one' || id === 'chat-latest' ? makeConversation(id) : null
+    },
+    getMessages: async (aiChatId: string) => [
       {
-        id: 'message-one',
-        aiChatId: 'chat-one',
+        id: `message-${aiChatId}`,
+        aiChatId,
         role: 'assistant' as const,
-        content: 'Saved answer',
+        content: `Saved answer for ${aiChatId}`,
         timestamp: 1,
       },
     ],
@@ -80,7 +85,7 @@ test('restores requested AI chats without leaking global task navigation state',
   await store.resetToSelectorOnEnter(first.chatKey, 'chat-one')
 
   assert.equal(first.state.currentAIChatId, 'chat-one')
-  assert.equal(first.state.messages[0]?.content, 'Saved answer')
+  assert.equal(first.state.messages[0]?.content, 'Saved answer for chat-one')
 
   const second = store.ensureSessionState({
     sessionId: 'session-two',
@@ -92,6 +97,14 @@ test('restores requested AI chats without leaking global task navigation state',
 
   assert.equal(second.state.currentAIChatId, null)
   assert.equal(second.state.messages.length, 0)
+
+  const staleLoad = store.loadAIChat(first.chatKey, 'chat-slow')
+  assert.equal(await store.loadAIChat(first.chatKey, 'chat-latest'), true)
+  resolveSlowConversation(makeConversation('chat-slow'))
+
+  assert.equal(await staleLoad, false)
+  assert.equal(first.state.currentAIChatId, 'chat-latest')
+  assert.equal(first.state.messages[0]?.content, 'Saved answer for chat-latest')
 
   const global = store.ensureGlobalState('zh-CN')
   store.activeTask = {
@@ -111,5 +124,5 @@ test('restores requested AI chats without leaking global task navigation state',
   await store.resetToSelectorOnEnter(first.chatKey, 'chat-one')
 
   assert.equal(first.state.currentAIChatId, 'chat-one')
-  assert.equal(first.state.messages[0]?.content, 'Saved answer')
+  assert.equal(first.state.messages[0]?.content, 'Saved answer for chat-one')
 })
