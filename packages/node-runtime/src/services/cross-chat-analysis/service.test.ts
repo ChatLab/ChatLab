@@ -46,6 +46,7 @@ class TestEnvironment {
     }
     this.adapter = {
       listSessionIds: () => [...this.dbPaths.keys()],
+      listSessionCandidateIds: () => [...this.dbPaths.keys()],
       openReadonly: (sessionId) => open(sessionId, true),
       openWritable: (sessionId) => open(sessionId, false),
       closeSession: () => {},
@@ -582,14 +583,24 @@ test('search honors interruption between session scans', async () => {
   }
 })
 
-test('search stops between sessions when the wall-time budget is exhausted', async () => {
+test('search stops during candidate preparation when the wall-time budget is exhausted', async () => {
   const { env, contactsService } = createFixture()
   try {
-    const timestamps = [0, 0, 9_000]
+    let now = 0
+    const openedSessions: string[] = []
+    const adapter: SessionRuntimeAdapter = {
+      ...env.adapter,
+      openReadonly: (sessionId) => {
+        openedSessions.push(sessionId)
+        const db = env.adapter.openReadonly(sessionId)
+        now += 9_000
+        return db
+      },
+    }
     const service = createCrossChatAnalysisService({
-      adapter: env.adapter,
+      adapter,
       contactsService,
-      now: () => timestamps.shift() ?? 9_000,
+      now: () => now,
     })
     const result = await service.searchMessages({
       keywords: ['project alpha'],
@@ -598,9 +609,36 @@ test('search stops between sessions when the wall-time budget is exhausted', asy
       maxWallTimeMs: 8_000,
     })
 
-    assert.equal(result.coverage.scannedSessions, 1)
+    assert.equal(openedSessions.length, 1)
+    assert.equal(result.coverage.candidateSessions, 3)
+    assert.equal(result.coverage.scannedSessions, 0)
     assert.equal(result.coverage.truncated, true)
     assert.ok(result.coverage.truncatedReasons.includes('time_budget'))
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('search honors interruption while resolving unscoped candidates', async () => {
+  const { env, contactsService } = createFixture()
+  try {
+    const openedSessions: string[] = []
+    const adapter: SessionRuntimeAdapter = {
+      ...env.adapter,
+      openReadonly: (sessionId) => {
+        openedSessions.push(sessionId)
+        return env.adapter.openReadonly(sessionId)
+      },
+    }
+    const controller = new AbortController()
+    const service = createCrossChatAnalysisService({ adapter, contactsService })
+    const search = service.searchMessages({ keywords: ['project'], maxSessions: 3 }, { signal: controller.signal })
+
+    queueMicrotask(() => controller.abort())
+
+    await assert.rejects(search, { name: 'AbortError' })
+    assert.ok(openedSessions.length > 0)
+    assert.ok(openedSessions.length < adapter.listSessionCandidateIds!().length)
   } finally {
     env.cleanup()
   }

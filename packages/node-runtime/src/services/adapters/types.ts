@@ -9,6 +9,8 @@ import type { DatabaseAdapter } from '@openchatlab/core'
 
 export interface SessionRuntimeAdapter {
   listSessionIds(): string[]
+  /** List database file candidates without opening every database. */
+  listSessionCandidateIds?(): string[]
   openReadonly(sessionId: string): DatabaseAdapter | null
   openWritable(sessionId: string): DatabaseAdapter | null
   closeSession(sessionId: string): void

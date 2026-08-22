@@ -12,6 +12,7 @@ import type { SessionRuntimeAdapter } from './types'
 export function createDatabaseManagerAdapter(dbManager: DatabaseManager): SessionRuntimeAdapter {
   return {
     listSessionIds: () => dbManager.listSessionIds(),
+    listSessionCandidateIds: () => dbManager.listSessionCandidateIds(),
     openReadonly: (sessionId) => dbManager.open(sessionId),
     openWritable: (sessionId) => dbManager.openWritable(sessionId),
     closeSession: (sessionId) => dbManager.close(sessionId),

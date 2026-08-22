@@ -186,14 +186,20 @@ export class DatabaseManager {
    * 列举数据库目录下的所有聊天会话 ID
    */
   listSessionIds(): string[] {
-    this.assertCompatible()
-
-    const dbDir = this.pathProvider.getDatabaseDir()
-    return listDatabaseCandidateIds(dbDir).filter((id) => {
+    return this.listSessionCandidateIds().filter((id) => {
       const db = this.open(id)
       if (!db) return false
       return isChatSessionDb(db)
     })
+  }
+
+  /**
+   * 仅列出数据库文件候选，不同步打开所有数据库。
+   * 需要逐库检查、取消和时间预算的调用方应使用此入口后自行验证。
+   */
+  listSessionCandidateIds(): string[] {
+    this.assertCompatible()
+    return listDatabaseCandidateIds(this.pathProvider.getDatabaseDir())
   }
 
   /**
