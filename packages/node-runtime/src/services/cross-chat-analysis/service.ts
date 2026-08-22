@@ -4,6 +4,7 @@ import {
   getSearchMessageContext as getCoreSearchMessageContext,
   getSessionMeta,
   getSessionOverview,
+  resolveContactMember,
   resolveOwnerMember,
   searchMessagesByKeywords,
   type DatabaseAdapter,
@@ -53,7 +54,7 @@ export interface CrossChatAnalysisServiceDeps {
 
 export interface CrossChatAnalysisService {
   lookupContact(query: string): CrossChatContactLookupResult
-  resolveEntities(refs: AIEntityRef[]): CrossChatEntityResolution
+  resolveEntities(refs: AIEntityRef[], options?: CrossChatOperationOptions): Promise<CrossChatEntityResolution>
   searchMessages(request: CrossChatSearchRequest, options?: CrossChatOperationOptions): Promise<CrossChatSearchResult>
   getMessageContext(request: CrossChatMessageContextRequest): CrossChatMessageContextResult
   getOverview(request: CrossChatOverviewRequest, options?: CrossChatOperationOptions): Promise<CrossChatOverviewResult>
@@ -116,7 +117,11 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     }
   }
 
-  resolveEntities(refs: AIEntityRef[]): CrossChatEntityResolution {
+  async resolveEntities(
+    refs: AIEntityRef[],
+    options: CrossChatOperationOptions = {}
+  ): Promise<CrossChatEntityResolution> {
+    throwIfAborted(options.signal)
     const contacts: CrossChatResolvedContact[] = []
     const sessions: CrossChatResolvedSession[] = []
     const unresolved: CrossChatUnresolvedEntity[] = []
@@ -125,6 +130,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     const failedSessionIds = new Set<string>()
 
     for (const ref of refs) {
+      throwIfAborted(options.signal)
       if (ref.type === 'session') {
         candidateSessionIds.add(ref.sessionId)
         const descriptor = this.tryGetSessionDescriptor(ref.sessionId)
@@ -136,6 +142,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
           sessions.push({ ref, status: 'unresolved' })
           unresolved.push({ ref, reason: 'session_not_found' })
         }
+        await yieldToEventLoop()
         continue
       }
 
@@ -157,6 +164,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
           ref,
           reason: detail.cache.status === 'missing' ? 'contact_snapshot_missing' : 'contact_not_found',
         })
+        await yieldToEventLoop()
         continue
       }
 
@@ -167,7 +175,9 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
       const unresolvedContactSessions: string[] = []
       const failedContactSessions: string[] = []
 
+      // 实体解析必须保留联系人全部精确来源；逐库让出事件循环，使长列表仍能及时响应取消。
       for (const source of sourceSessions) {
+        throwIfAborted(options.signal)
         candidateSessionIds.add(source.id)
         try {
           const db = this.deps.adapter.openReadonly(source.id)
@@ -177,7 +187,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
             continue
           }
           const descriptor = getSessionDescriptor(source.id, db)
-          const member = getMembers(db).find((item) => item.platformId === contact.platformId)
+          const member = resolveContactMember(db, contact.platformId)
           if (!descriptor || !member) {
             unresolvedContactSessions.push(source.id)
             continue
@@ -193,6 +203,8 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
           failedContactSessions.push(source.id)
           failedSessionIds.add(source.id)
           appLogger.warn('cross-chat-analysis', `failed to resolve contact in source session: ${source.id}`, error)
+        } finally {
+          await yieldToEventLoop()
         }
       }
 
@@ -211,7 +223,10 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
         failedSessionIds: failedContactSessions,
       })
       if (status === 'unresolved') unresolved.push({ ref, reason: 'member_not_found' })
+      if (sourceSessions.length === 0) await yieldToEventLoop()
     }
+
+    throwIfAborted(options.signal)
 
     return {
       contacts,

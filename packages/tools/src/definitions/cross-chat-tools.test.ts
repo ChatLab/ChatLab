@@ -44,7 +44,7 @@ function createContext(overrides: Partial<CrossChatAnalysisToolService> = {}): C
       totalCandidates: 0,
       candidates: [],
     }),
-    resolveEntities: (_refs: AIEntityRef[]): CrossChatEntityResolution => ({
+    resolveEntities: async (_refs: AIEntityRef[]): Promise<CrossChatEntityResolution> => ({
       contacts: [],
       sessions: [],
       unresolved: [],
@@ -158,8 +158,9 @@ describe('cross-chat agent registry', () => {
           },
         ],
       }),
-      resolveEntities: (refs) => {
+      resolveEntities: async (refs, options) => {
         resolvedRefs = refs
+        assert.equal(options?.signal, context.abortSignal)
         return {
           contacts: [],
           sessions: [],
@@ -174,6 +175,8 @@ describe('cross-chat agent registry', () => {
         }
       },
     } as Partial<CrossChatAnalysisToolService>)
+    const controller = new AbortController()
+    context.abortSignal = controller.signal
     const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'resolve_chat_entities')
     assert.ok(tool)
 
@@ -207,7 +210,7 @@ describe('cross-chat agent registry', () => {
           },
         ],
       }),
-      resolveEntities: (refs) => {
+      resolveEntities: async (refs) => {
         resolvedRefs = refs
         return {
           contacts: [],
@@ -320,6 +323,46 @@ describe('cross-chat agent registry', () => {
     assert.equal('crossChatEvidence' in modelData, false)
     assert.equal(details.returned, 1)
     assert.equal(details.crossChatEvidence.sources[0]?.snippet, 'x'.repeat(500))
+  })
+
+  it('uses the injected tokenizer when budgeting Chinese search payloads', async () => {
+    const context = createContext({
+      searchMessages: async () => ({
+        messages: [messageSource('a', 1, 1, '中文消息'.repeat(125))],
+        totalMatches: 1,
+        appliedFilters: { startTs: null, endTs: null, recentDays: null, sender: 'all' },
+        coverage: {
+          candidateSessions: 1,
+          scannedSessions: 1,
+          matchedSessions: 1,
+          failedSessions: 0,
+          truncated: false,
+          truncatedReasons: [],
+        },
+      }),
+    })
+    context.maxToolResultTokens = 300
+    const countTokens = (text: string) => {
+      let tokens = 0
+      for (const char of text) tokens += /[\u3400-\u9fff]/u.test(char) ? 1 : 0.25
+      return Math.ceil(tokens)
+    }
+    context.countTokens = countTokens
+    context.preprocessMessagesBySession = (_sessionId, messages) => messages
+    const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'search_messages_globally')
+    assert.ok(tool)
+
+    const result = await tool.handler({ keywords: ['中文'] }, context)
+    const details = result.data as {
+      returned: number
+      coverage: { truncatedReasons: string[] }
+      crossChatEvidence: { sources: unknown[] }
+    }
+
+    assert.ok(countTokens(result.content) <= 300)
+    assert.equal(details.returned, 0)
+    assert.deepEqual(details.crossChatEvidence.sources, [])
+    assert.ok(details.coverage.truncatedReasons.includes('evidence_budget'))
   })
 
   it('allows recent-message sampling only when explicit scopes are present', async () => {

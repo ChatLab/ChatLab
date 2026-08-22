@@ -13,6 +13,7 @@ import {
   getGroupRelationshipGraphFacts,
   getNonSystemMembersForContacts,
   getPrivateContactFacts,
+  resolveContactMember,
   resolveOwnerMember,
 } from '../contact-queries'
 import type { DatabaseAdapter, PreparedStatement, RunResult } from '../../interfaces'
@@ -119,6 +120,17 @@ describe('contact query helpers', () => {
       aliases: [],
       avatar: null,
     })
+  })
+
+  it('resolves one contact directly by stable platform id', () => {
+    assert.deepEqual(resolveContactMember(db, 'alice-pid'), {
+      id: 2,
+      platformId: 'alice-pid',
+      name: 'Alice G',
+      aliases: ['Ally', '小爱'],
+      avatar: 'alice.png',
+    })
+    assert.equal(resolveContactMember(db, 'missing-pid'), null)
   })
 
   it('returns saved member aliases for contact candidates', () => {

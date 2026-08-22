@@ -357,7 +357,7 @@ export interface ToolExecutionContext {
 
 export interface CrossChatAnalysisToolService {
   lookupContact(query: string): CrossChatContactLookupResult
-  resolveEntities(refs: AIEntityRef[]): CrossChatEntityResolution
+  resolveEntities(refs: AIEntityRef[], options?: CrossChatOperationOptions): Promise<CrossChatEntityResolution>
   searchMessages(request: CrossChatSearchRequest, options?: CrossChatOperationOptions): Promise<CrossChatSearchResult>
   getMessageContext(request: CrossChatMessageContextRequest): CrossChatMessageContextResult
   getOverview(request: CrossChatOverviewRequest, options?: CrossChatOperationOptions): Promise<CrossChatOverviewResult>
@@ -368,6 +368,8 @@ export interface CrossChatToolExecutionContext {
   abortSignal?: AbortSignal
   reportProgress?: (progress: ToolProgress) => void
   maxToolResultTokens?: number
+  /** 平台注入的统一 tokenizer；未注入时 handler 使用 CJK-aware 轻量估算。 */
+  countTokens?: (text: string) => number
   analysisService: CrossChatAnalysisToolService
   preprocessMessagesBySession: (
     sessionId: string,

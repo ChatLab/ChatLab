@@ -70,6 +70,12 @@ export function isValidContactPlatformId(platformId: string | null | undefined):
 export function resolveOwnerMember(db: DatabaseAdapter): ContactMemberRef | null {
   const meta = db.prepare('SELECT owner_id FROM meta LIMIT 1').get() as { owner_id: string | null } | undefined
   if (!isValidContactPlatformId(meta?.owner_id)) return null
+
+  return resolveContactMember(db, meta.owner_id)
+}
+
+export function resolveContactMember(db: DatabaseAdapter, platformId: string): ContactMemberRef | null {
+  if (!isValidContactPlatformId(platformId)) return null
   const aliasesSelect = hasColumn(db, 'member', 'aliases') ? 'aliases' : 'NULL as aliases'
 
   const row = db
@@ -84,7 +90,7 @@ export function resolveOwnerMember(db: DatabaseAdapter): ContactMemberRef | null
       WHERE platform_id = ? AND ${nonSystemContactMemberCondition(db, 'm')}
       LIMIT 1`
     )
-    .get(meta.owner_id) as ContactMemberRow | undefined
+    .get(platformId) as ContactMemberRow | undefined
 
   return row ? mapContactMemberRow(row) : null
 }

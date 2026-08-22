@@ -312,11 +312,11 @@ test('contact lookup uses the all-history snapshot for typed names and candidate
   }
 })
 
-test('entity resolution uses contact keys and resolves per-session member ids without merging display names', () => {
+test('entity resolution uses contact keys and resolves per-session member ids without merging display names', async () => {
   const { env, contactsService } = createFixture()
   try {
     const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
-    const result = service.resolveEntities([
+    const result = await service.resolveEntities([
       { type: 'contact', contactKey: 'test:alice', displayName: 'Alice' },
       { type: 'contact', contactKey: 'test:group-other:alice-other', displayName: 'Alice' },
     ])
@@ -344,7 +344,7 @@ test('entity resolution uses contact keys and resolves per-session member ids wi
   }
 })
 
-test('entity resolution uses the all-history contact snapshot so older source sessions remain searchable', () => {
+test('entity resolution uses the all-history contact snapshot so older source sessions remain searchable', async () => {
   const { env, contactsService: fixtureContactsService } = createFixture()
   try {
     const contactsService: Pick<ContactsService, 'getContactDetail' | 'getContactsPage'> = {
@@ -367,7 +367,7 @@ test('entity resolution uses the all-history contact snapshot so older source se
     }
     const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
 
-    const result = service.resolveEntities([{ type: 'contact', contactKey: 'test:alice', displayName: 'Alice' }])
+    const result = await service.resolveEntities([{ type: 'contact', contactKey: 'test:alice', displayName: 'Alice' }])
 
     assert.deepEqual(
       result.contacts[0]?.sessions.map((session) => session.sessionId),
@@ -375,6 +375,33 @@ test('entity resolution uses the all-history contact snapshot so older source se
     )
     assert.equal(result.coverage.candidateSessions, 2)
     assert.equal(result.coverage.resolvedSessions, 2)
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('entity resolution honors interruption between contact source sessions', async () => {
+  const { env, contactsService } = createFixture()
+  try {
+    const openedSessions: string[] = []
+    const adapter: SessionRuntimeAdapter = {
+      ...env.adapter,
+      openReadonly: (sessionId) => {
+        openedSessions.push(sessionId)
+        return env.adapter.openReadonly(sessionId)
+      },
+    }
+    const controller = new AbortController()
+    const service = createCrossChatAnalysisService({ adapter, contactsService })
+    const resolution = service.resolveEntities([{ type: 'contact', contactKey: 'test:alice', displayName: 'Alice' }], {
+      signal: controller.signal,
+    })
+
+    queueMicrotask(() => controller.abort())
+
+    await assert.rejects(resolution, { name: 'AbortError' })
+    assert.ok(openedSessions.length > 0)
+    assert.ok(openedSessions.length < 2)
   } finally {
     env.cleanup()
   }
