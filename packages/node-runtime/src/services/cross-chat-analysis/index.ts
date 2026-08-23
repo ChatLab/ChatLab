@@ -3,6 +3,9 @@ export { preprocessCrossChatMessages } from './preprocess'
 export type { CrossChatAnalysisService, CrossChatAnalysisServiceDeps } from './service'
 export type {
   CrossChatEntityResolution,
+  CrossChatGroupSessionRankItem,
+  CrossChatGroupSessionsRankingRequest,
+  CrossChatGroupSessionsRankingResult,
   CrossChatMessageContextRequest,
   CrossChatMessageContextResult,
   CrossChatMessageSource,
@@ -14,6 +17,7 @@ export type {
   CrossChatOverviewItem,
   CrossChatOverviewRequest,
   CrossChatOverviewResult,
+  CrossChatOwnerStatus,
   CrossChatRecentSessionResult,
   CrossChatRecentSessionSummary,
   CrossChatResolvedContact,

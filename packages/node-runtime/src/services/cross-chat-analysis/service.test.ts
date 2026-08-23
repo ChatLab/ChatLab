@@ -399,6 +399,116 @@ test('ranks private contacts by exact message totals, merges stable identities, 
   }
 })
 
+test('keeps owner activity and total group activity as separate deterministic rankings', async () => {
+  const { env, contactsService } = createFixture()
+  const startTs = 1_780_100_000
+  env.seed({
+    id: 'rank-group-owner',
+    name: 'Owner group',
+    type: 'group',
+    ownerPlatformId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner', name: 'Me' },
+      { id: 2, platformId: 'alice', name: 'Alice' },
+    ],
+    messages: [
+      { id: 1, senderId: 1, ts: startTs + 1, content: 'owner-1' },
+      { id: 2, senderId: 1, ts: startTs + 2, content: 'owner-2' },
+      { id: 3, senderId: 1, ts: startTs + 3, content: 'owner-3' },
+      { id: 4, senderId: 2, ts: startTs + 4, content: 'alice' },
+    ],
+  })
+  env.seed({
+    id: 'rank-group-total',
+    name: 'Busy group',
+    type: 'group',
+    ownerPlatformId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner', name: 'Me' },
+      { id: 2, platformId: 'bob', name: 'Bob' },
+    ],
+    messages: Array.from({ length: 6 }, (_, index) => ({
+      id: index + 1,
+      senderId: index === 0 ? 1 : 2,
+      ts: startTs + 10 + index,
+      content: `busy-${index}`,
+    })),
+  })
+  env.seed({
+    id: 'rank-group-missing-owner',
+    name: 'Missing owner group',
+    type: 'group',
+    members: [{ id: 2, platformId: 'carol', name: 'Carol' }],
+    messages: Array.from({ length: 7 }, (_, index) => ({
+      id: index + 1,
+      senderId: 2,
+      ts: startTs + 20 + index,
+      content: `missing-${index}`,
+    })),
+  })
+  env.seed({
+    id: 'rank-group-excluded',
+    name: 'Excluded group',
+    type: 'group',
+    ownerPlatformId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner', name: 'Me' },
+      { id: 2, platformId: 'dave', name: 'Dave' },
+    ],
+    messages: Array.from({ length: 9 }, (_, index) => ({
+      id: index + 1,
+      senderId: 1,
+      ts: startTs + 30 + index,
+      content: `excluded-${index}`,
+    })),
+  })
+
+  try {
+    const service = createCrossChatAnalysisService({
+      adapter: env.adapter,
+      contactsService,
+      getExcludedSessionIds: () => ['group-work', 'group-other', 'rank-group-excluded'],
+      now: () => 1_790_000_000_000,
+    })
+    const ownerRanking = await service.rankGroupSessions({
+      mode: 'owner_activity',
+      startTs,
+      endTs: startTs + 1_000,
+    })
+    const totalRanking = await service.rankGroupSessions({
+      mode: 'total_activity',
+      startTs,
+      endTs: startTs + 1_000,
+    })
+
+    assert.deepEqual(
+      ownerRanking.items.map((item) => [item.sessionId, item.ownerMessages, item.totalMessages]),
+      [
+        ['rank-group-owner', 3, 4],
+        ['rank-group-total', 1, 6],
+      ]
+    )
+    assert.equal(ownerRanking.items[0]?.ownerMessageShare, 0.75)
+    assert.equal(ownerRanking.coverage.complete, false)
+    assert.equal(ownerRanking.coverage.missingOwnerSessions, 1)
+
+    assert.deepEqual(
+      totalRanking.items.map((item) => [item.sessionId, item.ownerStatus, item.totalMessages]),
+      [
+        ['rank-group-missing-owner', 'missing', 7],
+        ['rank-group-total', 'resolved', 6],
+        ['rank-group-owner', 'resolved', 4],
+      ]
+    )
+    assert.equal(totalRanking.coverage.candidateSessions, 6)
+    assert.equal(totalRanking.coverage.analyzedSessions, 3)
+    assert.equal(totalRanking.coverage.excludedSessions, 3)
+    assert.equal(totalRanking.coverage.complete, true)
+  } finally {
+    env.cleanup()
+  }
+})
+
 test('contact lookup uses the all-history snapshot for typed names and candidate details', () => {
   const { env } = createFixture()
   const pagePresets: Array<string | undefined> = []

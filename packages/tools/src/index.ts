@@ -45,6 +45,7 @@ export { retrieveChatEvidenceTool } from './definitions/retrieve-chat-evidence'
 export {
   getCrossChatMessageContextTool,
   getCrossChatOverviewTool,
+  rankGroupSessionsTool,
   rankPrivateContactsTool,
   readRecentSessionTool,
   resolveChatEntitiesTool,
