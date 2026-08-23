@@ -716,6 +716,7 @@ export interface CrossChatContactSessionsRequest {
   contactKey: string
   startTs?: number
   endTs?: number
+  recentDays?: number
   includeRosterOnly?: boolean
   cursor?: string
   pageSize?: number
@@ -767,6 +768,7 @@ export interface CrossChatSharedInteractionsRequest {
   participants: CrossChatParticipantRef[]
   startTs?: number
   endTs?: number
+  recentDays?: number
   cursor?: string
   pageSize?: number
   maxAnchorsPerPair?: number

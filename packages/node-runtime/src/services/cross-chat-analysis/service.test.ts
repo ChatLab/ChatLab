@@ -652,6 +652,43 @@ test('contact session inspection honors time ranges, session-scoped identity, an
   }
 })
 
+test('structural inspections resolve recent-day windows from the service clock', async () => {
+  const { env, contactsService } = createFixture()
+  try {
+    const service = createCrossChatAnalysisService({
+      adapter: env.adapter,
+      contactsService,
+      now: () => 86_500_000,
+    })
+    const contactResult = await service.inspectContactSessions({
+      contactKey: 'test:alice',
+      recentDays: 1,
+    })
+    const sharedResult = await service.inspectSharedInteractions({
+      participants: [
+        { type: 'contact', contactKey: 'test:alice' },
+        { type: 'contact', contactKey: 'test:bob' },
+      ],
+      recentDays: 1,
+    })
+
+    assert.deepEqual(contactResult.appliedRange, {
+      startTs: 100,
+      endTs: 86_500,
+      dataEarliestMessageTs: 100,
+      dataLatestMessageTs: 320,
+    })
+    assert.deepEqual(sharedResult.appliedRange, {
+      startTs: 100,
+      endTs: 86_500,
+      dataEarliestMessageTs: 300,
+      dataLatestMessageTs: 320,
+    })
+  } finally {
+    env.cleanup()
+  }
+})
+
 test('contact session inspection isolates failures and stops at abort or wall-time boundaries', async () => {
   const { env, contactsService } = createFixture()
   try {

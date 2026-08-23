@@ -279,7 +279,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     throwIfAborted(options.signal)
     const contactKey = request.contactKey.trim()
     if (!contactKey) throw new Error('contactKey is required')
-    const range = normalizeInspectionRange(request.startTs, request.endTs)
+    const range = normalizeInspectionRange(request.startTs, request.endTs, request.recentDays, () => this.now())
     const includeRosterOnly = request.includeRosterOnly !== false
     const pageSize = clampInteger(request.pageSize, DEFAULT_INSPECTION_PAGE_SIZE, 1, MAX_INSPECTION_PAGE_SIZE)
     const maxWallTimeMs = clampInteger(request.maxWallTimeMs, DEFAULT_MAX_WALL_TIME_MS, 1, MAX_MAX_WALL_TIME_MS)
@@ -420,7 +420,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
   ): Promise<CrossChatSharedInteractionsResult> {
     throwIfAborted(options.signal)
     const participantRefs = normalizeParticipantRefs(request.participants)
-    const range = normalizeInspectionRange(request.startTs, request.endTs)
+    const range = normalizeInspectionRange(request.startTs, request.endTs, request.recentDays, () => this.now())
     const pageSize = clampInteger(
       request.pageSize,
       DEFAULT_SHARED_INTERACTIONS_PAGE_SIZE,
@@ -1059,12 +1059,22 @@ function clampInteger(value: number | undefined, fallback: number, min: number, 
 
 function normalizeInspectionRange(
   startTs: number | undefined,
-  endTs: number | undefined
+  endTs: number | undefined,
+  recentDays: number | undefined,
+  now: () => number
 ): { startTs: number | null; endTs: number | null } {
   const normalizedStart = normalizeOptionalTimestamp(startTs, 'startTs')
   const normalizedEnd = normalizeOptionalTimestamp(endTs, 'endTs')
   if (normalizedStart !== null && normalizedEnd !== null && normalizedStart > normalizedEnd) {
     throw new Error('startTs must be less than or equal to endTs')
+  }
+  const normalizedRecentDays = normalizedStart === null ? normalizeRecentDays(recentDays) : undefined
+  if (normalizedRecentDays !== undefined) {
+    const effectiveEnd = normalizedEnd ?? Math.floor(now() / 1000)
+    return {
+      startTs: effectiveEnd - normalizedRecentDays * SECONDS_PER_DAY,
+      endTs: effectiveEnd,
+    }
   }
   return { startTs: normalizedStart, endTs: normalizedEnd }
 }
