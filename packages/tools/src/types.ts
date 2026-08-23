@@ -24,6 +24,7 @@ import type {
   CrossChatOverviewRequest,
   CrossChatOverviewResult,
   CrossChatRecentSessionResult,
+  CrossChatRecentSessionSummary,
   CrossChatSearchRequest,
   CrossChatSearchResult,
   CrossChatSharedInteractionsRequest,
@@ -404,6 +405,11 @@ export interface CrossChatToolExecutionContext {
     sessionId: string,
     messages: CrossChatMessageSource[]
   ) => CrossChatMessageSource[] | Promise<CrossChatMessageSource[]>
+  preprocessSummariesBySession: (
+    sessionId: string,
+    summaries: CrossChatRecentSessionSummary[]
+  ) => CrossChatRecentSessionSummary[] | Promise<CrossChatRecentSessionSummary[]>
+  preprocessModelLabel: (value: string, pseudonym: string) => string
 }
 
 // ==================== Raw Message ====================

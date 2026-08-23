@@ -7,6 +7,8 @@ import type {
   CrossChatGroupSessionsRankingResult,
   CrossChatGlobalActivitySummaryResult,
   CrossChatMessageSource,
+  CrossChatOverviewItem,
+  CrossChatOverviewResult,
   CrossChatParticipantRef,
   CrossChatPrivateContactsRankingResult,
   CrossChatResolvedContactSession,
@@ -336,18 +338,28 @@ async function readRecentSessionHandler(
 ): Promise<ToolResult> {
   const result = context.analysisService.readRecentSession(requireString(params.session_id, 'session_id'))
   const safeMessages = await preprocessBySession(context, result.messages)
+  const safeSummaries = await context.preprocessSummariesBySession(result.source.sessionId, result.summaries)
+  const sessionPseudonym = 'Session1'
+  const modelSource = {
+    ...result.source,
+    sessionName: context.preprocessModelLabel(result.source.sessionName, sessionPseudonym),
+  }
+  const toRecentModelMessage = (message: CrossChatMessageSource) => ({
+    ...toModelMessage(message),
+    sessionName: context.preprocessModelLabel(message.sessionName, sessionPseudonym),
+  })
   const buildModelData = (messages: CrossChatMessageSource[], budgetTruncated: boolean) => ({
-    source: result.source,
+    source: modelSource,
     selection: {
       strategy: 'latest_session_slice',
       totalMessages: result.coverage.totalMessages,
       returnedMessages: messages.length,
-      returnedSummaries: result.summaries.length,
+      returnedSummaries: safeSummaries.length,
       hasEarlierMessages: result.coverage.hasEarlierMessages,
       toolResultTruncated: budgetTruncated,
     },
-    summaries: result.summaries,
-    messages: messages.map(toModelMessage),
+    summaries: safeSummaries,
+    messages: messages.map(toRecentModelMessage),
   })
   const limited = limitMessagesToBudget(safeMessages, context.maxToolResultTokens, buildModelData, {
     countTokens: context.countTokens,
@@ -370,6 +382,8 @@ async function readRecentSessionHandler(
     content: JSON.stringify(modelData),
     data: {
       ...modelData,
+      source: result.source,
+      messages: limited.messages.map(toModelMessage),
       crossChatEvidence: evidence,
     },
   }
@@ -426,7 +440,29 @@ async function overviewHandler(
     items: result.items.map(({ memberNames: _memberNames, ...item }) => item),
     coverage: result.coverage,
   }
-  return { content: JSON.stringify(data), data }
+  const fullModelData: OverviewModelData = {
+    ...data,
+    items: data.items.map((item, index) => {
+      const sessionPseudonym = `Session${index + 1}`
+      const preprocessMember = (member: (typeof item.memberActivities)[number]) => ({
+        ...member,
+        memberName: context.preprocessModelLabel(member.memberName, `U${member.memberId}@${item.sessionId}`),
+      })
+      return {
+        ...item,
+        sessionName: context.preprocessModelLabel(item.sessionName, sessionPseudonym),
+        label: context.preprocessModelLabel(item.label, sessionPseudonym),
+        memberActivities: item.memberActivities.map(preprocessMember),
+        topMembers: item.topMembers.map(preprocessMember),
+      }
+    }),
+  }
+  const modelData = limitOverviewToBudget(
+    fullModelData,
+    context.maxToolResultTokens,
+    context.countTokens ?? estimatePayloadTokens
+  )
+  return { content: JSON.stringify(modelData), data }
 }
 
 async function rankPrivateContactsHandler(
@@ -452,7 +488,14 @@ async function rankPrivateContactsHandler(
         }),
     }
   )
-  return { content: JSON.stringify(result), data: result }
+  const modelData = {
+    ...result,
+    items: result.items.map((item) => ({
+      ...item,
+      displayName: context.preprocessModelLabel(item.displayName, `Contact${item.rank}`),
+    })),
+  }
+  return { content: JSON.stringify(modelData), data: result }
 }
 
 async function rankGroupSessionsHandler(
@@ -482,7 +525,14 @@ async function rankGroupSessionsHandler(
         }),
     }
   )
-  return { content: JSON.stringify(result), data: result }
+  const modelData = {
+    ...result,
+    items: result.items.map((item) => ({
+      ...item,
+      sessionName: context.preprocessModelLabel(item.sessionName, `Group${item.rank}`),
+    })),
+  }
+  return { content: JSON.stringify(modelData), data: result }
 }
 
 async function globalActivitySummaryHandler(
@@ -495,8 +545,17 @@ async function globalActivitySummaryHandler(
     mode,
     year: parseOptionalNumber(params.year),
   })
+  const modelData = limitGlobalActivitySummaryToBudget(
+    buildGlobalActivityModelData(result),
+    context.maxToolResultTokens,
+    context.countTokens ?? estimatePayloadTokens
+  )
+  return { content: JSON.stringify(modelData), data: result }
+}
+
+function buildGlobalActivityModelData(result: CrossChatGlobalActivitySummaryResult) {
   const summary = result.summary
-  const modelData = {
+  return {
     mode: result.mode,
     dataState: result.dataState,
     range: summary.range,
@@ -521,8 +580,14 @@ async function globalActivitySummaryHandler(
       processedSessions: summary.task.processedSessions,
       totalSessions: summary.task.totalSessions,
     },
+    selection: {
+      dailyActivityTotal: summary.dailyActivity.length,
+      dailyActivityReturned: summary.dailyActivity.length,
+      dailyActivityFormat: 'objects',
+      toolResultTruncated: false,
+      truncatedReasons: [] as string[],
+    },
   }
-  return { content: JSON.stringify(modelData), data: result }
 }
 
 async function inspectContactSessionsHandler(
@@ -765,6 +830,266 @@ function parseParticipants(value: unknown): CrossChatParticipantRef[] {
       return { type: 'contact', contactKey: requireString(item.contact_key, 'participant.contact_key') }
     }
     throw new Error('participant.type must be owner or contact')
+  })
+}
+
+type GlobalActivityModelData = ReturnType<typeof buildGlobalActivityModelData>
+
+interface OverviewModelData {
+  appliedRange: CrossChatOverviewResult['appliedRange']
+  items: Array<Omit<CrossChatOverviewItem, 'memberNames'>>
+  coverage: CrossChatOverviewResult['coverage']
+}
+
+type OverviewItemFormat = 'compact' | 'core' | 'identity' | 'omitted'
+
+function limitOverviewToBudget(
+  fullData: OverviewModelData,
+  maxToolResultTokens: number | undefined,
+  countTokens: (text: string) => number
+): unknown {
+  if (!maxToolResultTokens || maxToolResultTokens <= 0) return fullData
+  if (countTokens(JSON.stringify(fullData)) <= maxToolResultTokens) return fullData
+
+  const compactItems = fullData.items.map((item) => ({
+    ...item,
+    sessionName: truncateModelLabel(item.sessionName),
+    label: truncateModelLabel(item.label),
+    memberActivities: item.memberActivities.map((member) => ({
+      memberId: member.memberId,
+      memberName: truncateModelLabel(member.memberName),
+      messageCount: member.messageCount,
+      activeDays: member.activeDays,
+      firstMessageTs: member.firstMessageTs,
+      lastMessageTs: member.lastMessageTs,
+    })),
+    topMembers: item.topMembers.map((member) => ({
+      memberName: truncateModelLabel(member.memberName),
+      messageCount: member.messageCount,
+      activeDays: member.activeDays,
+      lastMessageTs: member.lastMessageTs,
+    })),
+  }))
+  const buildCandidate = (items: Array<Record<string, unknown>>, itemFormat: OverviewItemFormat) => ({
+    appliedRange: fullData.appliedRange,
+    items,
+    coverage: fullData.coverage,
+    selection: buildOverviewSelection(fullData.items, items, itemFormat),
+  })
+  const fits = (candidate: unknown) => countTokens(JSON.stringify(candidate)) <= maxToolResultTokens
+
+  // 优先保留所有会话的核心统计，先均匀收缩每个会话的成员明细，避免只留下输入顺序靠前的会话。
+  const maxTopMembers = compactItems.reduce((max, item) => Math.max(max, item.topMembers.length), 0)
+  const topMemberCandidate = findLargestOverviewDetailLimit(maxTopMembers, (limit) =>
+    buildCandidate(
+      compactItems.map((item) => ({ ...item, topMembers: item.topMembers.slice(0, limit) })),
+      'compact'
+    )
+  )
+  if (topMemberCandidate && fits(topMemberCandidate)) return topMemberCandidate
+
+  const maxMemberActivities = compactItems.reduce((max, item) => Math.max(max, item.memberActivities.length), 0)
+  const memberActivityCandidate = findLargestOverviewDetailLimit(maxMemberActivities, (limit) =>
+    buildCandidate(
+      compactItems.map((item) => ({
+        ...item,
+        memberActivities: item.memberActivities.slice(0, limit),
+        topMembers: [],
+      })),
+      'compact'
+    )
+  )
+  if (memberActivityCandidate && fits(memberActivityCandidate)) return memberActivityCandidate
+
+  const coreItems = compactItems.map((item) => ({
+    sessionId: item.sessionId,
+    sessionName: item.sessionName,
+    sessionType: item.sessionType,
+    platform: item.platform,
+    label: item.label,
+    totalMessages: item.totalMessages,
+    activeDays: item.activeDays,
+    activeMembers: item.activeMembers,
+    firstMessageTs: item.firstMessageTs,
+    lastMessageTs: item.lastMessageTs,
+    ownerStatus: item.ownerStatus,
+    ownerMessages: item.ownerMessages,
+    ownerActiveDays: item.ownerActiveDays,
+  }))
+  const coreCandidate = buildCandidate(coreItems, 'core')
+  if (fits(coreCandidate)) return coreCandidate
+
+  const identityItems = compactItems.map((item) => ({
+    sessionId: item.sessionId,
+    sessionName: item.sessionName,
+    sessionType: item.sessionType,
+    label: item.label,
+    totalMessages: item.totalMessages,
+    activeDays: item.activeDays,
+    lastMessageTs: item.lastMessageTs,
+  }))
+  const identityCandidate = buildCandidate(identityItems, 'identity')
+  if (fits(identityCandidate)) return identityCandidate
+
+  const returnedItems = findLargestOverviewItemSlice(identityItems, (items) => buildCandidate(items, 'identity'))
+  if (returnedItems) return returnedItems
+
+  const omitted = buildCandidate([], 'omitted')
+  const candidates: unknown[] = [
+    omitted,
+    {
+      selection: buildOverviewSelection(fullData.items, [], 'omitted'),
+    },
+    { toolResultTruncated: true, truncatedReasons: ['tool_result_budget'] },
+    {},
+  ]
+  return candidates.find(fits) ?? {}
+
+  function findLargestOverviewDetailLimit(
+    maximum: number,
+    build: (limit: number) => ReturnType<typeof buildCandidate>
+  ): ReturnType<typeof buildCandidate> | null {
+    if (!fits(build(0))) return null
+    let low = 0
+    let high = maximum
+    while (low < high) {
+      const middle = Math.ceil((low + high) / 2)
+      if (fits(build(middle))) low = middle
+      else high = middle - 1
+    }
+    return build(low)
+  }
+
+  function findLargestOverviewItemSlice(
+    items: Array<Record<string, unknown>>,
+    build: (items: Array<Record<string, unknown>>) => ReturnType<typeof buildCandidate>
+  ): ReturnType<typeof buildCandidate> | null {
+    if (!fits(build([]))) return null
+    let low = 0
+    let high = items.length
+    while (low < high) {
+      const middle = Math.ceil((low + high) / 2)
+      if (fits(build(items.slice(0, middle)))) low = middle
+      else high = middle - 1
+    }
+    return build(items.slice(0, low))
+  }
+}
+
+function buildOverviewSelection(
+  fullItems: OverviewModelData['items'],
+  returnedItems: Array<Record<string, unknown>>,
+  itemFormat: OverviewItemFormat
+) {
+  const memberActivitiesTotal = fullItems.reduce((sum, item) => sum + item.memberActivities.length, 0)
+  const topMembersTotal = fullItems.reduce((sum, item) => sum + item.topMembers.length, 0)
+  const memberActivitiesReturned = returnedItems.reduce(
+    (sum, item) => sum + (Array.isArray(item.memberActivities) ? item.memberActivities.length : 0),
+    0
+  )
+  const topMembersReturned = returnedItems.reduce(
+    (sum, item) => sum + (Array.isArray(item.topMembers) ? item.topMembers.length : 0),
+    0
+  )
+  const truncatedReasons = [
+    ...(memberActivitiesReturned < memberActivitiesTotal ? ['member_activities_budget'] : []),
+    ...(topMembersReturned < topMembersTotal ? ['top_members_budget'] : []),
+    ...(returnedItems.length < fullItems.length ? ['session_items_budget'] : []),
+    'item_fields_budget',
+    'tool_result_budget',
+  ]
+  return {
+    sessionItemsTotal: fullItems.length,
+    sessionItemsReturned: returnedItems.length,
+    memberActivitiesTotal,
+    memberActivitiesReturned,
+    topMembersTotal,
+    topMembersReturned,
+    itemFormat,
+    toolResultTruncated: true,
+    truncatedReasons,
+  }
+}
+
+function limitGlobalActivitySummaryToBudget(
+  fullData: GlobalActivityModelData,
+  maxToolResultTokens: number | undefined,
+  countTokens: (text: string) => number
+): unknown {
+  if (!maxToolResultTokens || maxToolResultTokens <= 0) return fullData
+  if (countTokens(JSON.stringify(fullData)) <= maxToolResultTokens) return fullData
+
+  const totalDailyPoints = fullData.dailyActivity.length
+  const buildCompactedDailyData = (returned: number) => ({
+    ...fullData,
+    dailyActivity: sampleEvenly(fullData.dailyActivity, returned).map(
+      (point) => [point.date, point.messageCount] as const
+    ),
+    selection: {
+      dailyActivityTotal: totalDailyPoints,
+      dailyActivityReturned: returned,
+      dailyActivityFormat: 'date_message_count_tuples',
+      toolResultTruncated: returned < totalDailyPoints,
+      truncatedReasons: returned < totalDailyPoints ? ['daily_activity_budget'] : [],
+    },
+  })
+
+  let low = 0
+  let high = totalDailyPoints
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2)
+    if (countTokens(JSON.stringify(buildCompactedDailyData(middle))) <= maxToolResultTokens) low = middle
+    else high = middle - 1
+  }
+  const compacted = buildCompactedDailyData(low)
+  if (countTokens(JSON.stringify(compacted)) <= maxToolResultTokens) return compacted
+
+  const truncatedReasons = [...(totalDailyPoints > 0 ? ['daily_activity_budget'] : []), 'tool_result_budget']
+  const selection = {
+    dailyActivityTotal: totalDailyPoints,
+    dailyActivityReturned: 0,
+    dailyActivityFormat: 'omitted',
+    toolResultTruncated: true,
+    truncatedReasons,
+  }
+  const candidates: unknown[] = [
+    {
+      mode: fullData.mode,
+      dataState: fullData.dataState,
+      range: fullData.range,
+      metrics: fullData.metrics,
+      monthlyActivity: fullData.monthlyActivity,
+      monthlyDirectContacts: fullData.monthlyDirectContacts,
+      messageTypes: fullData.messageTypes,
+      textLength: fullData.textLength,
+      coverage: fullData.coverage,
+      cache: fullData.cache,
+      selection,
+    },
+    {
+      mode: fullData.mode,
+      dataState: fullData.dataState,
+      range: fullData.range,
+      metrics: fullData.metrics,
+      coverage: fullData.coverage,
+      cache: fullData.cache,
+      selection,
+    },
+    { mode: fullData.mode, dataState: fullData.dataState, metrics: fullData.metrics, selection },
+    { dataState: fullData.dataState, selection },
+    { toolResultTruncated: true, truncatedReasons: ['tool_result_budget'] },
+    {},
+  ]
+  return candidates.find((candidate) => countTokens(JSON.stringify(candidate)) <= maxToolResultTokens) ?? {}
+}
+
+function sampleEvenly<T>(items: T[], limit: number): T[] {
+  if (limit <= 0 || items.length === 0) return []
+  if (limit >= items.length) return [...items]
+  if (limit === 1) return [items[items.length - 1]!]
+  return Array.from({ length: limit }, (_, index) => {
+    const sourceIndex = Math.round((index * (items.length - 1)) / (limit - 1))
+    return items[sourceIndex]!
   })
 }
 

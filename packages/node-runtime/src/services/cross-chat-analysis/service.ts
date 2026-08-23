@@ -925,7 +925,8 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
         const contactActivity = facts.members.find((member) => member.memberId === contact.id)
         const accumulator = accumulators.get(contactKey) ?? {
           contactKey,
-          displayName: contact.name,
+          platformId: contact.platformId,
+          displayName: pickPreferredContactDisplayName(contact.platformId, contact.name, descriptor.sessionName),
           platform: descriptor.platform,
           totalMessages: 0,
           ownerMessages: 0,
@@ -935,6 +936,12 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
           lastMessageTs: null,
           sessionIds: [],
         }
+        accumulator.displayName = pickPreferredContactDisplayName(
+          contact.platformId,
+          accumulator.displayName,
+          contact.name,
+          descriptor.sessionName
+        )
         accumulator.totalMessages += facts.totalMessages
         accumulator.ownerMessages += ownerActivity?.messageCount ?? 0
         accumulator.contactMessages += contactActivity?.messageCount ?? 0
@@ -964,19 +971,29 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     const ranked = [...accumulators.values()].sort((left, right) =>
       comparePrivateContactRankAccumulators(left, right, rankBy)
     )
-    const items: CrossChatPrivateContactRankItem[] = ranked.slice(0, limit).map((item, index) => ({
-      rank: index + 1,
-      contactKey: item.contactKey,
-      displayName: item.displayName,
-      platform: item.platform,
-      totalMessages: item.totalMessages,
-      ownerMessages: item.ownerMessages,
-      contactMessages: item.contactMessages,
-      activeDays: item.activeDayKeys.size,
-      firstMessageTs: item.firstMessageTs,
-      lastMessageTs: item.lastMessageTs,
-      sessionIds: [...item.sessionIds].sort(),
-    }))
+    const items: CrossChatPrivateContactRankItem[] = ranked.slice(0, limit).map((item, index) => {
+      const contactDetail = this.deps.contactsService.getContactDetail(item.contactKey, {
+        acceptStale: true,
+        timeRangePreset: 'all',
+      })
+      return {
+        rank: index + 1,
+        contactKey: item.contactKey,
+        displayName: pickPreferredContactDisplayName(
+          item.platformId,
+          contactDetail.contact?.displayName,
+          item.displayName
+        ),
+        platform: item.platform,
+        totalMessages: item.totalMessages,
+        ownerMessages: item.ownerMessages,
+        contactMessages: item.contactMessages,
+        activeDays: item.activeDayKeys.size,
+        firstMessageTs: item.firstMessageTs,
+        lastMessageTs: item.lastMessageTs,
+        sessionIds: [...item.sessionIds].sort(),
+      }
+    })
     const currentTs = Math.floor(this.now() / 1000)
     return {
       algorithmVersion: PRIVATE_CONTACTS_RANKING_ALGORITHM_VERSION,
@@ -1369,6 +1386,15 @@ function normalizeContactName(value: string): string {
   return value.trim().toLocaleLowerCase()
 }
 
+function pickPreferredContactDisplayName(platformId: string, ...candidates: Array<string | null | undefined>): string {
+  const normalizedPlatformId = platformId.trim()
+  for (const candidate of candidates) {
+    const value = candidate?.trim()
+    if (value && value !== normalizedPlatformId) return value
+  }
+  return candidates.find((candidate) => candidate?.trim())?.trim() ?? normalizedPlatformId
+}
+
 function normalizeRecentDays(value: number | undefined): number | undefined {
   if (value === undefined) return undefined
   if (!Number.isFinite(value) || value <= 0) throw new Error('recentDays must be a positive number')
@@ -1382,6 +1408,7 @@ interface SearchCandidate {
 
 interface PrivateContactRankAccumulator {
   contactKey: string
+  platformId: string
   displayName: string
   platform: CrossChatPrivateContactRankItem['platform']
   totalMessages: number

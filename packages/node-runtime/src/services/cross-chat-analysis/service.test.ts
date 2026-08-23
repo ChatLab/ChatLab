@@ -16,7 +16,7 @@ import { openBetterSqliteDatabase } from '../../better-sqlite3-adapter'
 import type { ContactsService } from '../contacts'
 import type { SessionRuntimeAdapter } from '../adapters'
 import { createCrossChatAnalysisService } from './service'
-import { preprocessCrossChatMessages } from './preprocess'
+import { preprocessCrossChatLabel, preprocessCrossChatMessages, preprocessCrossChatSummaries } from './preprocess'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -26,7 +26,7 @@ interface SeedSession {
   type: 'private' | 'group'
   platform?: string
   ownerPlatformId?: string
-  members: Array<{ id: number; platformId: string; name: string }>
+  members: Array<{ id: number; platformId: string; name: string | null }>
   messages: Array<{ id: number; senderId: number; ts: number; content: string; replyToMessageId?: string }>
 }
 
@@ -580,6 +580,33 @@ test('maps global insight cache states without waiting for background computatio
 
     response = annualSummaryResponse('missing', 'failed')
     assert.equal(service.getGlobalActivitySummary({}).dataState, 'failed')
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('uses the private session name when the contact member only has a platform id', async () => {
+  const { env, contactsService } = createFixture()
+  const day = 1_780_000_000
+  env.seed({
+    id: 'rank-private-display-name',
+    name: '小红',
+    type: 'private',
+    platform: 'wechat',
+    ownerPlatformId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner', name: '我' },
+      { id: 2, platformId: 'wxid_adczii0mtmoq22', name: null },
+    ],
+    messages: [{ id: 1, senderId: 2, ts: day, content: 'hello' }],
+  })
+
+  try {
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+    const result = await service.rankPrivateContacts({ startTs: day - 1, endTs: day + 1, limit: 10 })
+
+    const item = result.items.find((candidate) => candidate.contactKey === 'wechat:wxid_adczii0mtmoq22')
+    assert.equal(item?.displayName, '小红')
   } finally {
     env.cleanup()
   }
@@ -2013,4 +2040,113 @@ test('cross-chat anonymization namespaces local member ids by source session', (
   } finally {
     env.cleanup()
   }
+})
+
+test('cross-chat summary preprocessing applies current blacklist, desensitization, and anonymization', () => {
+  const { env } = createFixture()
+  try {
+    const summaries = [
+      {
+        segmentId: 1,
+        startTs: 1,
+        endTs: 2,
+        messageCount: 2,
+        participants: ['Alice'],
+        summary: '秘密项目的联系电话是 13812345678',
+      },
+      {
+        segmentId: 2,
+        startTs: 3,
+        endTs: 4,
+        messageCount: 2,
+        participants: ['Alice'],
+        summary: 'Alice 的联系电话是 13812345678',
+      },
+    ]
+    const processed = preprocessCrossChatSummaries(env.adapter, 'private-alice', summaries, {
+      dataCleaning: false,
+      mergeConsecutive: false,
+      blacklistKeywords: ['秘密项目'],
+      denoise: false,
+      desensitize: true,
+      desensitizeRules: [
+        {
+          id: 'phone',
+          label: 'Phone',
+          pattern: '1\\d{10}',
+          replacement: '[PHONE]',
+          enabled: true,
+          builtin: false,
+          locales: [],
+        },
+      ],
+      anonymizeNames: true,
+    })
+
+    assert.equal(processed.length, 1)
+    assert.equal(processed[0].summary, 'U10@private-alice 的联系电话是 [PHONE]')
+    assert.deepEqual(processed[0].participants, ['U10@private-alice'])
+    assert.equal(JSON.stringify(processed).includes('秘密项目'), false)
+    assert.equal(JSON.stringify(processed).includes('13812345678'), false)
+    assert.equal(JSON.stringify(processed).includes('Alice'), false)
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('cross-chat summary anonymization respects word boundaries and drops ambiguous short-name text', () => {
+  const { env } = createFixture()
+  try {
+    const processed = preprocessCrossChatSummaries(
+      env.adapter,
+      'private-alice',
+      [
+        {
+          segmentId: 1,
+          startTs: 1,
+          endTs: 2,
+          messageCount: 2,
+          participants: ['Me'],
+          summary: 'Meeting notes say Me approved it.',
+        },
+        {
+          segmentId: 2,
+          startTs: 3,
+          endTs: 4,
+          messageCount: 2,
+          participants: ['我'],
+          summary: '我们明天继续讨论。',
+        },
+      ],
+      {
+        dataCleaning: false,
+        mergeConsecutive: false,
+        blacklistKeywords: [],
+        denoise: false,
+        desensitize: false,
+        desensitizeRules: [],
+        anonymizeNames: true,
+      }
+    )
+
+    assert.equal(processed.length, 1)
+    assert.equal(processed[0].summary, 'Meeting notes say U1@private-alice approved it.')
+    assert.deepEqual(processed[0].participants, ['U1@private-alice'])
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('cross-chat structural labels use safe pseudonyms when name anonymization is enabled', () => {
+  const processed = preprocessCrossChatLabel('Alice', 'Contact1', {
+    dataCleaning: false,
+    mergeConsecutive: false,
+    blacklistKeywords: [],
+    denoise: false,
+    desensitize: false,
+    desensitizeRules: [],
+    anonymizeNames: true,
+  })
+
+  assert.equal(processed, 'Contact1')
 })
