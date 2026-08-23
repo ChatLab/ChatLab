@@ -113,8 +113,8 @@ const overviewSchema: JsonSchema = {
       description: 'Resolved session/member scopes to summarize separately',
       items: scopeItems,
     },
-    max_sessions: { type: 'number', description: 'Maximum sessions to analyze' },
-    max_wall_time_ms: { type: 'number', description: 'Maximum wall time for this analysis' },
+    recent_days: recentDaysProperty,
+    ...timeParamProperties,
   },
   required: ['scopes'],
 }
@@ -386,11 +386,13 @@ async function overviewHandler(
   params: Record<string, unknown>,
   context: CrossChatToolExecutionContext
 ): Promise<ToolResult> {
+  const timeFilter = parseExtendedTimeParams(params)
   const result = await context.analysisService.getOverview(
     {
       scopes: parseScopes(params.scopes),
-      maxSessions: parseOptionalNumber(params.max_sessions),
-      maxWallTimeMs: parseOptionalNumber(params.max_wall_time_ms),
+      startTs: timeFilter?.startTs,
+      endTs: timeFilter?.endTs,
+      recentDays: parseOptionalNumber(params.recent_days),
     },
     {
       signal: context.abortSignal,
@@ -403,6 +405,7 @@ async function overviewHandler(
     }
   )
   const data = {
+    appliedRange: result.appliedRange,
     items: result.items.map(({ memberNames: _memberNames, ...item }) => item),
     coverage: result.coverage,
   }
@@ -596,7 +599,7 @@ export const getCrossChatMessageContextTool: ToolDefinition<CrossChatToolExecuti
 export const getCrossChatOverviewTool: ToolDefinition<CrossChatToolExecutionContext> = {
   name: 'get_cross_chat_overview',
   description:
-    'Get separate message-count and time-range overviews for resolved contact/session scopes. This is a basic comparison tool, not arbitrary SQL or single-chat deep analytics.',
+    'Compare already-resolved contact or session scopes within an exact time range. Returns deterministic message counts, active days and members, per-requested-member activity, owner coverage, fixed top members for groups, dataset cutoff, and completeness. It does not discover or rank sessions globally.',
   inputSchema: overviewSchema,
   handler: overviewHandler,
   category: 'core',

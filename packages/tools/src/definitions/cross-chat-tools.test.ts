@@ -423,11 +423,23 @@ function createContext(overrides: Partial<CrossChatAnalysisToolService> = {}): C
       messages: [],
     }),
     getOverview: async (): Promise<CrossChatOverviewResult> => ({
+      appliedRange: {
+        startTs: null,
+        endTs: null,
+        dataEarliestMessageTs: null,
+        dataLatestMessageTs: null,
+        currentTs: 1_790_000_000,
+      },
       items: [],
       coverage: {
         candidateSessions: 0,
         analyzedSessions: 0,
+        excludedSessions: 0,
+        missingOwnerSessions: 0,
+        unresolvedOwnerSessions: 0,
         failedSessions: 0,
+        failedSessionIds: [],
+        complete: true,
         truncated: false,
         truncatedReasons: [],
       },
@@ -494,6 +506,64 @@ describe('cross-chat agent registry', () => {
     assert.equal(typeof captured?.startTs, 'number')
     assert.equal(typeof captured?.endTs, 'number')
     assert.deepEqual(result.data, privateContactsRankingResult())
+  })
+
+  it('forwards exact overview ranges while keeping execution budgets internal', async () => {
+    let captured: Parameters<CrossChatAnalysisToolService['getOverview']>[0] | undefined
+    const context = createContext({
+      getOverview: async (request) => {
+        captured = request
+        return {
+          appliedRange: {
+            startTs: request.startTs ?? null,
+            endTs: request.endTs ?? null,
+            dataEarliestMessageTs: 100,
+            dataLatestMessageTs: 200,
+            currentTs: 1_790_000_000,
+          },
+          items: [],
+          coverage: {
+            candidateSessions: 1,
+            analyzedSessions: 1,
+            excludedSessions: 0,
+            missingOwnerSessions: 0,
+            unresolvedOwnerSessions: 0,
+            failedSessions: 0,
+            failedSessionIds: [],
+            complete: true,
+            truncated: false,
+            truncatedReasons: [],
+          },
+        }
+      },
+    })
+    const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'get_cross_chat_overview')
+    assert.ok(tool)
+    assert.equal(tool.inputSchema.properties?.max_sessions, undefined)
+    assert.equal(tool.inputSchema.properties?.max_wall_time_ms, undefined)
+
+    const result = await tool.handler(
+      {
+        scopes: [{ sessionId: 'session-a', memberIds: [2], label: 'Alice' }],
+        start_time: '2026-01-01 00:00',
+        end_time: '2026-08-23 12:00',
+        max_sessions: 1,
+        max_wall_time_ms: 1,
+      },
+      context
+    )
+
+    assert.equal(typeof captured?.startTs, 'number')
+    assert.equal(typeof captured?.endTs, 'number')
+    assert.equal(captured?.maxSessions, undefined)
+    assert.equal(captured?.maxWallTimeMs, undefined)
+    assert.deepEqual(result.data?.appliedRange, {
+      startTs: captured?.startTs ?? null,
+      endTs: captured?.endTs ?? null,
+      dataEarliestMessageTs: 100,
+      dataLatestMessageTs: 200,
+      currentTs: 1_790_000_000,
+    })
   })
 
   it('requires an explicit group-ranking mode and forwards the exact range', async () => {

@@ -682,25 +682,51 @@ export interface CrossChatMessageContextResult {
 
 export interface CrossChatOverviewRequest {
   scopes: CrossChatSearchScope[]
+  startTs?: number
+  endTs?: number
+  recentDays?: number
   maxSessions?: number
   maxWallTimeMs?: number
+}
+
+export interface CrossChatOverviewMemberActivity {
+  memberId: number
+  platformId: string
+  memberName: string
+  messageCount: number
+  activeDays: number
+  firstMessageTs: number | null
+  lastMessageTs: number | null
 }
 
 export interface CrossChatOverviewItem extends CrossChatSessionDescriptor {
   label: string
   memberIds?: number[]
   memberNames?: string[]
+  memberActivities: CrossChatOverviewMemberActivity[]
   totalMessages: number
+  activeDays: number
+  activeMembers: number
   firstMessageTs: number | null
   lastMessageTs: number | null
+  ownerStatus: CrossChatOwnerStatus
+  ownerMessages: number | null
+  ownerActiveDays: number | null
+  topMembers: CrossChatOverviewMemberActivity[]
 }
 
 export interface CrossChatOverviewResult {
+  appliedRange: CrossChatStatisticsTimeRange
   items: CrossChatOverviewItem[]
   coverage: {
     candidateSessions: number
     analyzedSessions: number
+    excludedSessions: number
+    missingOwnerSessions: number
+    unresolvedOwnerSessions: number
     failedSessions: number
+    failedSessionIds: string[]
+    complete: boolean
     truncated: boolean
     truncatedReasons: Array<'session_budget' | 'time_budget'>
   }
