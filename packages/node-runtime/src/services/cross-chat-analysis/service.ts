@@ -73,7 +73,6 @@ const RECENT_SESSION_MESSAGE_LIMIT = 200
 const RECENT_SESSION_SUMMARY_LIMIT = 5
 const SEARCH_CONTEXT_BEFORE = 2
 const SEARCH_CONTEXT_AFTER = 2
-const SECONDS_PER_DAY = 86400
 const MAX_RECENT_DAYS = 3650
 const CONTACT_SESSIONS_ALGORITHM_VERSION = 'contact-sessions-v1'
 const DEFAULT_INSPECTION_PAGE_SIZE = 50
@@ -316,7 +315,9 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     throwIfAborted(options.signal)
     const contactKey = request.contactKey.trim()
     if (!contactKey) throw new Error('contactKey is required')
-    const range = normalizeInspectionRange(request.startTs, request.endTs, request.recentDays, () => this.now())
+    const requestedRange = normalizeInspectionRange(request.startTs, request.endTs, request.recentDays, () =>
+      this.now()
+    )
     const includeRosterOnly = request.includeRosterOnly !== false
     const pageSize = clampInteger(request.pageSize, DEFAULT_INSPECTION_PAGE_SIZE, 1, MAX_INSPECTION_PAGE_SIZE)
     const maxWallTimeMs = clampInteger(request.maxWallTimeMs, DEFAULT_MAX_WALL_TIME_MS, 1, MAX_MAX_WALL_TIME_MS)
@@ -326,7 +327,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     })
     const contact = detail.contact
     if (!contact) {
-      return emptyContactSessionsResult(detail.cache.status, range)
+      return emptyContactSessionsResult(detail.cache.status, requestedRange)
     }
 
     const startedAt = this.now()
@@ -337,14 +338,20 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
       : [...new Set(this.deps.adapter.listSessionCandidateIds?.() ?? this.deps.adapter.listSessionIds())].sort(
           (left, right) => left.localeCompare(right)
         )
-    const cursorFingerprint = createInspectionFingerprint({
+    const cursor = parseInspectionCursor(
+      request.cursor,
+      (range) =>
+        createInspectionFingerprint({
+          candidateSessionIds,
+          contactKey,
+          startTs: range.startTs,
+          endTs: range.endTs,
+          includeRosterOnly,
+        }),
       candidateSessionIds,
-      contactKey,
-      startTs: range.startTs,
-      endTs: range.endTs,
-      includeRosterOnly,
-    })
-    const cursor = parseInspectionCursor(request.cursor, cursorFingerprint, candidateSessionIds)
+      requestedRange
+    )
+    const range = cursor.range
     const sessions: CrossChatContactSessionsResult['sessions'] = []
     const failedSessionIds: string[] = []
     const truncatedReasons = new Set<CrossChatContactSessionsResult['coverage']['truncatedReasons'][number]>()
@@ -417,7 +424,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     const complete = nextCandidateIndex >= candidateSessionIds.length
     const nextCursor = complete
       ? null
-      : createInspectionCursor(cursorFingerprint, candidateSessionIds[nextCandidateIndex - 1] ?? null)
+      : createInspectionCursor(cursor.fingerprint, candidateSessionIds[nextCandidateIndex - 1] ?? null, range)
     options.onProgress?.({ processedSessions: nextCandidateIndex, totalSessions: candidateSessionIds.length })
 
     return {
@@ -457,7 +464,9 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
   ): Promise<CrossChatSharedInteractionsResult> {
     throwIfAborted(options.signal)
     const participantRefs = normalizeParticipantRefs(request.participants)
-    const range = normalizeInspectionRange(request.startTs, request.endTs, request.recentDays, () => this.now())
+    const requestedRange = normalizeInspectionRange(request.startTs, request.endTs, request.recentDays, () =>
+      this.now()
+    )
     const pageSize = clampInteger(
       request.pageSize,
       DEFAULT_SHARED_INTERACTIONS_PAGE_SIZE,
@@ -503,7 +512,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
       .map((participant) => participant.index)
     const publicParticipants = resolvedParticipants.map(({ contact: _contact, ...participant }) => participant)
     if (unresolvedParticipantIndexes.length > 0) {
-      return emptySharedInteractionsResult(publicParticipants, unresolvedParticipantIndexes, range)
+      return emptySharedInteractionsResult(publicParticipants, unresolvedParticipantIndexes, requestedRange)
     }
 
     throwIfAborted(options.signal)
@@ -522,14 +531,20 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
           : [...new Set(this.deps.adapter.listSessionCandidateIds?.() ?? this.deps.adapter.listSessionIds())]
     ).sort((left, right) => left.localeCompare(right))
     throwIfAborted(options.signal)
-    const cursorFingerprint = createInspectionFingerprint({
+    const cursor = parseInspectionCursor(
+      request.cursor,
+      (range) =>
+        createInspectionFingerprint({
+          candidateSessionIds,
+          participantRefs,
+          startTs: range.startTs,
+          endTs: range.endTs,
+          maxAnchorsPerPair,
+        }),
       candidateSessionIds,
-      participantRefs,
-      startTs: range.startTs,
-      endTs: range.endTs,
-      maxAnchorsPerPair,
-    })
-    const cursor = parseInspectionCursor(request.cursor, cursorFingerprint, candidateSessionIds)
+      requestedRange
+    )
+    const range = cursor.range
     const sessions: CrossChatSharedInteractionsResult['sessions'] = []
     const failedSessionIds: string[] = []
     const truncatedReasons = new Set<CrossChatSharedInteractionsResult['coverage']['truncatedReasons'][number]>()
@@ -623,7 +638,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     const complete = nextCandidateIndex >= candidateSessionIds.length
     const nextCursor = complete
       ? null
-      : createInspectionCursor(cursorFingerprint, candidateSessionIds[nextCandidateIndex - 1] ?? null)
+      : createInspectionCursor(cursor.fingerprint, candidateSessionIds[nextCandidateIndex - 1] ?? null, range)
     options.onProgress?.({ processedSessions: nextCandidateIndex, totalSessions: candidateSessionIds.length })
 
     return {
@@ -671,8 +686,9 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     let startTs = request.startTs
     let endTs = request.endTs
     if (effectiveRecentDays !== undefined) {
-      endTs ??= Math.floor(this.now() / 1000)
-      startTs = endTs - effectiveRecentDays * SECONDS_PER_DAY
+      const range = normalizeInspectionRange(undefined, endTs, effectiveRecentDays, () => this.now())
+      startTs = range.startTs ?? undefined
+      endTs = range.endTs ?? undefined
     }
     const ownerResolution =
       sender === 'owner' ? { resolvedSessions: 0, missingOwnerSessions: 0, unresolvedOwnerSessions: 0 } : undefined
@@ -1760,7 +1776,7 @@ function normalizeInspectionRange(
   endTs: number | undefined,
   recentDays: number | undefined,
   now: () => number
-): { startTs: number | null; endTs: number | null } {
+): InspectionRange {
   const normalizedStart = normalizeOptionalTimestamp(startTs, 'startTs')
   const normalizedEnd = normalizeOptionalTimestamp(endTs, 'endTs')
   if (normalizedStart !== null && normalizedEnd !== null && normalizedStart > normalizedEnd) {
@@ -1768,10 +1784,16 @@ function normalizeInspectionRange(
   }
   const normalizedRecentDays = normalizedStart === null ? normalizeRecentDays(recentDays) : undefined
   if (normalizedRecentDays !== undefined) {
-    const effectiveEnd = normalizedEnd ?? Math.floor(now() / 1000)
+    const anchor = new Date((normalizedEnd ?? Math.floor(now() / 1000)) * 1000)
+    const start = new Date(anchor)
+    start.setHours(0, 0, 0, 0)
+    start.setDate(start.getDate() - (normalizedRecentDays - 1))
+    const endExclusive = new Date(anchor)
+    endExclusive.setHours(0, 0, 0, 0)
+    endExclusive.setDate(endExclusive.getDate() + 1)
     return {
-      startTs: effectiveEnd - normalizedRecentDays * SECONDS_PER_DAY,
-      endTs: effectiveEnd,
+      startTs: Math.floor(start.getTime() / 1000),
+      endTs: Math.floor(endExclusive.getTime() / 1000) - 1,
     }
   }
   return { startTs: normalizedStart, endTs: normalizedEnd }
@@ -2036,38 +2058,67 @@ function maxNullable(left: number | null, right: number | null): number | null {
   return Math.max(left, right)
 }
 
+interface InspectionRange {
+  startTs: number | null
+  endTs: number | null
+}
+
 interface InspectionCursorPayload {
-  version: 1
+  version: 2
   fingerprint: string
   afterSessionId: string | null
+  range: InspectionRange
 }
 
 function createInspectionFingerprint(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('base64url')
 }
 
-function createInspectionCursor(fingerprint: string, afterSessionId: string | null): string {
-  const payload: InspectionCursorPayload = { version: 1, fingerprint, afterSessionId }
+function createInspectionCursor(fingerprint: string, afterSessionId: string | null, range: InspectionRange): string {
+  const payload: InspectionCursorPayload = { version: 2, fingerprint, afterSessionId, range }
   return Buffer.from(JSON.stringify(payload)).toString('base64url')
 }
 
 function parseInspectionCursor(
   value: string | undefined,
-  fingerprint: string,
-  candidateSessionIds: string[]
-): { nextCandidateIndex: number } {
-  if (!value) return { nextCandidateIndex: 0 }
+  createFingerprint: (range: InspectionRange) => string,
+  candidateSessionIds: string[],
+  defaultRange: InspectionRange
+): { nextCandidateIndex: number; fingerprint: string; range: InspectionRange } {
+  if (!value) {
+    return {
+      nextCandidateIndex: 0,
+      fingerprint: createFingerprint(defaultRange),
+      range: defaultRange,
+    }
+  }
   try {
     const payload = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as Partial<InspectionCursorPayload>
-    if (payload.version !== 1 || payload.fingerprint !== fingerprint) throw new Error('cursor mismatch')
-    if (payload.afterSessionId === null) return { nextCandidateIndex: 0 }
+    if (payload.version !== 2 || !isInspectionRange(payload.range)) throw new Error('cursor payload is invalid')
+    const fingerprint = createFingerprint(payload.range)
+    if (payload.fingerprint !== fingerprint) throw new Error('cursor mismatch')
+    if (payload.afterSessionId === null) {
+      return { nextCandidateIndex: 0, fingerprint, range: payload.range }
+    }
     if (typeof payload.afterSessionId !== 'string') throw new Error('cursor session is missing')
     const index = candidateSessionIds.indexOf(payload.afterSessionId)
     if (index < 0) throw new Error('cursor session no longer exists')
-    return { nextCandidateIndex: index + 1 }
+    return { nextCandidateIndex: index + 1, fingerprint, range: payload.range }
   } catch {
     throw new Error('cursor is invalid or does not match the current inspection request')
   }
+}
+
+function isInspectionRange(value: unknown): value is InspectionRange {
+  if (!value || typeof value !== 'object') return false
+  const range = value as Partial<InspectionRange>
+  const isTimestamp = (timestamp: unknown): timestamp is number | null =>
+    timestamp === null || (typeof timestamp === 'number' && Number.isFinite(timestamp))
+  return (
+    isTimestamp(range.startTs) &&
+    isTimestamp(range.endTs) &&
+    (range.startTs === null || range.endTs === null || range.startTs <= range.endTs)
+  )
 }
 
 function throwIfAborted(signal?: AbortSignal): void {
