@@ -93,6 +93,13 @@ export {
 
 export { buildContactKey, shouldScopeContactToSession } from './contact-identity'
 
+export { getCrossChatSessionActivityFacts } from './cross-chat-statistics'
+export type {
+  CrossChatMemberActivityFacts,
+  CrossChatSessionActivityFacts,
+  CrossChatStatisticsQueryOptions,
+} from './cross-chat-statistics'
+
 export { aggregateAnnualSummaryFacts, getAnnualSummarySessionFacts } from './global-insight'
 export type {
   AnnualSummaryAggregatedData,
