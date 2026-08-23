@@ -7,7 +7,7 @@ import { buildCrossChatSystemPrompt, runCrossChatAgent } from '../cross-chat-age
 
 describe('cross-chat agent prompt', () => {
   it('locks the agent to dedicated tools and makes scope semantic rather than persistent', () => {
-    const prompt = buildCrossChatSystemPrompt('zh-CN')
+    const prompt = buildCrossChatSystemPrompt('zh-CN', new Date('2026-08-23T12:00:00Z'))
     for (const tool of [
       'resolve_chat_entities',
       'inspect_contact_sessions',
@@ -31,6 +31,9 @@ describe('cross-chat agent prompt', () => {
     assert.match(prompt, /限定 scopes 时，可以不提供关键词/)
     assert.match(prompt, /最近.*90 天/)
     assert.match(prompt, /recent_days/)
+    assert.match(prompt, /当前日期是.*2026.*8.*23/)
+    assert.match(prompt, /真实当前时间为基准/)
+    assert.match(prompt, /禁止根据数据库截止时间.*手工计算/)
     assert.match(prompt, /sender.*owner/)
     assert.match(prompt, /本人发言.*检索种子/)
     assert.match(prompt, /coverage/)
@@ -39,7 +42,7 @@ describe('cross-chat agent prompt', () => {
   })
 
   it('keeps the English prompt on the same six-tool investigation contract', () => {
-    const prompt = buildCrossChatSystemPrompt('en-US')
+    const prompt = buildCrossChatSystemPrompt('en-US', new Date('2026-08-23T12:00:00Z'))
     for (const tool of [
       'resolve_chat_entities',
       'inspect_contact_sessions',
@@ -53,6 +56,9 @@ describe('cross-chat agent prompt', () => {
     assert.match(prompt, /strict intersection containing every participant/)
     assert.match(prompt, /investigation signals, not proof/)
     assert.match(prompt, /partial or skipped_budget never means zero/)
+    assert.match(prompt, /current date is.*August 23, 2026/i)
+    assert.match(prompt, /real current time/)
+    assert.match(prompt, /Never calculate start_time from a dataset cutoff/)
     assert.doesNotMatch(prompt, /four tools/)
   })
 })

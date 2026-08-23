@@ -25,6 +25,13 @@ const scopeItems = {
   required: ['sessionId'],
 }
 
+const recentDaysProperty = {
+  type: 'number' as const,
+  minimum: 1,
+  description:
+    'Relative time window ending at the real current time. Use 90 when the user says recent/recently without a more specific range.',
+}
+
 const resolveSchema: JsonSchema = {
   type: 'object',
   properties: {
@@ -63,11 +70,7 @@ const searchSchema: JsonSchema = {
       items: scopeItems,
     },
     match_mode: { type: 'string', enum: ['any', 'all'], description: 'Whether any or all keywords must match' },
-    recent_days: {
-      type: 'number',
-      description:
-        'Relative time window ending now. Use 90 when the user says recent/recently without a more specific range.',
-    },
+    recent_days: recentDaysProperty,
     sender: {
       type: 'string',
       enum: ['all', 'owner'],
@@ -113,6 +116,7 @@ const inspectContactSessionsSchema: JsonSchema = {
       type: 'string',
       description: 'Stable contact key returned by resolve_chat_entities; display names are not accepted',
     },
+    recent_days: recentDaysProperty,
     include_roster_only: {
       type: 'boolean',
       description: 'Include imported sessions where the member is recorded but did not speak in the selected range',
@@ -144,6 +148,7 @@ const inspectSharedInteractionsSchema: JsonSchema = {
         required: ['type'],
       },
     },
+    recent_days: recentDaysProperty,
     cursor: { type: 'string', description: 'Opaque continuation cursor from the previous result' },
     page_size: { type: 'number', description: 'Maximum common sessions returned in this batch' },
     max_anchors_per_pair: {
@@ -333,6 +338,7 @@ async function inspectContactSessionsHandler(
       contactKey: requireString(params.contact_key, 'contact_key'),
       startTs: timeFilter?.startTs,
       endTs: timeFilter?.endTs,
+      recentDays: parseOptionalNumber(params.recent_days),
       includeRosterOnly: params.include_roster_only === undefined ? true : requireBoolean(params.include_roster_only),
       cursor: typeof params.cursor === 'string' && params.cursor.trim() ? params.cursor.trim() : undefined,
       pageSize: budgetedPageSize.value,
@@ -378,6 +384,7 @@ async function inspectSharedInteractionsHandler(
       participants,
       startTs: timeFilter?.startTs,
       endTs: timeFilter?.endTs,
+      recentDays: parseOptionalNumber(params.recent_days),
       cursor: typeof params.cursor === 'string' && params.cursor.trim() ? params.cursor.trim() : undefined,
       pageSize: budget.pageSize,
       maxAnchorsPerPair: budget.maxAnchorsPerPair,
@@ -449,7 +456,7 @@ export const getCrossChatOverviewTool: ToolDefinition<CrossChatToolExecutionCont
 export const inspectContactSessionsTool: ToolDefinition<CrossChatToolExecutionContext> = {
   name: 'inspect_contact_sessions',
   description:
-    "Inspect one resolved contact across imported private and group sessions. Returns the contact's own message counts, first/last speech, active days, roster-only presence, dataset cutoff, and coverage. Use only for person source/activity questions after exact identity resolution; this tool does not infer relationship labels or return message text.",
+    "Inspect one resolved contact across imported private and group sessions. Returns the contact's own message counts, first/last speech, active days, roster-only presence, dataset cutoff, and coverage. Use recent_days=90 for recent activity without an explicit duration; never derive start_time from the dataset cutoff. Use only for person source/activity questions after exact identity resolution; this tool does not infer relationship labels or return message text.",
   inputSchema: inspectContactSessionsSchema,
   handler: inspectContactSessionsHandler,
   category: 'core',
@@ -458,7 +465,7 @@ export const inspectContactSessionsTool: ToolDefinition<CrossChatToolExecutionCo
 export const inspectSharedInteractionsTool: ToolDefinition<CrossChatToolExecutionContext> = {
   name: 'inspect_shared_interactions',
   description:
-    'Inspect common imported sessions for two to five exactly resolved people, including owner when requested. Returns per-person activity, directional replies, proximity signals, co-active days, message anchors, dataset cutoff, and coverage. Common sessions contain every requested participant. These structural signals guide evidence reading and must never be treated as relationship labels or replace message context.',
+    'Inspect common imported sessions for two to five exactly resolved people, including owner when requested. Returns per-person activity, directional replies, proximity signals, co-active days, message anchors, dataset cutoff, and coverage. Use recent_days=90 for recent interaction questions without an explicit duration; never derive start_time from the dataset cutoff. Common sessions contain every requested participant. These structural signals guide evidence reading and must never be treated as relationship labels or replace message context.',
   inputSchema: inspectSharedInteractionsSchema,
   handler: inspectSharedInteractionsHandler,
   category: 'core',

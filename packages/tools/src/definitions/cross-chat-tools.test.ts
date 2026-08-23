@@ -355,6 +355,7 @@ describe('cross-chat agent registry', () => {
     await tool.handler(
       {
         participants: [{ type: 'owner' }, { type: 'contact', contact_key: 'test:alice' }],
+        recent_days: 90,
         page_size: 8,
         max_anchors_per_pair: 3,
       },
@@ -364,6 +365,7 @@ describe('cross-chat agent registry', () => {
       participants: [{ type: 'owner' }, { type: 'contact', contactKey: 'test:alice' }],
       startTs: undefined,
       endTs: undefined,
+      recentDays: 90,
       cursor: undefined,
       pageSize: 8,
       maxAnchorsPerPair: 3,
@@ -424,6 +426,7 @@ describe('cross-chat agent registry', () => {
     await tool.handler(
       {
         contact_key: 'test:alice',
+        recent_days: 90,
         include_roster_only: false,
         page_size: 12,
         max_wall_time_ms: 5000,
@@ -434,6 +437,7 @@ describe('cross-chat agent registry', () => {
       contactKey: 'test:alice',
       startTs: undefined,
       endTs: undefined,
+      recentDays: 90,
       includeRosterOnly: false,
       cursor: undefined,
       pageSize: 12,
