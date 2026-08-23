@@ -144,6 +144,7 @@ test('returns bounded session and per-member activity without system messages', 
         { memberId: 3, memberName: 'Bob', messageCount: 1, activeDays: 1 },
       ]
     )
+    assert.deepEqual(facts.activeDayKeys, ['2024-01-01', '2024-01-02'])
   } finally {
     db.close()
   }
@@ -165,6 +166,7 @@ test('returns zero range facts while preserving the imported data cutoff', () =>
     assert.equal(facts.firstMessageTs, null)
     assert.equal(facts.lastMessageTs, null)
     assert.deepEqual(facts.members, [])
+    assert.deepEqual(facts.activeDayKeys, [])
     assert.equal(facts.dataLatestMessageTs, localTs(2024, 1, 1))
   } finally {
     db.close()

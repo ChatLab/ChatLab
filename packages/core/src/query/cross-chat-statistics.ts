@@ -24,6 +24,7 @@ export interface CrossChatSessionActivityFacts {
   lastMessageTs: number | null
   dataEarliestMessageTs: number | null
   dataLatestMessageTs: number | null
+  activeDayKeys: string[]
   members: CrossChatMemberActivityFacts[]
 }
 
@@ -85,6 +86,17 @@ export function getCrossChatSessionActivityFacts(
        WHERE ${messageCondition}`
     )
     .get() as { firstMessageTs: number | null; lastMessageTs: number | null } | undefined
+  const activeDayKeys = (
+    db
+      .prepare(
+        `SELECT DISTINCT strftime('%Y-%m-%d', msg.ts, 'unixepoch', 'localtime') as activeDay
+         FROM message msg
+         JOIN member m ON msg.sender_id = m.id
+         WHERE ${messageCondition}${timeFilter.sql}
+         ORDER BY activeDay`
+      )
+      .all(...timeFilter.params) as Array<{ activeDay: string }>
+  ).map((row) => row.activeDay)
 
   return {
     totalMessages: summary?.totalMessages ?? 0,
@@ -94,6 +106,7 @@ export function getCrossChatSessionActivityFacts(
     lastMessageTs: summary?.lastMessageTs ?? null,
     dataEarliestMessageTs: dataRange?.firstMessageTs ?? null,
     dataLatestMessageTs: dataRange?.lastMessageTs ?? null,
+    activeDayKeys,
     members,
   }
 }

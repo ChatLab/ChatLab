@@ -6,6 +6,7 @@ import type {
   CrossChatEvidencePayload,
   CrossChatMessageSource,
   CrossChatParticipantRef,
+  CrossChatPrivateContactsRankingResult,
   CrossChatResolvedContactSession,
   CrossChatResolvedSession,
   CrossChatSearchScope,
@@ -115,6 +116,20 @@ const overviewSchema: JsonSchema = {
     max_wall_time_ms: { type: 'number', description: 'Maximum wall time for this analysis' },
   },
   required: ['scopes'],
+}
+
+const rankPrivateContactsSchema: JsonSchema = {
+  type: 'object',
+  properties: {
+    rank_by: {
+      type: 'string',
+      enum: ['message_count', 'active_days'],
+      description: 'Ranking metric. Defaults to total private-chat message count.',
+    },
+    limit: { type: 'number', minimum: 1, maximum: 50, description: 'Number of ranked contacts to return' },
+    recent_days: recentDaysProperty,
+    ...timeParamProperties,
+  },
 }
 
 const inspectContactSessionsSchema: JsonSchema = {
@@ -377,6 +392,32 @@ async function overviewHandler(
   return { content: JSON.stringify(data), data }
 }
 
+async function rankPrivateContactsHandler(
+  params: Record<string, unknown>,
+  context: CrossChatToolExecutionContext
+): Promise<ToolResult> {
+  const timeFilter = parseExtendedTimeParams(params)
+  const result: CrossChatPrivateContactsRankingResult = await context.analysisService.rankPrivateContacts(
+    {
+      startTs: timeFilter?.startTs,
+      endTs: timeFilter?.endTs,
+      recentDays: parseOptionalNumber(params.recent_days),
+      rankBy: params.rank_by === 'active_days' ? 'active_days' : 'message_count',
+      limit: parseOptionalNumber(params.limit),
+    },
+    {
+      signal: context.abortSignal,
+      onProgress: (progress) =>
+        context.reportProgress?.({
+          phase: 'analyzing',
+          current: progress.processedSessions,
+          total: progress.totalSessions,
+        }),
+    }
+  )
+  return { content: JSON.stringify(result), data: result }
+}
+
 async function inspectContactSessionsHandler(
   params: Record<string, unknown>,
   context: CrossChatToolExecutionContext
@@ -511,6 +552,15 @@ export const getCrossChatOverviewTool: ToolDefinition<CrossChatToolExecutionCont
     'Get separate message-count and time-range overviews for resolved contact/session scopes. This is a basic comparison tool, not arbitrary SQL or single-chat deep analytics.',
   inputSchema: overviewSchema,
   handler: overviewHandler,
+  category: 'core',
+}
+
+export const rankPrivateContactsTool: ToolDefinition<CrossChatToolExecutionContext> = {
+  name: 'rank_private_contacts',
+  description:
+    'Deterministically rank private-chat contacts across all eligible imported sessions for an exact time range. Use this for questions such as who the user chatted with most or had the most active private-chat days. This tool counts non-system messages and never uses keyword-search hits as a ranking proxy. Results include owner/contact splits, dataset cutoff, identity coverage, and completeness.',
+  inputSchema: rankPrivateContactsSchema,
+  handler: rankPrivateContactsHandler,
   category: 'core',
 }
 

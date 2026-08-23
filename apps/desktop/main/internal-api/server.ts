@@ -27,6 +27,7 @@ import {
   appLogger,
   createContactsService,
   createCrossChatAnalysisService,
+  PreferencesManager,
 } from '@openchatlab/node-runtime'
 import type { StreamImportDeps, SemanticIndexRuntime } from '@openchatlab/node-runtime'
 import { getLoadablePath as getSqliteVecLoadablePath } from 'sqlite-vec'
@@ -99,9 +100,11 @@ export async function startInternalServer(
       runtimeIdentity: runtime,
       nativeBinding,
     })
+    const preferencesManager = new PreferencesManager(pathProvider.getSystemDir())
     const crossChatAnalysisService = createCrossChatAnalysisService({
       adapter: sessionAdapter,
       contactsService,
+      getExcludedSessionIds: () => preferencesManager.load().ownerExcludedSessionIds,
     })
 
     const aiDataDir = pathProvider.getAiDataDir()
@@ -192,6 +195,7 @@ export async function startInternalServer(
       },
       semanticIndexService: newSemanticIndexService ?? undefined,
       contactsService,
+      preferencesManager,
       openDirectory: (dirPath) => shell.openPath(dirPath).then(() => {}),
       showInFolder: (filePath) => {
         shell.showItemInFolder(filePath)
