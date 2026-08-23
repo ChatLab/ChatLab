@@ -30,6 +30,7 @@ import type {
   CustomProviderStore,
   CustomModelStore,
   ContactsService,
+  GlobalInsightService,
   PreferencesManager,
   PendingDataDirMigration,
   RuntimeIdentity,
@@ -74,6 +75,7 @@ export function registerWebRoutes(
     nativeBinding?: string
     runtimeIdentity?: RuntimeIdentity
     contactsService?: ContactsService
+    globalInsightService?: GlobalInsightService
     preferencesManager?: PreferencesManager
     aiContext?: AiContextOptions
     /** 由 server 入口注入的共享语义索引运行时；传入时由调用方管理生命周期 */
@@ -137,6 +139,7 @@ export function registerWebRoutes(
       nativeBinding: options?.nativeBinding,
       semanticIndexService,
       contactsService: options?.contactsService,
+      globalInsightService: options?.globalInsightService,
       preferencesManager: options?.preferencesManager,
       analyticsService,
       getCurrentAiLogPath: () => getServerAiLogger()?.getExistingLogPath() ?? null,

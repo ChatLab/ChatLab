@@ -6,6 +6,7 @@ import type {
   CrossChatContactSessionsResult,
   CrossChatEntityResolution,
   CrossChatGroupSessionsRankingResult,
+  CrossChatGlobalActivitySummaryResult,
   CrossChatMessageContextResult,
   CrossChatMessageSource,
   CrossChatOverviewResult,
@@ -219,6 +220,46 @@ function groupSessionsRankingResult(): CrossChatGroupSessionsRankingResult {
   }
 }
 
+function globalActivitySummaryResult(dataState: CrossChatGlobalActivitySummaryResult['dataState'] = 'fresh') {
+  return {
+    mode: 'year',
+    dataState,
+    summary: {
+      range: { mode: 'year', year: 2026, startTs: 1, endTs: 2 },
+      availableDataYears: [2026],
+      latestDataYear: 2026,
+      metrics: {
+        sentMessageCount: 100,
+        activeDayCount: 10,
+        directContactCount: 5,
+        averageMessagesPerDay: 10,
+        averageDirectContactsPerDay: 1,
+      },
+      monthlyActivity: [{ month: '2026-01', messageCount: 100 }],
+      monthlyDirectContacts: [{ month: '2026-01', contactCount: 5 }],
+      dailyActivity: [{ date: '2026-01-01', messageCount: 10 }],
+      messageTypes: [{ type: 0, count: 100 }],
+      textLength: { textMessageCount: 100, median: 5, p90: 20, buckets: [] },
+      coverage: {
+        totalSessions: 2,
+        analyzedSessions: 2,
+        missingOwnerSessions: 0,
+        unresolvedOwnerSessions: 0,
+        failedSessions: 0,
+      },
+      cache: { status: dataState === 'stale' ? 'stale' : 'fresh', computedAt: 300, signature: 'secret' },
+      task: {
+        id: null,
+        status: 'idle',
+        startedAt: null,
+        finishedAt: null,
+        processedSessions: 0,
+        totalSessions: 0,
+      },
+    },
+  } satisfies CrossChatGlobalActivitySummaryResult
+}
+
 function sharedInteractionsResult(anchorsTruncated: boolean): CrossChatSharedInteractionsResult {
   return {
     algorithmVersion: 'test',
@@ -379,6 +420,7 @@ function createContext(overrides: Partial<CrossChatAnalysisToolService> = {}): C
     readRecentSession: (): CrossChatRecentSessionResult => recentSessionResult(),
     rankPrivateContacts: async (): Promise<CrossChatPrivateContactsRankingResult> => privateContactsRankingResult(),
     rankGroupSessions: async (): Promise<CrossChatGroupSessionsRankingResult> => groupSessionsRankingResult(),
+    getGlobalActivitySummary: (): CrossChatGlobalActivitySummaryResult => globalActivitySummaryResult(),
     searchMessages: async (): Promise<CrossChatSearchResult> => ({
       messages: [
         {
@@ -455,7 +497,7 @@ function createContext(overrides: Partial<CrossChatAnalysisToolService> = {}): C
 }
 
 describe('cross-chat agent registry', () => {
-  it('contains only the nine dedicated tools and is isolated from session and MCP registries', () => {
+  it('contains only the ten dedicated tools and is isolated from session and MCP registries', () => {
     const names = CROSS_CHAT_AGENT_TOOL_REGISTRY.map((tool) => tool.name)
     assert.deepEqual(names, [
       'resolve_chat_entities',
@@ -465,6 +507,7 @@ describe('cross-chat agent registry', () => {
       'get_cross_chat_overview',
       'rank_private_contacts',
       'rank_group_sessions',
+      'get_global_activity_summary',
       'inspect_contact_sessions',
       'inspect_shared_interactions',
     ])
@@ -584,6 +627,28 @@ describe('cross-chat agent registry', () => {
     assert.equal(captured?.recentDays, 30)
     assert.equal(captured?.limit, 8)
     await assert.rejects(() => tool.handler({ mode: 'unknown' }, context), /mode must be/)
+  })
+
+  it('reads the cached global activity summary without exposing cache signatures', async () => {
+    let captured: Parameters<CrossChatAnalysisToolService['getGlobalActivitySummary']>[0] | undefined
+    const context = createContext({
+      getGlobalActivitySummary: (request) => {
+        captured = request
+        return globalActivitySummaryResult('stale')
+      },
+    })
+    const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'get_global_activity_summary')
+    assert.ok(tool)
+
+    const result = await tool.handler({ mode: 'year', year: 2026 }, context)
+    const content = JSON.parse(result.content)
+
+    assert.deepEqual(captured, { mode: 'year', year: 2026 })
+    assert.equal(content.dataState, 'stale')
+    assert.equal(content.metrics.sentMessageCount, 100)
+    assert.equal(content.cache.computedAt, 300)
+    assert.equal(content.cache.signature, undefined)
+    assert.deepEqual(result.data, globalActivitySummaryResult('stale'))
   })
 
   it('reads one resolved session through the bounded recap path and preserves evidence', async () => {

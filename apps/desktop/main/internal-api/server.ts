@@ -27,6 +27,7 @@ import {
   appLogger,
   createContactsService,
   createCrossChatAnalysisService,
+  createGlobalInsightService,
   PreferencesManager,
 } from '@openchatlab/node-runtime'
 import type { StreamImportDeps, SemanticIndexRuntime } from '@openchatlab/node-runtime'
@@ -101,9 +102,17 @@ export async function startInternalServer(
       nativeBinding,
     })
     const preferencesManager = new PreferencesManager(pathProvider.getSystemDir())
+    const globalInsightService = createGlobalInsightService({
+      adapter: sessionAdapter,
+      pathProvider,
+      runtimeIdentity: runtime,
+      nativeBinding,
+      getExcludedSessionIds: () => preferencesManager.load().ownerExcludedSessionIds,
+    })
     const crossChatAnalysisService = createCrossChatAnalysisService({
       adapter: sessionAdapter,
       contactsService,
+      globalInsightService,
       getExcludedSessionIds: () => preferencesManager.load().ownerExcludedSessionIds,
     })
 
@@ -195,6 +204,7 @@ export async function startInternalServer(
       },
       semanticIndexService: newSemanticIndexService ?? undefined,
       contactsService,
+      globalInsightService,
       preferencesManager,
       openDirectory: (dirPath) => shell.openPath(dirPath).then(() => {}),
       showInFolder: (filePath) => {

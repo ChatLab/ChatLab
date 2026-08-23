@@ -26,6 +26,7 @@ describe('cross-chat agent prompt', () => {
       'inspect_shared_interactions',
       'rank_private_contacts',
       'rank_group_sessions',
+      'get_global_activity_summary',
       'search_messages_globally',
       'get_cross_chat_message_context',
       'get_cross_chat_overview',
@@ -43,6 +44,8 @@ describe('cross-chat agent prompt', () => {
     assert.match(prompt, /mode=owner_activity/)
     assert.match(prompt, /mode=total_activity/)
     assert.match(prompt, /两种口径不能互换/)
+    assert.match(prompt, /本人总发言量、活跃天数、私聊联系人数/)
+    assert.match(prompt, /preparing.*不是零数据/)
     assert.match(prompt, /get_cross_chat_overview.*明确时间范围/)
     assert.match(prompt, /不负责发现或全局排名/)
     assert.match(prompt, /所有参与者都出现.*严格交集/)
@@ -71,7 +74,7 @@ describe('cross-chat agent prompt', () => {
     assert.doesNotMatch(prompt, /可以使用.*execute_sql/)
   })
 
-  it('keeps the English prompt on the same nine-tool investigation contract', () => {
+  it('keeps the English prompt on the same ten-tool investigation contract', () => {
     const prompt = buildCrossChatSystemPrompt('en-US', new Date('2026-08-23T12:00:00Z'))
     for (const tool of [
       'resolve_chat_entities',
@@ -80,6 +83,7 @@ describe('cross-chat agent prompt', () => {
       'inspect_shared_interactions',
       'rank_private_contacts',
       'rank_group_sessions',
+      'get_global_activity_summary',
       'search_messages_globally',
       'get_cross_chat_message_context',
       'get_cross_chat_overview',
@@ -93,6 +97,8 @@ describe('cross-chat agent prompt', () => {
     assert.match(prompt, /mode=owner_activity/)
     assert.match(prompt, /mode=total_activity/)
     assert.match(prompt, /Never swap the two metrics/)
+    assert.match(prompt, /total sent messages, active days, direct-contact count/)
+    assert.match(prompt, /preparing means.*still being built/i)
     assert.match(prompt, /get_cross_chat_overview with the exact requested time range/)
     assert.match(prompt, /does not discover or rank sessions/)
     assert.match(prompt, /investigation signals, not proof/)

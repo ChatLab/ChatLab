@@ -825,6 +825,20 @@ export interface CrossChatGroupSessionsRankingResult {
   }
 }
 
+export type CrossChatGlobalActivitySummaryMode = 'year' | 'recent_365'
+export type CrossChatGlobalActivityDataState = 'fresh' | 'stale' | 'preparing' | 'failed'
+
+export interface CrossChatGlobalActivitySummaryRequest {
+  mode?: CrossChatGlobalActivitySummaryMode
+  year?: number
+}
+
+export interface CrossChatGlobalActivitySummaryResult {
+  mode: CrossChatGlobalActivitySummaryMode
+  dataState: CrossChatGlobalActivityDataState
+  summary: AnnualSummaryResponse
+}
+
 export type CrossChatParticipantRef =
   | { type: 'owner' }
   | {
