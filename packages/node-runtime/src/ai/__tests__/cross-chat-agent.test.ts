@@ -24,6 +24,7 @@ describe('cross-chat agent prompt', () => {
       'read_recent_session',
       'inspect_contact_sessions',
       'inspect_shared_interactions',
+      'rank_private_contacts',
       'search_messages_globally',
       'get_cross_chat_message_context',
       'get_cross_chat_overview',
@@ -35,6 +36,9 @@ describe('cross-chat agent prompt', () => {
     assert.match(prompt, /不要仅因为消息中出现了 @联系人就机械调用/)
     assert.match(prompt, /roster_only/)
     assert.match(prompt, /不要为了多人问题机械地先对每个人调用 inspect_contact_sessions/)
+    assert.match(prompt, /私聊频率排行/)
+    assert.match(prompt, /不要用 search_messages_globally 的关键词命中量/)
+    assert.match(prompt, /coverage\.complete=true/)
     assert.match(prompt, /所有参与者都出现.*严格交集/)
     assert.match(prompt, /群名称、成员结构、共同活跃和相邻发言只是调查导航信号/)
     assert.match(prompt, /partial\/skipped_budget 不是零/)
@@ -61,13 +65,14 @@ describe('cross-chat agent prompt', () => {
     assert.doesNotMatch(prompt, /可以使用.*execute_sql/)
   })
 
-  it('keeps the English prompt on the same seven-tool investigation contract', () => {
+  it('keeps the English prompt on the same eight-tool investigation contract', () => {
     const prompt = buildCrossChatSystemPrompt('en-US', new Date('2026-08-23T12:00:00Z'))
     for (const tool of [
       'resolve_chat_entities',
       'read_recent_session',
       'inspect_contact_sessions',
       'inspect_shared_interactions',
+      'rank_private_contacts',
       'search_messages_globally',
       'get_cross_chat_message_context',
       'get_cross_chat_overview',
@@ -75,6 +80,9 @@ describe('cross-chat agent prompt', () => {
       assert.match(prompt, new RegExp(tool))
     }
     assert.match(prompt, /strict intersection containing every participant/)
+    assert.match(prompt, /private-chat frequency ranking/)
+    assert.match(prompt, /never substitute keyword hits/i)
+    assert.match(prompt, /coverage\.complete=true/)
     assert.match(prompt, /investigation signals, not proof/)
     assert.match(prompt, /partial or skipped_budget never means zero/)
     assert.match(prompt, /current date is.*August 23, 2026/i)

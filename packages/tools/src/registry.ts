@@ -35,6 +35,7 @@ import {
   getCrossChatOverviewTool,
   inspectContactSessionsTool,
   inspectSharedInteractionsTool,
+  rankPrivateContactsTool,
   readRecentSessionTool,
   resolveChatEntitiesTool,
   searchMessagesGloballyTool,
@@ -91,6 +92,7 @@ export const CROSS_CHAT_AGENT_TOOL_REGISTRY = [
   searchMessagesGloballyTool,
   getCrossChatMessageContextTool,
   getCrossChatOverviewTool,
+  rankPrivateContactsTool,
   inspectContactSessionsTool,
   inspectSharedInteractionsTool,
 ]

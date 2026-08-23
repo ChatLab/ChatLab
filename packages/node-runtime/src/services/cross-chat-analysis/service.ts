@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
 import {
+  buildContactKey,
+  getCrossChatSessionActivityFacts,
   getNonSystemMembersForContacts,
   getParticipantSessionFacts,
   getParticipantSetInteractionFacts,
@@ -12,6 +14,7 @@ import {
   resolveContactMember,
   resolveOwnerMember,
   searchMessagesByKeywords,
+  shouldScopeContactToSession,
   type ContactMemberRef,
   type DatabaseAdapter,
   type ParticipantSetInteractionFacts,
@@ -32,6 +35,9 @@ import {
   type CrossChatOverviewRequest,
   type CrossChatOverviewResult,
   type CrossChatParticipantRef,
+  type CrossChatPrivateContactRankItem,
+  type CrossChatPrivateContactsRankingRequest,
+  type CrossChatPrivateContactsRankingResult,
   type CrossChatRecentSessionResult,
   type CrossChatResolvedContact,
   type CrossChatResolvedSession,
@@ -71,10 +77,15 @@ const DEFAULT_SHARED_INTERACTIONS_PAGE_SIZE = 20
 const MAX_SHARED_INTERACTIONS_PAGE_SIZE = 50
 const DEFAULT_MAX_ANCHORS_PER_PAIR = 4
 const MAX_MAX_ANCHORS_PER_PAIR = 8
+const PRIVATE_CONTACTS_RANKING_ALGORITHM_VERSION = 'private-contacts-ranking-v1'
+const DEFAULT_RANKING_LIMIT = 10
+const MAX_RANKING_LIMIT = 50
+const RANKING_MAX_WALL_TIME_MS = 30_000
 
 export interface CrossChatAnalysisServiceDeps {
   adapter: SessionRuntimeAdapter
   contactsService: Pick<ContactsService, 'getContactDetail' | 'getContactsPage'>
+  getExcludedSessionIds?: () => readonly string[]
   now?: () => number
 }
 
@@ -90,6 +101,10 @@ export interface CrossChatAnalysisService {
     options?: CrossChatOperationOptions
   ): Promise<CrossChatSharedInteractionsResult>
   readRecentSession(sessionId: string): CrossChatRecentSessionResult
+  rankPrivateContacts(
+    request: CrossChatPrivateContactsRankingRequest,
+    options?: CrossChatOperationOptions
+  ): Promise<CrossChatPrivateContactsRankingResult>
   searchMessages(request: CrossChatSearchRequest, options?: CrossChatOperationOptions): Promise<CrossChatSearchResult>
   getMessageContext(request: CrossChatMessageContextRequest): CrossChatMessageContextResult
   getOverview(request: CrossChatOverviewRequest, options?: CrossChatOperationOptions): Promise<CrossChatOverviewResult>
@@ -798,6 +813,170 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     }
   }
 
+  async rankPrivateContacts(
+    request: CrossChatPrivateContactsRankingRequest,
+    options: CrossChatOperationOptions = {}
+  ): Promise<CrossChatPrivateContactsRankingResult> {
+    throwIfAborted(options.signal)
+    const range = normalizeInspectionRange(request.startTs, request.endTs, request.recentDays, () => this.now())
+    const rankBy = request.rankBy === 'active_days' ? 'active_days' : 'message_count'
+    const limit = clampInteger(request.limit, DEFAULT_RANKING_LIMIT, 1, MAX_RANKING_LIMIT)
+    const excludedSessionIds = new Set(this.deps.getExcludedSessionIds?.() ?? [])
+    const sessionIds = this.deps.adapter.listSessionCandidateIds?.() ?? this.deps.adapter.listSessionIds()
+    const deadline = this.now() + RANKING_MAX_WALL_TIME_MS
+    const accumulators = new Map<string, PrivateContactRankAccumulator>()
+    const failedSessionIds: string[] = []
+    const coverage = {
+      candidateSessions: 0,
+      scannedSessions: 0,
+      analyzedSessions: 0,
+      excludedSessions: 0,
+      missingOwnerSessions: 0,
+      unresolvedOwnerSessions: 0,
+      missingContactSessions: 0,
+      ambiguousContactSessions: 0,
+      failedSessions: 0,
+      failedSessionIds,
+      complete: true,
+      truncated: false,
+      truncatedReasons: [] as Array<'time_budget'>,
+    }
+    let dataEarliestMessageTs: number | null = null
+    let dataLatestMessageTs: number | null = null
+    let processedSessions = 0
+
+    options.onProgress?.({ processedSessions: 0, totalSessions: sessionIds.length })
+    for (const [index, sessionId] of sessionIds.entries()) {
+      throwIfAborted(options.signal)
+      if (this.now() >= deadline) {
+        coverage.truncated = true
+        coverage.truncatedReasons.push('time_budget')
+        break
+      }
+      options.onProgress?.({ processedSessions: index, totalSessions: sessionIds.length, currentSessionId: sessionId })
+      try {
+        const db = this.deps.adapter.openReadonly(sessionId)
+        if (!db) {
+          coverage.failedSessions++
+          failedSessionIds.push(sessionId)
+          continue
+        }
+        const descriptor = getSessionDescriptor(sessionId, db)
+        if (!descriptor || descriptor.sessionType !== ChatType.PRIVATE) continue
+        coverage.candidateSessions++
+        coverage.scannedSessions++
+        if (excludedSessionIds.has(sessionId)) {
+          coverage.excludedSessions++
+          continue
+        }
+
+        const facts = getCrossChatSessionActivityFacts(db, range)
+        dataEarliestMessageTs = minNullable(dataEarliestMessageTs, facts.dataEarliestMessageTs)
+        dataLatestMessageTs = maxNullable(dataLatestMessageTs, facts.dataLatestMessageTs)
+        const meta = getSessionMeta(db)
+        if (!meta?.ownerId?.trim()) {
+          coverage.missingOwnerSessions++
+          continue
+        }
+        const owner = resolveOwnerMember(db)
+        if (!owner) {
+          coverage.unresolvedOwnerSessions++
+          continue
+        }
+        const candidates = getNonSystemMembersForContacts(db).filter((member) => member.id !== owner.id)
+        if (candidates.length === 0) {
+          coverage.missingContactSessions++
+          continue
+        }
+        const activeMemberIds = new Set(
+          facts.members.filter((member) => member.messageCount > 0).map((member) => member.memberId)
+        )
+        const activeCandidates = candidates.filter((candidate) => activeMemberIds.has(candidate.id))
+        const resolvedCandidates = activeCandidates.length > 0 ? activeCandidates : candidates
+        if (resolvedCandidates.length > 1) {
+          coverage.ambiguousContactSessions++
+          continue
+        }
+
+        coverage.analyzedSessions++
+        if (facts.totalMessages === 0) continue
+        const contact = resolvedCandidates[0]
+        const contactKey = buildContactKey(
+          descriptor.platform,
+          contact.platformId,
+          shouldScopeContactToSession(descriptor.platform, contact) ? sessionId : undefined
+        )
+        const ownerActivity = facts.members.find((member) => member.memberId === owner.id)
+        const contactActivity = facts.members.find((member) => member.memberId === contact.id)
+        const accumulator = accumulators.get(contactKey) ?? {
+          contactKey,
+          displayName: contact.name,
+          platform: descriptor.platform,
+          totalMessages: 0,
+          ownerMessages: 0,
+          contactMessages: 0,
+          activeDayKeys: new Set<string>(),
+          firstMessageTs: null,
+          lastMessageTs: null,
+          sessionIds: [],
+        }
+        accumulator.totalMessages += facts.totalMessages
+        accumulator.ownerMessages += ownerActivity?.messageCount ?? 0
+        accumulator.contactMessages += contactActivity?.messageCount ?? 0
+        facts.activeDayKeys.forEach((day) => accumulator.activeDayKeys.add(day))
+        accumulator.firstMessageTs = minNullable(accumulator.firstMessageTs, facts.firstMessageTs)
+        accumulator.lastMessageTs = maxNullable(accumulator.lastMessageTs, facts.lastMessageTs)
+        accumulator.sessionIds.push(sessionId)
+        accumulators.set(contactKey, accumulator)
+      } catch (error) {
+        coverage.failedSessions++
+        failedSessionIds.push(sessionId)
+        appLogger.warn('cross-chat-analysis', `failed to rank private session: ${sessionId}`, error)
+      } finally {
+        processedSessions = index + 1
+        await yieldToEventLoop()
+      }
+    }
+    options.onProgress?.({ processedSessions, totalSessions: sessionIds.length })
+
+    coverage.complete =
+      !coverage.truncated &&
+      coverage.failedSessions === 0 &&
+      coverage.missingOwnerSessions === 0 &&
+      coverage.unresolvedOwnerSessions === 0 &&
+      coverage.missingContactSessions === 0 &&
+      coverage.ambiguousContactSessions === 0
+    const ranked = [...accumulators.values()].sort((left, right) =>
+      comparePrivateContactRankAccumulators(left, right, rankBy)
+    )
+    const items: CrossChatPrivateContactRankItem[] = ranked.slice(0, limit).map((item, index) => ({
+      rank: index + 1,
+      contactKey: item.contactKey,
+      displayName: item.displayName,
+      platform: item.platform,
+      totalMessages: item.totalMessages,
+      ownerMessages: item.ownerMessages,
+      contactMessages: item.contactMessages,
+      activeDays: item.activeDayKeys.size,
+      firstMessageTs: item.firstMessageTs,
+      lastMessageTs: item.lastMessageTs,
+      sessionIds: [...item.sessionIds].sort(),
+    }))
+    const currentTs = Math.floor(this.now() / 1000)
+    return {
+      algorithmVersion: PRIVATE_CONTACTS_RANKING_ALGORITHM_VERSION,
+      rankBy,
+      appliedRange: {
+        ...range,
+        dataEarliestMessageTs,
+        dataLatestMessageTs,
+        currentTs,
+      },
+      items,
+      coverage,
+    }
+  }
+
   getMessageContext(request: CrossChatMessageContextRequest): CrossChatMessageContextResult {
     const db = this.deps.adapter.ensureReadonly(request.sessionId)
     const descriptor = getSessionDescriptor(request.sessionId, db)
@@ -984,6 +1163,35 @@ function normalizeRecentDays(value: number | undefined): number | undefined {
 interface SearchCandidate {
   descriptor: CrossChatSessionDescriptor
   memberIds?: number[]
+}
+
+interface PrivateContactRankAccumulator {
+  contactKey: string
+  displayName: string
+  platform: CrossChatPrivateContactRankItem['platform']
+  totalMessages: number
+  ownerMessages: number
+  contactMessages: number
+  activeDayKeys: Set<string>
+  firstMessageTs: number | null
+  lastMessageTs: number | null
+  sessionIds: string[]
+}
+
+function comparePrivateContactRankAccumulators(
+  left: PrivateContactRankAccumulator,
+  right: PrivateContactRankAccumulator,
+  rankBy: CrossChatPrivateContactsRankingResult['rankBy']
+): number {
+  const primaryDifference =
+    rankBy === 'active_days'
+      ? right.activeDayKeys.size - left.activeDayKeys.size
+      : right.totalMessages - left.totalMessages
+  return (
+    primaryDifference ||
+    (right.lastMessageTs ?? Number.NEGATIVE_INFINITY) - (left.lastMessageTs ?? Number.NEGATIVE_INFINITY) ||
+    left.contactKey.localeCompare(right.contactKey)
+  )
 }
 
 interface SessionSearchResult {

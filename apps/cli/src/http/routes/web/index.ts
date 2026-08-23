@@ -30,6 +30,7 @@ import type {
   CustomProviderStore,
   CustomModelStore,
   ContactsService,
+  PreferencesManager,
   PendingDataDirMigration,
   RuntimeIdentity,
 } from '@openchatlab/node-runtime'
@@ -73,6 +74,7 @@ export function registerWebRoutes(
     nativeBinding?: string
     runtimeIdentity?: RuntimeIdentity
     contactsService?: ContactsService
+    preferencesManager?: PreferencesManager
     aiContext?: AiContextOptions
     /** 由 server 入口注入的共享语义索引运行时；传入时由调用方管理生命周期 */
     semanticIndexService?: SemanticIndexRuntime
@@ -135,6 +137,7 @@ export function registerWebRoutes(
       nativeBinding: options?.nativeBinding,
       semanticIndexService,
       contactsService: options?.contactsService,
+      preferencesManager: options?.preferencesManager,
       analyticsService,
       getCurrentAiLogPath: () => getServerAiLogger()?.getExistingLogPath() ?? null,
       openDirectory: openDirectoryPath,

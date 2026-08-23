@@ -25,6 +25,7 @@ import {
   createContactsService,
   createCrossChatAnalysisService,
   createDatabaseManagerAdapter,
+  PreferencesManager,
 } from '@openchatlab/node-runtime'
 import type { SemanticIndexRuntime } from '@openchatlab/node-runtime'
 import { createServer } from './server'
@@ -146,9 +147,11 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
     runtimeIdentity: runtime,
     nativeBinding,
   })
+  const preferencesManager = new PreferencesManager(pathProvider.getSystemDir())
   const crossChatAnalysisService = createCrossChatAnalysisService({
     adapter: sessionAdapter,
     contactsService,
+    getExcludedSessionIds: () => preferencesManager.load().ownerExcludedSessionIds,
   })
 
   const aiDataDir = pathProvider.getAiDataDir()
@@ -200,6 +203,7 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
     nativeBinding,
     runtimeIdentity: runtime,
     contactsService,
+    preferencesManager,
     semanticIndexService,
     aiContext: {
       aiDataDir,

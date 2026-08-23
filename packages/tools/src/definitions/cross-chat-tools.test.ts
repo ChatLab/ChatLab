@@ -8,6 +8,7 @@ import type {
   CrossChatMessageContextResult,
   CrossChatMessageSource,
   CrossChatOverviewResult,
+  CrossChatPrivateContactsRankingResult,
   CrossChatRecentSessionResult,
   CrossChatSearchResult,
   CrossChatSharedInteractionsResult,
@@ -124,6 +125,50 @@ function recentSessionResult(): CrossChatRecentSessionResult {
       returnedMessages: 1,
       returnedSummaries: 1,
       hasEarlierMessages: true,
+    },
+  }
+}
+
+function privateContactsRankingResult(): CrossChatPrivateContactsRankingResult {
+  return {
+    algorithmVersion: 'test',
+    rankBy: 'message_count',
+    appliedRange: {
+      startTs: null,
+      endTs: null,
+      dataEarliestMessageTs: 100,
+      dataLatestMessageTs: 200,
+      currentTs: 300,
+    },
+    items: [
+      {
+        rank: 1,
+        contactKey: 'test:alice',
+        displayName: 'Alice',
+        platform: 'test',
+        totalMessages: 20,
+        ownerMessages: 9,
+        contactMessages: 11,
+        activeDays: 3,
+        firstMessageTs: 100,
+        lastMessageTs: 200,
+        sessionIds: ['private-alice'],
+      },
+    ],
+    coverage: {
+      candidateSessions: 1,
+      scannedSessions: 1,
+      analyzedSessions: 1,
+      excludedSessions: 0,
+      missingOwnerSessions: 0,
+      unresolvedOwnerSessions: 0,
+      missingContactSessions: 0,
+      ambiguousContactSessions: 0,
+      failedSessions: 0,
+      failedSessionIds: [],
+      complete: true,
+      truncated: false,
+      truncatedReasons: [],
     },
   }
 }
@@ -286,6 +331,7 @@ function createContext(overrides: Partial<CrossChatAnalysisToolService> = {}): C
       },
     }),
     readRecentSession: (): CrossChatRecentSessionResult => recentSessionResult(),
+    rankPrivateContacts: async (): Promise<CrossChatPrivateContactsRankingResult> => privateContactsRankingResult(),
     searchMessages: async (): Promise<CrossChatSearchResult> => ({
       messages: [
         {
@@ -350,7 +396,7 @@ function createContext(overrides: Partial<CrossChatAnalysisToolService> = {}): C
 }
 
 describe('cross-chat agent registry', () => {
-  it('contains only the seven dedicated tools and is isolated from session and MCP registries', () => {
+  it('contains only the eight dedicated tools and is isolated from session and MCP registries', () => {
     const names = CROSS_CHAT_AGENT_TOOL_REGISTRY.map((tool) => tool.name)
     assert.deepEqual(names, [
       'resolve_chat_entities',
@@ -358,6 +404,7 @@ describe('cross-chat agent registry', () => {
       'search_messages_globally',
       'get_cross_chat_message_context',
       'get_cross_chat_overview',
+      'rank_private_contacts',
       'inspect_contact_sessions',
       'inspect_shared_interactions',
     ])
@@ -371,6 +418,34 @@ describe('cross-chat agent registry', () => {
         false
       )
     }
+  })
+
+  it('passes exact time and rank options to deterministic private-contact ranking', async () => {
+    let captured: Parameters<CrossChatAnalysisToolService['rankPrivateContacts']>[0] | undefined
+    const context = createContext({
+      rankPrivateContacts: async (request) => {
+        captured = request
+        return privateContactsRankingResult()
+      },
+    })
+    const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'rank_private_contacts')
+    assert.ok(tool)
+
+    const result = await tool.handler(
+      {
+        start_time: '2026-01-01 00:00',
+        end_time: '2026-08-23 12:00',
+        rank_by: 'active_days',
+        limit: 5,
+      },
+      context
+    )
+
+    assert.equal(captured?.rankBy, 'active_days')
+    assert.equal(captured?.limit, 5)
+    assert.equal(typeof captured?.startTs, 'number')
+    assert.equal(typeof captured?.endTs, 'number')
+    assert.deepEqual(result.data, privateContactsRankingResult())
   })
 
   it('reads one resolved session through the bounded recap path and preserves evidence', async () => {

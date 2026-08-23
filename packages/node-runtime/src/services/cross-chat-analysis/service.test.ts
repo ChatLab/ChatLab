@@ -277,6 +277,128 @@ test('contact lookup resolves a unique alias and preserves same-name ambiguity',
   }
 })
 
+test('ranks private contacts by exact message totals, merges stable identities, and respects owner exclusions', async () => {
+  const { env, contactsService } = createFixture()
+  const day = 1_780_000_000
+  env.seed({
+    id: 'rank-alice-1',
+    name: 'Alice private 1',
+    type: 'private',
+    ownerPlatformId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner', name: 'Me' },
+      { id: 2, platformId: 'alice', name: 'Alice' },
+    ],
+    messages: [
+      { id: 1, senderId: 1, ts: day + 10, content: 'hello' },
+      { id: 2, senderId: 2, ts: day + 20, content: 'hi' },
+    ],
+  })
+  env.seed({
+    id: 'rank-alice-2',
+    name: 'Alice private 2',
+    type: 'private',
+    ownerPlatformId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner', name: 'Me' },
+      { id: 2, platformId: 'alice', name: 'Alice' },
+    ],
+    messages: [
+      { id: 1, senderId: 2, ts: day + 30, content: 'again' },
+      { id: 2, senderId: 1, ts: day + 40, content: 'reply' },
+    ],
+  })
+  env.seed({
+    id: 'rank-bob',
+    name: 'Bob private',
+    type: 'private',
+    ownerPlatformId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner', name: 'Me' },
+      { id: 2, platformId: 'bob', name: 'Bob' },
+    ],
+    messages: Array.from({ length: 5 }, (_, index) => ({
+      id: index + 1,
+      senderId: index % 2 === 0 ? 1 : 2,
+      ts: day + 86_400 + index,
+      content: `bob-${index}`,
+    })),
+  })
+  env.seed({
+    id: 'rank-excluded',
+    name: 'Excluded private',
+    type: 'private',
+    ownerPlatformId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner', name: 'Me' },
+      { id: 2, platformId: 'charlie', name: 'Charlie' },
+    ],
+    messages: Array.from({ length: 8 }, (_, index) => ({
+      id: index + 1,
+      senderId: 2,
+      ts: day + index,
+      content: `excluded-${index}`,
+    })),
+  })
+  env.seed({
+    id: 'rank-missing-owner',
+    name: 'Missing owner private',
+    type: 'private',
+    members: [
+      { id: 1, platformId: 'owner', name: 'Me' },
+      { id: 2, platformId: 'dave', name: 'Dave' },
+    ],
+    messages: [{ id: 1, senderId: 2, ts: day, content: 'missing owner' }],
+  })
+
+  try {
+    const service = createCrossChatAnalysisService({
+      adapter: env.adapter,
+      contactsService,
+      getExcludedSessionIds: () => ['private-alice', 'rank-excluded'],
+      now: () => 1_790_000_000_000,
+    })
+    const result = await service.rankPrivateContacts({ startTs: day, endTs: day + 200_000, limit: 10 })
+
+    assert.deepEqual(
+      result.items.map((item) => ({
+        contactKey: item.contactKey,
+        totalMessages: item.totalMessages,
+        ownerMessages: item.ownerMessages,
+        contactMessages: item.contactMessages,
+        activeDays: item.activeDays,
+        sessionIds: item.sessionIds,
+      })),
+      [
+        {
+          contactKey: 'test:bob',
+          totalMessages: 5,
+          ownerMessages: 3,
+          contactMessages: 2,
+          activeDays: 1,
+          sessionIds: ['rank-bob'],
+        },
+        {
+          contactKey: 'test:alice',
+          totalMessages: 4,
+          ownerMessages: 2,
+          contactMessages: 2,
+          activeDays: 1,
+          sessionIds: ['rank-alice-1', 'rank-alice-2'],
+        },
+      ]
+    )
+    assert.equal(result.appliedRange.currentTs, 1_790_000_000)
+    assert.equal(result.coverage.candidateSessions, 6)
+    assert.equal(result.coverage.analyzedSessions, 3)
+    assert.equal(result.coverage.excludedSessions, 2)
+    assert.equal(result.coverage.missingOwnerSessions, 1)
+    assert.equal(result.coverage.complete, false)
+  } finally {
+    env.cleanup()
+  }
+})
+
 test('contact lookup uses the all-history snapshot for typed names and candidate details', () => {
   const { env } = createFixture()
   const pagePresets: Array<string | undefined> = []
