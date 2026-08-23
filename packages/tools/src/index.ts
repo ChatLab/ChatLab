@@ -19,7 +19,7 @@ export {
 export { CoreDataProvider } from './providers/core-data-provider'
 
 // === Agent Adapter ===
-export { executeToolForAgent, toAgentToolParameters } from './agent-adapter'
+export { createCrossChatAgentToolAdapters, executeToolForAgent, toAgentToolParameters } from './agent-adapter'
 export { getLocalizedToolMetadata } from './tool-metadata'
 
 // === Tool Definitions ===

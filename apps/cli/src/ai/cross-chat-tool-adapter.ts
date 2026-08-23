@@ -5,12 +5,7 @@ import type {
   SessionRuntimeAdapter,
 } from '@openchatlab/node-runtime'
 import { countTokens, preprocessCrossChatMessages } from '@openchatlab/node-runtime'
-import {
-  CROSS_CHAT_AGENT_TOOL_REGISTRY,
-  executeToolForAgent,
-  toAgentToolParameters,
-  type CrossChatToolExecutionContext,
-} from '@openchatlab/tools'
+import { createCrossChatAgentToolAdapters, type CrossChatToolExecutionContext } from '@openchatlab/tools'
 
 export function createCliCrossChatTools(options: {
   analysisService: CrossChatAnalysisService
@@ -33,17 +28,5 @@ export function createCliCrossChatTools(options: {
       ),
   }
 
-  return CROSS_CHAT_AGENT_TOOL_REGISTRY.map((tool) => ({
-    name: tool.name,
-    label: tool.name,
-    description: tool.description,
-    parameters: toAgentToolParameters(tool.inputSchema) as any,
-    executionMode: tool.executionMode,
-    execute: async (_toolCallId: string, params: unknown, signal, onUpdate) =>
-      executeToolForAgent(tool, params, {
-        ...context,
-        abortSignal: signal,
-        reportProgress: (progress) => onUpdate?.({ content: [], details: { progress } }),
-      }),
-  }))
+  return createCrossChatAgentToolAdapters(context) as AgentTool<any, any>[]
 }
