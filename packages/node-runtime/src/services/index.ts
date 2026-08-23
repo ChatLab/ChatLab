@@ -71,6 +71,7 @@ export type {
   CrossChatPrivateContactsRankingRequest,
   CrossChatPrivateContactsRankingResult,
   CrossChatOverviewItem,
+  CrossChatOverviewMemberActivity,
   CrossChatOverviewRequest,
   CrossChatOverviewResult,
   CrossChatOwnerStatus,

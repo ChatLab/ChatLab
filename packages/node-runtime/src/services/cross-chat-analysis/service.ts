@@ -5,17 +5,16 @@ import {
   getNonSystemMembersForContacts,
   getParticipantSessionFacts,
   getParticipantSetInteractionFacts,
-  getMembers,
   getRecentMessages,
   getSegmentSummaries,
   getSearchMessageContext as getCoreSearchMessageContext,
   getSessionMeta,
-  getSessionOverview,
   resolveContactMember,
   resolveOwnerMember,
   searchMessagesByKeywords,
   shouldScopeContactToSession,
   type ContactMemberRef,
+  type CrossChatSessionActivityFacts,
   type DatabaseAdapter,
   type ParticipantSetInteractionFacts,
 } from '@openchatlab/core'
@@ -32,8 +31,10 @@ import {
   type CrossChatMessageSource,
   type CrossChatOperationOptions,
   type CrossChatOverviewItem,
+  type CrossChatOverviewMemberActivity,
   type CrossChatOverviewRequest,
   type CrossChatOverviewResult,
+  type CrossChatOwnerStatus,
   type CrossChatParticipantRef,
   type CrossChatGroupSessionRankItem,
   type CrossChatGroupSessionsRankingRequest,
@@ -85,6 +86,7 @@ const GROUP_SESSIONS_RANKING_ALGORITHM_VERSION = 'group-sessions-ranking-v1'
 const DEFAULT_RANKING_LIMIT = 10
 const MAX_RANKING_LIMIT = 50
 const RANKING_MAX_WALL_TIME_MS = 30_000
+const OVERVIEW_TOP_MEMBERS_LIMIT = 5
 
 export interface CrossChatAnalysisServiceDeps {
   adapter: SessionRuntimeAdapter
@@ -1134,13 +1136,21 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
   ): Promise<CrossChatOverviewResult> {
     throwIfAborted(options.signal)
     const scopes = normalizeOverviewScopes(request.scopes)
+    const range = normalizeInspectionRange(request.startTs, request.endTs, request.recentDays, () => this.now())
     const maxSessions = clampInteger(request.maxSessions, DEFAULT_MAX_SESSIONS, 1, MAX_MAX_SESSIONS)
     const maxWallTimeMs = clampInteger(request.maxWallTimeMs, DEFAULT_MAX_WALL_TIME_MS, 1, MAX_MAX_WALL_TIME_MS)
     const selected = scopes.slice(0, maxSessions)
+    const excludedSessionIds = new Set(this.deps.getExcludedSessionIds?.() ?? [])
     const startedAt = this.now()
     const items: CrossChatOverviewItem[] = []
     let failedSessions = 0
+    const failedSessionIds: string[] = []
+    let excludedSessions = 0
+    let missingOwnerSessions = 0
+    let unresolvedOwnerSessions = 0
     let processedSessions = 0
+    let dataEarliestMessageTs: number | null = null
+    let dataLatestMessageTs: number | null = null
     const truncatedReasons = new Set<'session_budget' | 'time_budget'>()
     if (selected.length < scopes.length) truncatedReasons.add('session_budget')
 
@@ -1161,16 +1171,43 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
         const db = this.deps.adapter.openReadonly(scope.sessionId)
         if (!db) {
           failedSessions++
+          failedSessionIds.push(scope.sessionId)
           continue
         }
         const descriptor = getSessionDescriptor(scope.sessionId, db)
         if (!descriptor) {
           failedSessions++
+          failedSessionIds.push(scope.sessionId)
           continue
         }
-        items.push(buildOverviewItem(descriptor, db, scope))
+        const facts = getCrossChatSessionActivityFacts(db, range)
+        dataEarliestMessageTs = minNullable(dataEarliestMessageTs, facts.dataEarliestMessageTs)
+        dataLatestMessageTs = maxNullable(dataLatestMessageTs, facts.dataLatestMessageTs)
+
+        let ownerStatus: CrossChatOwnerStatus = 'missing'
+        let ownerMemberId: number | null = null
+        if (excludedSessionIds.has(scope.sessionId)) {
+          ownerStatus = 'excluded'
+          excludedSessions++
+        } else {
+          const meta = getSessionMeta(db)
+          if (!meta?.ownerId?.trim()) {
+            missingOwnerSessions++
+          } else {
+            const owner = resolveOwnerMember(db)
+            if (!owner) {
+              ownerStatus = 'unresolved'
+              unresolvedOwnerSessions++
+            } else {
+              ownerStatus = 'resolved'
+              ownerMemberId = owner.id
+            }
+          }
+        }
+        items.push(buildOverviewItem(descriptor, db, scope, facts, ownerStatus, ownerMemberId))
       } catch (error) {
         failedSessions++
+        failedSessionIds.push(scope.sessionId)
         appLogger.warn('cross-chat-analysis', `failed to build session overview: ${scope.sessionId}`, error)
       } finally {
         processedSessions++
@@ -1179,11 +1216,22 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     }
     options.onProgress?.({ processedSessions, totalSessions: selected.length })
     return {
+      appliedRange: {
+        ...range,
+        dataEarliestMessageTs,
+        dataLatestMessageTs,
+        currentTs: Math.floor(this.now() / 1000),
+      },
       items,
       coverage: {
         candidateSessions: scopes.length,
         analyzedSessions: items.length,
+        excludedSessions,
+        missingOwnerSessions,
+        unresolvedOwnerSessions,
         failedSessions,
+        failedSessionIds,
+        complete: truncatedReasons.size === 0 && failedSessions === 0,
         truncated: truncatedReasons.size > 0,
         truncatedReasons: [...truncatedReasons],
       },
@@ -1559,31 +1607,88 @@ function normalizeOverviewScopes(scopes: CrossChatSearchScope[]): CrossChatSearc
 function buildOverviewItem(
   descriptor: CrossChatSessionDescriptor,
   db: DatabaseAdapter,
-  scope: CrossChatSearchScope
+  scope: CrossChatSearchScope,
+  facts: CrossChatSessionActivityFacts,
+  ownerStatus: CrossChatOwnerStatus,
+  ownerMemberId: number | null
 ): CrossChatOverviewItem {
-  if (!scope.memberIds) {
-    const overview = getSessionOverview(db)
-    return {
-      ...descriptor,
-      label: scope.label ?? descriptor.sessionName,
-      totalMessages: overview.totalMessages,
-      firstMessageTs: overview.firstMessageTs,
-      lastMessageTs: overview.lastMessageTs,
-    }
-  }
-
-  const members = getMembers(db)
-  const memberNames = members.filter((member) => scope.memberIds?.includes(member.id)).map((member) => member.name)
-  const latest = searchMessagesByKeywords(db, [], { senderIds: scope.memberIds, sort: 'desc', limit: 1 })
-  const earliest = searchMessagesByKeywords(db, [], { senderIds: scope.memberIds, sort: 'asc', limit: 1 })
+  const rosterById = new Map(getNonSystemMembersForContacts(db).map((member) => [member.id, member]))
+  const factsByMemberId = new Map(facts.members.map((member) => [member.memberId, member]))
+  const memberActivities = (scope.memberIds ?? []).flatMap((memberId) => {
+    const rosterMember = rosterById.get(memberId)
+    if (!rosterMember) return []
+    const activity = factsByMemberId.get(memberId)
+    return [
+      {
+        memberId,
+        platformId: rosterMember.platformId,
+        memberName: rosterMember.name,
+        messageCount: activity?.messageCount ?? 0,
+        activeDays: activity?.activeDays ?? 0,
+        firstMessageTs: activity?.firstMessageTs ?? null,
+        lastMessageTs: activity?.lastMessageTs ?? null,
+      } satisfies CrossChatOverviewMemberActivity,
+    ]
+  })
+  const selectedFacts = scope.memberIds
+    ? scope.memberIds.flatMap((memberId) => factsByMemberId.get(memberId) ?? [])
+    : []
+  const selectedActiveDayKeys = new Set(selectedFacts.flatMap((member) => member.activeDayKeys))
+  const ownerActivity = ownerMemberId === null ? undefined : factsByMemberId.get(ownerMemberId)
+  const topMembers =
+    descriptor.sessionType === ChatType.GROUP
+      ? [...facts.members]
+          .sort(
+            (left, right) =>
+              right.messageCount - left.messageCount ||
+              (right.lastMessageTs ?? Number.NEGATIVE_INFINITY) - (left.lastMessageTs ?? Number.NEGATIVE_INFINITY) ||
+              left.memberId - right.memberId
+          )
+          .slice(0, OVERVIEW_TOP_MEMBERS_LIMIT)
+          .map(toOverviewMemberActivity)
+      : []
+  const totalMessages = scope.memberIds
+    ? selectedFacts.reduce((sum, member) => sum + member.messageCount, 0)
+    : facts.totalMessages
+  const firstMessageTs = scope.memberIds
+    ? selectedFacts.reduce<number | null>((earliest, member) => minNullable(earliest, member.firstMessageTs), null)
+    : facts.firstMessageTs
+  const lastMessageTs = scope.memberIds
+    ? selectedFacts.reduce<number | null>((latest, member) => maxNullable(latest, member.lastMessageTs), null)
+    : facts.lastMessageTs
   return {
     ...descriptor,
     label: scope.label ?? descriptor.sessionName,
-    memberIds: scope.memberIds,
-    memberNames,
-    totalMessages: latest.total ?? 0,
-    firstMessageTs: earliest.messages[0]?.timestamp ?? null,
-    lastMessageTs: latest.messages[0]?.timestamp ?? null,
+    ...(scope.memberIds
+      ? {
+          memberIds: scope.memberIds,
+          memberNames: memberActivities.map((member) => member.memberName),
+        }
+      : {}),
+    memberActivities,
+    totalMessages,
+    activeDays: scope.memberIds ? selectedActiveDayKeys.size : facts.activeDays,
+    activeMembers: scope.memberIds ? selectedFacts.length : facts.activeMembers,
+    firstMessageTs,
+    lastMessageTs,
+    ownerStatus,
+    ownerMessages: ownerStatus === 'resolved' ? (ownerActivity?.messageCount ?? 0) : null,
+    ownerActiveDays: ownerStatus === 'resolved' ? (ownerActivity?.activeDays ?? 0) : null,
+    topMembers,
+  }
+}
+
+function toOverviewMemberActivity(
+  member: CrossChatSessionActivityFacts['members'][number]
+): CrossChatOverviewMemberActivity {
+  return {
+    memberId: member.memberId,
+    platformId: member.platformId,
+    memberName: member.memberName,
+    messageCount: member.messageCount,
+    activeDays: member.activeDays,
+    firstMessageTs: member.firstMessageTs,
+    lastMessageTs: member.lastMessageTs,
   }
 }
 

@@ -137,11 +137,30 @@ test('returns bounded session and per-member activity without system messages', 
         memberName: member.memberName,
         messageCount: member.messageCount,
         activeDays: member.activeDays,
+        activeDayKeys: member.activeDayKeys,
       })),
       [
-        { memberId: 1, memberName: 'Me', messageCount: 2, activeDays: 2 },
-        { memberId: 2, memberName: 'Alice G', messageCount: 1, activeDays: 1 },
-        { memberId: 3, memberName: 'Bob', messageCount: 1, activeDays: 1 },
+        {
+          memberId: 1,
+          memberName: 'Me',
+          messageCount: 2,
+          activeDays: 2,
+          activeDayKeys: ['2024-01-01', '2024-01-02'],
+        },
+        {
+          memberId: 2,
+          memberName: 'Alice G',
+          messageCount: 1,
+          activeDays: 1,
+          activeDayKeys: ['2024-01-01'],
+        },
+        {
+          memberId: 3,
+          memberName: 'Bob',
+          messageCount: 1,
+          activeDays: 1,
+          activeDayKeys: ['2024-01-02'],
+        },
       ]
     )
     assert.deepEqual(facts.activeDayKeys, ['2024-01-01', '2024-01-02'])

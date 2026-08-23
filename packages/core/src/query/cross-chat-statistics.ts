@@ -12,6 +12,7 @@ export interface CrossChatMemberActivityFacts {
   memberName: string
   messageCount: number
   activeDays: number
+  activeDayKeys: string[]
   firstMessageTs: number | null
   lastMessageTs: number | null
 }
@@ -60,7 +61,7 @@ export function getCrossChatSessionActivityFacts(
       }
     | undefined
 
-  const members = db
+  const memberRows = db
     .prepare(
       `SELECT
          msg.sender_id as memberId,
@@ -68,6 +69,7 @@ export function getCrossChatSessionActivityFacts(
          COALESCE(m.group_nickname, m.account_name, m.platform_id) as memberName,
          COUNT(*) as messageCount,
          COUNT(DISTINCT strftime('%Y-%m-%d', msg.ts, 'unixepoch', 'localtime')) as activeDays,
+         GROUP_CONCAT(DISTINCT strftime('%Y-%m-%d', msg.ts, 'unixepoch', 'localtime')) as activeDayKeys,
          MIN(msg.ts) as firstMessageTs,
          MAX(msg.ts) as lastMessageTs
        FROM message msg
@@ -76,7 +78,13 @@ export function getCrossChatSessionActivityFacts(
        GROUP BY msg.sender_id, m.platform_id, m.group_nickname, m.account_name
        ORDER BY msg.sender_id`
     )
-    .all(...timeFilter.params) as unknown as CrossChatMemberActivityFacts[]
+    .all(...timeFilter.params) as unknown as Array<
+    Omit<CrossChatMemberActivityFacts, 'activeDayKeys'> & { activeDayKeys: string | null }
+  >
+  const members = memberRows.map((row) => ({
+    ...row,
+    activeDayKeys: row.activeDayKeys ? row.activeDayKeys.split(',').sort() : [],
+  }))
 
   const dataRange = db
     .prepare(

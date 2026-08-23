@@ -1807,21 +1807,88 @@ test('search honors interruption while resolving unscoped candidates', async () 
 test('overview preserves separate member scopes for contacts in the same group', async () => {
   const { env, contactsService } = createFixture()
   try {
-    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+    const service = createCrossChatAnalysisService({
+      adapter: env.adapter,
+      contactsService,
+      now: () => 1_790_000_000_000,
+    })
     const result = await service.getOverview({
       scopes: [
         { sessionId: 'group-work', memberIds: [20], label: 'Alice in Work group' },
         { sessionId: 'group-work', memberIds: [21], label: 'Bob in Work group' },
       ],
+      startTs: 305,
+      endTs: 320,
     })
 
     assert.deepEqual(
-      result.items.map((item) => [item.label, item.totalMessages, item.firstMessageTs, item.lastMessageTs]),
+      result.items.map((item) => [
+        item.label,
+        item.totalMessages,
+        item.activeDays,
+        item.activeMembers,
+        item.firstMessageTs,
+        item.lastMessageTs,
+        item.memberActivities.map((member) => [member.memberName, member.messageCount]),
+      ]),
       [
-        ['Alice in Work group', 2, 300, 320],
-        ['Bob in Work group', 1, 310, 310],
+        ['Alice in Work group', 1, 1, 1, 320, 320, [['Alice', 1]]],
+        ['Bob in Work group', 1, 1, 1, 310, 310, [['Bob', 1]]],
       ]
     )
+    assert.deepEqual(
+      result.items[0]?.topMembers.map((member) => [member.memberName, member.messageCount]),
+      [
+        ['Alice', 1],
+        ['Bob', 1],
+      ]
+    )
+    assert.equal(result.items[0]?.ownerStatus, 'missing')
+    assert.deepEqual(result.appliedRange, {
+      startTs: 305,
+      endTs: 320,
+      dataEarliestMessageTs: 300,
+      dataLatestMessageTs: 320,
+      currentTs: 1_790_000_000,
+    })
+    assert.equal(result.coverage.missingOwnerSessions, 2)
+    assert.equal(result.coverage.complete, true)
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('overview reports resolved owner activity without changing whole-session totals', async () => {
+  const { env, contactsService } = createFixture()
+  env.seed({
+    id: 'overview-owner',
+    name: 'Overview owner group',
+    type: 'group',
+    ownerPlatformId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner', name: 'Me' },
+      { id: 2, platformId: 'alice', name: 'Alice' },
+    ],
+    messages: [
+      { id: 1, senderId: 1, ts: 400, content: 'owner-early' },
+      { id: 2, senderId: 2, ts: 410, content: 'alice' },
+      { id: 3, senderId: 1, ts: 420, content: 'owner-late' },
+    ],
+  })
+  try {
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+    const result = await service.getOverview({
+      scopes: [{ sessionId: 'overview-owner' }],
+      startTs: 405,
+      endTs: 420,
+    })
+
+    assert.equal(result.items[0]?.totalMessages, 2)
+    assert.equal(result.items[0]?.activeMembers, 2)
+    assert.equal(result.items[0]?.ownerStatus, 'resolved')
+    assert.equal(result.items[0]?.ownerMessages, 1)
+    assert.equal(result.items[0]?.ownerActiveDays, 1)
+    assert.deepEqual(result.items[0]?.memberActivities, [])
   } finally {
     env.cleanup()
   }
