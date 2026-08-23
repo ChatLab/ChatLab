@@ -952,7 +952,8 @@ test('contact session inspection does not merge the same platform id across plat
 test('contact session inspection honors time ranges, session-scoped identity, and continuation cursors', async () => {
   const { env, contactsService } = createFixture()
   try {
-    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+    let now = new Date(2026, 7, 24, 23, 59, 58).getTime()
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService, now: () => now })
     const scoped = await service.inspectContactSessions({
       contactKey: 'test:group-other:alice-other',
       startTs: 250,
@@ -962,7 +963,7 @@ test('contact session inspection honors time ranges, session-scoped identity, an
       [['group-other', 'roster_only']]
     )
 
-    const first = await service.inspectContactSessions({ contactKey: 'test:alice', pageSize: 1 })
+    const first = await service.inspectContactSessions({ contactKey: 'test:alice', recentDays: 30, pageSize: 1 })
     assert.deepEqual(
       first.sessions.map((session) => session.sessionId),
       ['group-work']
@@ -970,15 +971,23 @@ test('contact session inspection honors time ranges, session-scoped identity, an
     assert.equal(first.coverage.complete, false)
     assert.ok(first.coverage.nextCursor)
     assert.ok(first.coverage.truncatedReasons.includes('page_size'))
+    assert.equal(first.appliedRange.startTs, Math.floor(new Date(2026, 6, 26, 0, 0, 0).getTime() / 1000))
+    assert.equal(first.appliedRange.endTs, Math.floor(new Date(2026, 7, 24, 23, 59, 59).getTime() / 1000))
 
+    now = new Date(2026, 7, 25, 0, 0, 2).getTime()
     const second = await service.inspectContactSessions({
       contactKey: 'test:alice',
+      recentDays: 30,
       pageSize: 1,
       cursor: first.coverage.nextCursor ?? undefined,
     })
     assert.deepEqual(
       second.sessions.map((session) => session.sessionId),
       ['private-alice']
+    )
+    assert.deepEqual(
+      { startTs: second.appliedRange.startTs, endTs: second.appliedRange.endTs },
+      { startTs: first.appliedRange.startTs, endTs: first.appliedRange.endTs }
     )
     assert.equal(second.summary.scope, 'current_batch')
     assert.equal(second.coverage.complete, true)
@@ -990,10 +999,11 @@ test('contact session inspection honors time ranges, session-scoped identity, an
 test('structural inspections resolve recent-day windows from the service clock', async () => {
   const { env, contactsService } = createFixture()
   try {
+    const now = new Date(2026, 7, 24, 12, 34, 56).getTime()
     const service = createCrossChatAnalysisService({
       adapter: env.adapter,
       contactsService,
-      now: () => 86_500_000,
+      now: () => now,
     })
     const contactResult = await service.inspectContactSessions({
       contactKey: 'test:alice',
@@ -1008,14 +1018,14 @@ test('structural inspections resolve recent-day windows from the service clock',
     })
 
     assert.deepEqual(contactResult.appliedRange, {
-      startTs: 100,
-      endTs: 86_500,
+      startTs: Math.floor(new Date(2026, 7, 24, 0, 0, 0).getTime() / 1000),
+      endTs: Math.floor(new Date(2026, 7, 24, 23, 59, 59).getTime() / 1000),
       dataEarliestMessageTs: 100,
       dataLatestMessageTs: 320,
     })
     assert.deepEqual(sharedResult.appliedRange, {
-      startTs: 100,
-      endTs: 86_500,
+      startTs: Math.floor(new Date(2026, 7, 24, 0, 0, 0).getTime() / 1000),
+      endTs: Math.floor(new Date(2026, 7, 24, 23, 59, 59).getTime() / 1000),
       dataEarliestMessageTs: 300,
       dataLatestMessageTs: 320,
     })
@@ -1336,12 +1346,13 @@ test('shared interaction inspection resumes common sessions without skipping a p
         { id: 2, senderId: 20, ts: 510, content: 'Bob' },
       ],
     })
-    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+    let now = new Date(2026, 7, 24, 23, 59, 58).getTime()
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService, now: () => now })
     const participants = [
       { type: 'contact' as const, contactKey: 'test:alice' },
       { type: 'contact' as const, contactKey: 'test:bob' },
     ]
-    const first = await service.inspectSharedInteractions({ participants, pageSize: 1 })
+    const first = await service.inspectSharedInteractions({ participants, recentDays: 30, pageSize: 1 })
     assert.deepEqual(
       first.sessions.map((session) => session.sessionId),
       ['group-social']
@@ -1349,8 +1360,10 @@ test('shared interaction inspection resumes common sessions without skipping a p
     assert.ok(first.coverage.nextCursor)
     assert.ok(first.coverage.truncatedReasons.includes('page_size'))
 
+    now = new Date(2026, 7, 25, 0, 0, 2).getTime()
     const second = await service.inspectSharedInteractions({
       participants,
+      recentDays: 30,
       pageSize: 1,
       cursor: first.coverage.nextCursor ?? undefined,
     })
@@ -1358,10 +1371,15 @@ test('shared interaction inspection resumes common sessions without skipping a p
       second.sessions.map((session) => session.sessionId),
       ['group-work']
     )
+    assert.deepEqual(
+      { startTs: second.appliedRange.startTs, endTs: second.appliedRange.endTs },
+      { startTs: first.appliedRange.startTs, endTs: first.appliedRange.endTs }
+    )
     assert.ok(second.coverage.nextCursor)
 
     const final = await service.inspectSharedInteractions({
       participants,
+      recentDays: 30,
       pageSize: 1,
       cursor: second.coverage.nextCursor ?? undefined,
     })
@@ -1734,7 +1752,8 @@ test('global search scans recent sessions first and reports budget truncation', 
 
 test('global search applies the relative time range and resolves the owner independently in each session', async () => {
   const { env, contactsService } = createFixture()
-  const nowSeconds = 10_000_000
+  const now = new Date(2026, 7, 24, 12, 34, 56)
+  const nowSeconds = Math.floor(now.getTime() / 1000)
   try {
     env.seed({
       id: 'recent-owner-session',
@@ -1779,8 +1798,8 @@ test('global search applies the relative time range and resolves the owner indep
       ]
     )
     assert.deepEqual(result.appliedFilters, {
-      startTs: nowSeconds - 90 * 86400,
-      endTs: nowSeconds,
+      startTs: Math.floor(new Date(2026, 4, 27, 0, 0, 0).getTime() / 1000),
+      endTs: Math.floor(new Date(2026, 7, 24, 23, 59, 59).getTime() / 1000),
       recentDays: 90,
       sender: 'owner',
     })
