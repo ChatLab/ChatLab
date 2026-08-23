@@ -39,6 +39,8 @@ import {
   type CrossChatGroupSessionRankItem,
   type CrossChatGroupSessionsRankingRequest,
   type CrossChatGroupSessionsRankingResult,
+  type CrossChatGlobalActivitySummaryRequest,
+  type CrossChatGlobalActivitySummaryResult,
   type CrossChatPrivateContactRankItem,
   type CrossChatPrivateContactsRankingRequest,
   type CrossChatPrivateContactsRankingResult,
@@ -57,6 +59,7 @@ import {
 import { appLogger } from '../../logging/app-logger'
 import type { SessionRuntimeAdapter } from '../adapters'
 import type { ContactsService } from '../contacts'
+import type { GlobalInsightService } from '../global-insight'
 
 const DEFAULT_MAX_SESSIONS = 24
 const MAX_MAX_SESSIONS = 100
@@ -91,6 +94,7 @@ const OVERVIEW_TOP_MEMBERS_LIMIT = 5
 export interface CrossChatAnalysisServiceDeps {
   adapter: SessionRuntimeAdapter
   contactsService: Pick<ContactsService, 'getContactDetail' | 'getContactsPage'>
+  globalInsightService?: Pick<GlobalInsightService, 'getAnnualSummary'>
   getExcludedSessionIds?: () => readonly string[]
   now?: () => number
 }
@@ -115,6 +119,7 @@ export interface CrossChatAnalysisService {
     request: CrossChatGroupSessionsRankingRequest,
     options?: CrossChatOperationOptions
   ): Promise<CrossChatGroupSessionsRankingResult>
+  getGlobalActivitySummary(request: CrossChatGlobalActivitySummaryRequest): CrossChatGlobalActivitySummaryResult
   searchMessages(request: CrossChatSearchRequest, options?: CrossChatOperationOptions): Promise<CrossChatSearchResult>
   getMessageContext(request: CrossChatMessageContextRequest): CrossChatMessageContextResult
   getOverview(request: CrossChatOverviewRequest, options?: CrossChatOperationOptions): Promise<CrossChatOverviewResult>
@@ -1113,6 +1118,32 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
       items: rankedItems,
       coverage,
     }
+  }
+
+  getGlobalActivitySummary(request: CrossChatGlobalActivitySummaryRequest): CrossChatGlobalActivitySummaryResult {
+    const service = this.deps.globalInsightService
+    if (!service) throw new Error('Global activity summary is unavailable in this runtime')
+    const mode = request.mode ?? 'year'
+    if (mode !== 'year' && mode !== 'recent_365') {
+      throw new Error('mode must be year or recent_365')
+    }
+    if (request.year !== undefined && (!Number.isInteger(request.year) || request.year < 1970)) {
+      throw new Error('year must be an integer greater than or equal to 1970')
+    }
+    const summary = service.getAnnualSummary(
+      mode === 'recent_365'
+        ? { mode: 'recent', days: 365, acceptStale: true }
+        : { mode: 'year', year: request.year, acceptStale: true }
+    )
+    const dataState: CrossChatGlobalActivitySummaryResult['dataState'] =
+      summary.cache.status === 'fresh'
+        ? 'fresh'
+        : summary.cache.status === 'stale'
+          ? 'stale'
+          : summary.task.status === 'failed'
+            ? 'failed'
+            : 'preparing'
+    return { mode, dataState, summary }
   }
 
   getMessageContext(request: CrossChatMessageContextRequest): CrossChatMessageContextResult {

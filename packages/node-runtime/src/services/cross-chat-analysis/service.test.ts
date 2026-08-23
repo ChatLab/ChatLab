@@ -7,6 +7,7 @@ import { CHAT_DB_SCHEMA, generateSessionIndex } from '@openchatlab/core'
 import type { DatabaseAdapter } from '@openchatlab/core'
 import {
   ChatType,
+  type AnnualSummaryResponse,
   type ContactDetailResponse,
   type ContactItem,
   type ContactsResponse,
@@ -145,6 +146,48 @@ function detail(
     cache: { status: cacheStatus, computedAt: 1780000000 },
     timeRange: { preset: 'all', anchorTs: null, startTs: null },
     algorithmVersion: 'test',
+  }
+}
+
+function annualSummaryResponse(
+  cacheStatus: AnnualSummaryResponse['cache']['status'],
+  taskStatus: AnnualSummaryResponse['task']['status'] = 'idle'
+): AnnualSummaryResponse {
+  return {
+    range: { mode: 'year', year: 2026, startTs: 1, endTs: 2 },
+    availableDataYears: cacheStatus === 'missing' ? [] : [2026],
+    latestDataYear: cacheStatus === 'missing' ? null : 2026,
+    metrics:
+      cacheStatus === 'missing'
+        ? null
+        : {
+            sentMessageCount: 10,
+            activeDayCount: 2,
+            directContactCount: 1,
+            averageMessagesPerDay: 5,
+            averageDirectContactsPerDay: 0.5,
+          },
+    monthlyActivity: [],
+    monthlyDirectContacts: [],
+    dailyActivity: [],
+    messageTypes: [],
+    textLength: null,
+    coverage: {
+      totalSessions: 1,
+      analyzedSessions: cacheStatus === 'missing' ? 0 : 1,
+      missingOwnerSessions: 0,
+      unresolvedOwnerSessions: 0,
+      failedSessions: 0,
+    },
+    cache: { status: cacheStatus, computedAt: cacheStatus === 'missing' ? null : 100 },
+    task: {
+      id: taskStatus === 'idle' ? null : 'task-1',
+      status: taskStatus,
+      startedAt: taskStatus === 'idle' ? null : 90,
+      finishedAt: taskStatus === 'failed' ? 100 : null,
+      processedSessions: 0,
+      totalSessions: 1,
+    },
   }
 }
 
@@ -504,6 +547,39 @@ test('keeps owner activity and total group activity as separate deterministic ra
     assert.equal(totalRanking.coverage.analyzedSessions, 3)
     assert.equal(totalRanking.coverage.excludedSessions, 3)
     assert.equal(totalRanking.coverage.complete, true)
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('maps global insight cache states without waiting for background computation', () => {
+  const { env, contactsService } = createFixture()
+  const calls: unknown[] = []
+  let response = annualSummaryResponse('fresh')
+  try {
+    const service = createCrossChatAnalysisService({
+      adapter: env.adapter,
+      contactsService,
+      globalInsightService: {
+        getAnnualSummary: (options = {}) => {
+          calls.push(options)
+          return response
+        },
+      },
+    })
+
+    assert.equal(service.getGlobalActivitySummary({ mode: 'recent_365' }).dataState, 'fresh')
+    assert.deepEqual(calls.at(-1), { mode: 'recent', days: 365, acceptStale: true })
+
+    response = annualSummaryResponse('stale', 'running')
+    assert.equal(service.getGlobalActivitySummary({ mode: 'year', year: 2026 }).dataState, 'stale')
+    assert.deepEqual(calls.at(-1), { mode: 'year', year: 2026, acceptStale: true })
+
+    response = annualSummaryResponse('missing', 'running')
+    assert.equal(service.getGlobalActivitySummary({}).dataState, 'preparing')
+
+    response = annualSummaryResponse('missing', 'failed')
+    assert.equal(service.getGlobalActivitySummary({}).dataState, 'failed')
   } finally {
     env.cleanup()
   }

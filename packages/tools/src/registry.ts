@@ -33,6 +33,7 @@ import { retrieveChatEvidenceTool } from './definitions/retrieve-chat-evidence'
 import {
   getCrossChatMessageContextTool,
   getCrossChatOverviewTool,
+  getGlobalActivitySummaryTool,
   inspectContactSessionsTool,
   inspectSharedInteractionsTool,
   rankGroupSessionsTool,
@@ -95,6 +96,7 @@ export const CROSS_CHAT_AGENT_TOOL_REGISTRY = [
   getCrossChatOverviewTool,
   rankPrivateContactsTool,
   rankGroupSessionsTool,
+  getGlobalActivitySummaryTool,
   inspectContactSessionsTool,
   inspectSharedInteractionsTool,
 ]

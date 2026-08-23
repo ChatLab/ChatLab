@@ -5,6 +5,7 @@ import type {
   CrossChatEntityResolution,
   CrossChatEvidencePayload,
   CrossChatGroupSessionsRankingResult,
+  CrossChatGlobalActivitySummaryResult,
   CrossChatMessageSource,
   CrossChatParticipantRef,
   CrossChatPrivateContactsRankingResult,
@@ -147,6 +148,22 @@ const rankGroupSessionsSchema: JsonSchema = {
     ...timeParamProperties,
   },
   required: ['mode'],
+}
+
+const globalActivitySummarySchema: JsonSchema = {
+  type: 'object',
+  properties: {
+    mode: {
+      type: 'string',
+      enum: ['year', 'recent_365'],
+      description: 'Use year for a calendar year and recent_365 for the rolling latest 365 days. Defaults to year.',
+    },
+    year: {
+      type: 'number',
+      minimum: 1970,
+      description: 'Calendar year for mode=year. Omit it to use the current year.',
+    },
+  },
 }
 
 const inspectContactSessionsSchema: JsonSchema = {
@@ -468,6 +485,46 @@ async function rankGroupSessionsHandler(
   return { content: JSON.stringify(result), data: result }
 }
 
+async function globalActivitySummaryHandler(
+  params: Record<string, unknown>,
+  context: CrossChatToolExecutionContext
+): Promise<ToolResult> {
+  const mode = params.mode ?? 'year'
+  if (mode !== 'year' && mode !== 'recent_365') throw new Error('mode must be year or recent_365')
+  const result: CrossChatGlobalActivitySummaryResult = context.analysisService.getGlobalActivitySummary({
+    mode,
+    year: parseOptionalNumber(params.year),
+  })
+  const summary = result.summary
+  const modelData = {
+    mode: result.mode,
+    dataState: result.dataState,
+    range: summary.range,
+    availableDataYears: summary.availableDataYears,
+    latestDataYear: summary.latestDataYear,
+    metrics: summary.metrics,
+    monthlyActivity: summary.monthlyActivity,
+    monthlyDirectContacts: summary.monthlyDirectContacts,
+    dailyActivity: summary.dailyActivity,
+    messageTypes: summary.messageTypes,
+    textLength: summary.textLength,
+    coverage: summary.coverage,
+    cache: {
+      status: summary.cache.status,
+      computedAt: summary.cache.computedAt,
+      staleReason: summary.cache.staleReason,
+    },
+    task: {
+      status: summary.task.status,
+      startedAt: summary.task.startedAt,
+      finishedAt: summary.task.finishedAt,
+      processedSessions: summary.task.processedSessions,
+      totalSessions: summary.task.totalSessions,
+    },
+  }
+  return { content: JSON.stringify(modelData), data: result }
+}
+
 async function inspectContactSessionsHandler(
   params: Record<string, unknown>,
   context: CrossChatToolExecutionContext
@@ -620,6 +677,15 @@ export const rankGroupSessionsTool: ToolDefinition<CrossChatToolExecutionContext
     'Deterministically rank imported group sessions for an exact time range. mode=owner_activity answers where the user personally spoke most; mode=total_activity answers which groups were busiest overall. Never mix these metrics or substitute sampled search hits. Results include total and owner counts, active members/days, owner-resolution coverage, dataset cutoff, and completeness.',
   inputSchema: rankGroupSessionsSchema,
   handler: rankGroupSessionsHandler,
+  category: 'core',
+}
+
+export const getGlobalActivitySummaryTool: ToolDefinition<CrossChatToolExecutionContext> = {
+  name: 'get_global_activity_summary',
+  description:
+    'Read the existing deterministic owner activity snapshot for the current calendar year, another calendar year, or the rolling latest 365 days. Use it for total sent messages, active days, direct-contact counts, monthly/daily trends, message types, and text-length distribution. It never reads chat text or returns contact/group rankings. fresh and stale states contain usable metrics; preparing and failed do not and must not be described as zero activity. Do not poll a preparing result in the same answer.',
+  inputSchema: globalActivitySummarySchema,
+  handler: globalActivitySummaryHandler,
   category: 'core',
 }
 
