@@ -28,6 +28,7 @@ import {
   getChartCapabilitySkill,
   initTokenizer,
   resolveChartRuntimeForRequest,
+  resolveCrossChatToolResultTokenBudget,
   buildSemanticSearchGuidance,
   runCrossChatAgent,
 } from '@openchatlab/node-runtime'
@@ -143,13 +144,12 @@ export function createElectronRunAgentStream(
       }
       const modelDef = findModelDefinition(activeAIConfig.provider, activeAIConfig.model || '')
       const resolvedContextWindow = modelDef?.contextWindow || DEFAULT_CONTEXT_WINDOW
-      const maxToolResultPercent = DEFAULT_CONTEXT_COMPRESSION_CONFIG.maxToolResultPercent ?? 50
       const tools = createElectronCrossChatTools({
         analysisService: crossChatOptions.analysisService,
         sessionAdapter: crossChatOptions.sessionAdapter,
         locale,
         preprocessConfig: params.preprocessConfig,
-        maxToolResultTokens: Math.floor(resolvedContextWindow * (maxToolResultPercent / 100)),
+        maxToolResultTokens: resolveCrossChatToolResultTokenBudget(resolvedContextWindow),
       })
       await runCrossChatAgent({
         userMessage,

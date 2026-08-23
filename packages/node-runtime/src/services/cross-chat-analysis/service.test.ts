@@ -1193,10 +1193,13 @@ test('scoped search filters by resolved member ids and keeps compound evidence i
     })
 
     assert.deepEqual(
-      result.messages.map((message) => [message.sessionId, message.messageId, message.senderId]),
+      result.messages.map((message) => [message.sessionId, message.messageId, message.senderId, message.evidenceRole]),
       [
-        ['group-work', 1, 20],
-        ['private-alice', 1, 10],
+        ['group-work', 3, 20, 'context'],
+        ['group-work', 2, 21, 'context'],
+        ['group-work', 1, 20, 'match'],
+        ['private-alice', 2, 1, 'context'],
+        ['private-alice', 1, 10, 'match'],
       ]
     )
     assert.equal(result.coverage.truncated, false)
@@ -1248,6 +1251,128 @@ test('message context stays inside the indexed segment around the matched messag
   }
 })
 
+test('recent session recap returns a bounded latest slice plus existing summaries', () => {
+  const { env, contactsService } = createFixture()
+  try {
+    env.seed({
+      id: 'recent-recap',
+      name: 'Recent recap',
+      type: 'private',
+      members: [
+        { id: 1, platformId: 'owner', name: 'Me' },
+        { id: 2, platformId: 'friend', name: 'Friend' },
+      ],
+      messages: Array.from({ length: 220 }, (_, index) => ({
+        id: index + 1,
+        senderId: index % 2 === 0 ? 1 : 2,
+        ts: 1_000 + index * 100,
+        content: `message-${index + 1}`,
+      })),
+    })
+    const db = env.adapter.ensureWritable('recent-recap')
+    generateSessionIndex(db, 10)
+    db.exec("UPDATE segment SET summary = 'summary-' || id, summary_message_count = message_count")
+    db.close()
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+
+    const result = service.readRecentSession('recent-recap')
+
+    assert.deepEqual(
+      result.messages.map((message) => message.messageId),
+      Array.from({ length: 200 }, (_, index) => 220 - index)
+    )
+    assert.deepEqual(
+      result.summaries.map((summary) => summary.summary),
+      ['summary-220', 'summary-219', 'summary-218', 'summary-217', 'summary-216']
+    )
+    assert.deepEqual(result.coverage, {
+      totalMessages: 220,
+      returnedMessages: 200,
+      returnedSummaries: 5,
+      hasEarlierMessages: true,
+    })
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('scoped search spends its internal evidence budget on private-chat context before groups', async () => {
+  const { env, contactsService } = createFixture()
+  try {
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+    const result = await service.searchMessages({
+      keywords: ['project alpha'],
+      scopes: [
+        { sessionId: 'group-work', memberIds: [20] },
+        { sessionId: 'private-alice', memberIds: [10] },
+      ],
+      maxEvidence: 2,
+    })
+
+    assert.deepEqual(
+      result.messages.map((message) => [message.sessionId, message.messageId, message.evidenceRole]),
+      [
+        ['private-alice', 2, 'context'],
+        ['private-alice', 1, 'match'],
+      ]
+    )
+    assert.ok(result.coverage.truncatedReasons.includes('evidence_budget'))
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('scoped group search spends remaining evidence on the most active matching group', async () => {
+  const { env, contactsService } = createFixture()
+  try {
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+    const result = await service.searchMessages({
+      keywords: [],
+      scopes: [
+        { sessionId: 'group-other', memberIds: [30] },
+        { sessionId: 'group-work', memberIds: [20] },
+      ],
+      maxEvidence: 2,
+    })
+
+    assert.deepEqual([...new Set(result.messages.map((message) => message.sessionId))], ['group-work'])
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('search defaults to at most one thousand context-inclusive evidence messages', async () => {
+  const { env, contactsService } = createFixture()
+  try {
+    env.seed({
+      id: 'large-private',
+      name: 'Large private',
+      type: 'private',
+      members: [
+        { id: 1, platformId: 'owner', name: 'Me' },
+        { id: 2, platformId: 'target', name: 'Target' },
+      ],
+      messages: Array.from({ length: 1_100 }, (_, index) => ({
+        id: index + 1,
+        senderId: 2,
+        ts: index + 1,
+        content: `activity ${index + 1}`,
+      })),
+    })
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+    const result = await service.searchMessages({
+      keywords: [],
+      scopes: [{ sessionId: 'large-private', memberIds: [2] }],
+    })
+
+    assert.equal(result.totalMatches, 1_100)
+    assert.equal(result.messages.length, 1_000)
+    assert.ok(result.coverage.truncatedReasons.includes('evidence_budget'))
+  } finally {
+    env.cleanup()
+  }
+})
+
 test('global search scans recent sessions first and reports budget truncation', async () => {
   const { env, contactsService } = createFixture()
   try {
@@ -1261,7 +1386,7 @@ test('global search scans recent sessions first and reports budget truncation', 
     assert.deepEqual(progress, ['group-work'])
     assert.deepEqual(
       result.messages.map((message) => message.sessionId),
-      ['group-work', 'group-work']
+      ['group-work', 'group-work', 'group-work']
     )
     assert.equal(result.coverage.candidateSessions, 3)
     assert.equal(result.coverage.scannedSessions, 1)
@@ -1313,7 +1438,10 @@ test('global search applies the relative time range and resolves the owner indep
 
     assert.deepEqual(
       result.messages.map((message) => [message.sessionId, message.messageId, message.senderId]),
-      [['recent-owner-session', 1, 40]]
+      [
+        ['recent-owner-session', 2, 41],
+        ['recent-owner-session', 1, 40],
+      ]
     )
     assert.deepEqual(result.appliedFilters, {
       startTs: nowSeconds - 90 * 86400,
@@ -1345,6 +1473,7 @@ test('search allows empty keywords for scoped sampling but rejects unscoped scan
       scoped.messages.map((message) => [message.sessionId, message.messageId, message.senderId]),
       [
         ['group-work', 3, 20],
+        ['group-work', 2, 21],
         ['group-work', 1, 20],
       ]
     )

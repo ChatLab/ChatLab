@@ -17,6 +17,7 @@ import type {
   CrossChatOperationOptions,
   CrossChatOverviewRequest,
   CrossChatOverviewResult,
+  CrossChatRecentSessionResult,
   CrossChatSearchRequest,
   CrossChatSearchResult,
   CrossChatSharedInteractionsRequest,
@@ -370,6 +371,7 @@ export interface CrossChatAnalysisToolService {
     request: CrossChatSharedInteractionsRequest,
     options?: CrossChatOperationOptions
   ): Promise<CrossChatSharedInteractionsResult>
+  readRecentSession(sessionId: string): CrossChatRecentSessionResult
   searchMessages(request: CrossChatSearchRequest, options?: CrossChatOperationOptions): Promise<CrossChatSearchResult>
   getMessageContext(request: CrossChatMessageContextRequest): CrossChatMessageContextResult
   getOverview(request: CrossChatOverviewRequest, options?: CrossChatOperationOptions): Promise<CrossChatOverviewResult>

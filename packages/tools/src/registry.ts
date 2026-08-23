@@ -35,6 +35,7 @@ import {
   getCrossChatOverviewTool,
   inspectContactSessionsTool,
   inspectSharedInteractionsTool,
+  readRecentSessionTool,
   resolveChatEntitiesTool,
   searchMessagesGloballyTool,
 } from './definitions/cross-chat-tools'
@@ -86,6 +87,7 @@ export const AGENT_TOOL_REGISTRY: ToolDefinition[] = [
 /** Dedicated global-analysis tools. Never merge this registry into session Agent or MCP registries. */
 export const CROSS_CHAT_AGENT_TOOL_REGISTRY = [
   resolveChatEntitiesTool,
+  readRecentSessionTool,
   searchMessagesGloballyTool,
   getCrossChatMessageContextTool,
   getCrossChatOverviewTool,

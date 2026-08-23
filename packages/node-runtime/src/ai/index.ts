@@ -139,7 +139,12 @@ export type { LlmRouteDecider, RequestRoute, RouteDecision, RouteDecisionSource,
 export { buildPlanGuidance, createAnalysisPlanner, createPlanContentBlock } from './agent'
 export { createDataSnapshotFromOverview } from './agent'
 export { buildSemanticSearchGuidance } from './agent'
-export { buildCrossChatSystemPrompt, runCrossChatAgent } from './cross-chat-agent'
+export {
+  CROSS_CHAT_MAX_TOOL_RESULT_TOKENS,
+  buildCrossChatSystemPrompt,
+  resolveCrossChatToolResultTokenBudget,
+  runCrossChatAgent,
+} from './cross-chat-agent'
 export type { CrossChatAgentLogger, RunCrossChatAgentOptions } from './cross-chat-agent'
 export type {
   AnalysisPlanIntent,
