@@ -315,9 +315,8 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     throwIfAborted(options.signal)
     const contactKey = request.contactKey.trim()
     if (!contactKey) throw new Error('contactKey is required')
-    const requestedRange = normalizeInspectionRange(request.startTs, request.endTs, request.recentDays, () =>
-      this.now()
-    )
+    const rangeRequest = normalizeInspectionRangeRequest(request.startTs, request.endTs, request.recentDays)
+    const requestedRange = resolveInspectionRange(rangeRequest, () => this.now())
     const includeRosterOnly = request.includeRosterOnly !== false
     const pageSize = clampInteger(request.pageSize, DEFAULT_INSPECTION_PAGE_SIZE, 1, MAX_INSPECTION_PAGE_SIZE)
     const maxWallTimeMs = clampInteger(request.maxWallTimeMs, DEFAULT_MAX_WALL_TIME_MS, 1, MAX_MAX_WALL_TIME_MS)
@@ -344,6 +343,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
         createInspectionFingerprint({
           candidateSessionIds,
           contactKey,
+          rangeRequest,
           startTs: range.startTs,
           endTs: range.endTs,
           includeRosterOnly,
@@ -464,9 +464,8 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
   ): Promise<CrossChatSharedInteractionsResult> {
     throwIfAborted(options.signal)
     const participantRefs = normalizeParticipantRefs(request.participants)
-    const requestedRange = normalizeInspectionRange(request.startTs, request.endTs, request.recentDays, () =>
-      this.now()
-    )
+    const rangeRequest = normalizeInspectionRangeRequest(request.startTs, request.endTs, request.recentDays)
+    const requestedRange = resolveInspectionRange(rangeRequest, () => this.now())
     const pageSize = clampInteger(
       request.pageSize,
       DEFAULT_SHARED_INTERACTIONS_PAGE_SIZE,
@@ -537,6 +536,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
         createInspectionFingerprint({
           candidateSessionIds,
           participantRefs,
+          rangeRequest,
           startTs: range.startTs,
           endTs: range.endTs,
           maxAnchorsPerPair,
@@ -1777,17 +1777,32 @@ function normalizeInspectionRange(
   recentDays: number | undefined,
   now: () => number
 ): InspectionRange {
+  return resolveInspectionRange(normalizeInspectionRangeRequest(startTs, endTs, recentDays), now)
+}
+
+function normalizeInspectionRangeRequest(
+  startTs: number | undefined,
+  endTs: number | undefined,
+  recentDays: number | undefined
+): InspectionRangeRequest {
   const normalizedStart = normalizeOptionalTimestamp(startTs, 'startTs')
   const normalizedEnd = normalizeOptionalTimestamp(endTs, 'endTs')
   if (normalizedStart !== null && normalizedEnd !== null && normalizedStart > normalizedEnd) {
     throw new Error('startTs must be less than or equal to endTs')
   }
-  const normalizedRecentDays = normalizedStart === null ? normalizeRecentDays(recentDays) : undefined
-  if (normalizedRecentDays !== undefined) {
-    const anchor = new Date((normalizedEnd ?? Math.floor(now() / 1000)) * 1000)
+  return {
+    startTs: normalizedStart,
+    endTs: normalizedEnd,
+    recentDays: normalizedStart === null ? (normalizeRecentDays(recentDays) ?? null) : null,
+  }
+}
+
+function resolveInspectionRange(request: InspectionRangeRequest, now: () => number): InspectionRange {
+  if (request.recentDays !== null) {
+    const anchor = new Date((request.endTs ?? Math.floor(now() / 1000)) * 1000)
     const start = new Date(anchor)
     start.setHours(0, 0, 0, 0)
-    start.setDate(start.getDate() - (normalizedRecentDays - 1))
+    start.setDate(start.getDate() - (request.recentDays - 1))
     const endExclusive = new Date(anchor)
     endExclusive.setHours(0, 0, 0, 0)
     endExclusive.setDate(endExclusive.getDate() + 1)
@@ -1796,7 +1811,7 @@ function normalizeInspectionRange(
       endTs: Math.floor(endExclusive.getTime() / 1000) - 1,
     }
   }
-  return { startTs: normalizedStart, endTs: normalizedEnd }
+  return { startTs: request.startTs, endTs: request.endTs }
 }
 
 function normalizeOptionalTimestamp(value: number | undefined, name: string): number | null {
@@ -2061,6 +2076,10 @@ function maxNullable(left: number | null, right: number | null): number | null {
 interface InspectionRange {
   startTs: number | null
   endTs: number | null
+}
+
+interface InspectionRangeRequest extends InspectionRange {
+  recentDays: number | null
 }
 
 interface InspectionCursorPayload {
