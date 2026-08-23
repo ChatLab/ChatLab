@@ -706,6 +706,99 @@ export interface CrossChatOverviewResult {
   }
 }
 
+export interface CrossChatStatisticsTimeRange extends CrossChatInspectionTimeRange {
+  currentTs: number
+}
+
+export type CrossChatPrivateContactsRankBy = 'message_count' | 'active_days'
+
+export interface CrossChatPrivateContactsRankingRequest {
+  startTs?: number
+  endTs?: number
+  recentDays?: number
+  rankBy?: CrossChatPrivateContactsRankBy
+  limit?: number
+}
+
+export interface CrossChatPrivateContactRankItem {
+  rank: number
+  contactKey: string
+  displayName: string
+  platform: ChatPlatform
+  totalMessages: number
+  ownerMessages: number
+  contactMessages: number
+  activeDays: number
+  firstMessageTs: number | null
+  lastMessageTs: number | null
+  sessionIds: string[]
+}
+
+export interface CrossChatPrivateContactsRankingResult {
+  algorithmVersion: string
+  rankBy: CrossChatPrivateContactsRankBy
+  appliedRange: CrossChatStatisticsTimeRange
+  items: CrossChatPrivateContactRankItem[]
+  coverage: {
+    candidateSessions: number
+    scannedSessions: number
+    analyzedSessions: number
+    excludedSessions: number
+    missingOwnerSessions: number
+    unresolvedOwnerSessions: number
+    missingContactSessions: number
+    ambiguousContactSessions: number
+    failedSessions: number
+    failedSessionIds: string[]
+    complete: boolean
+    truncated: boolean
+    truncatedReasons: Array<'time_budget'>
+  }
+}
+
+export type CrossChatGroupRankingMode = 'owner_activity' | 'total_activity'
+export type CrossChatOwnerStatus = 'resolved' | 'missing' | 'unresolved' | 'excluded'
+
+export interface CrossChatGroupSessionsRankingRequest {
+  mode: CrossChatGroupRankingMode
+  startTs?: number
+  endTs?: number
+  recentDays?: number
+  limit?: number
+}
+
+export interface CrossChatGroupSessionRankItem extends CrossChatSessionDescriptor {
+  rank: number
+  totalMessages: number
+  ownerMessages: number | null
+  ownerMessageShare: number | null
+  ownerActiveDays: number | null
+  activeMembers: number
+  activeDays: number
+  firstMessageTs: number | null
+  ownerStatus: CrossChatOwnerStatus
+}
+
+export interface CrossChatGroupSessionsRankingResult {
+  algorithmVersion: string
+  mode: CrossChatGroupRankingMode
+  appliedRange: CrossChatStatisticsTimeRange
+  items: CrossChatGroupSessionRankItem[]
+  coverage: {
+    candidateSessions: number
+    scannedSessions: number
+    analyzedSessions: number
+    excludedSessions: number
+    missingOwnerSessions: number
+    unresolvedOwnerSessions: number
+    failedSessions: number
+    failedSessionIds: string[]
+    complete: boolean
+    truncated: boolean
+    truncatedReasons: Array<'time_budget'>
+  }
+}
+
 export type CrossChatParticipantRef =
   | { type: 'owner' }
   | {

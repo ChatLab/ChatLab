@@ -948,7 +948,7 @@ function nonSystemContactMemberCondition(db: DatabaseAdapter, memberAlias: strin
     ))`
 }
 
-function nonSystemMessageCondition(db: DatabaseAdapter, messageAlias: string, memberAlias: string): string {
+export function nonSystemMessageCondition(db: DatabaseAdapter, messageAlias: string, memberAlias: string): string {
   return `(${messageAlias}.type NOT IN (${SYSTEM_MESSAGE_TYPES_SQL})
     AND ${nonSystemMemberIdentityCondition(db, memberAlias)})`
 }
