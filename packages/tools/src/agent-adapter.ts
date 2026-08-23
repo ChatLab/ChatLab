@@ -1,4 +1,5 @@
-import type { JsonSchema, ToolDefinition, ToolResult } from './types'
+import { CROSS_CHAT_AGENT_TOOL_REGISTRY } from './registry'
+import type { CrossChatToolExecutionContext, JsonSchema, ToolDefinition, ToolProgress, ToolResult } from './types'
 
 interface AgentToolParameters {
   type: 'object'
@@ -63,4 +64,28 @@ export async function executeToolForAgent<TContext>(
     const message = error instanceof Error ? error.message : String(error)
     return { content: [{ type: 'text', text: `Error: ${message}` }], details: null, isError: true }
   }
+}
+
+/** Desktop 与 CLI Web 共用同一套跨会话工具装配，避免平台 wrapper 漏注册或产生 schema 漂移。 */
+export function createCrossChatAgentToolAdapters(
+  context: Omit<CrossChatToolExecutionContext, 'abortSignal' | 'reportProgress'>
+) {
+  return CROSS_CHAT_AGENT_TOOL_REGISTRY.map((tool) => ({
+    name: tool.name,
+    label: tool.name,
+    description: tool.description,
+    parameters: toAgentToolParameters(tool.inputSchema),
+    executionMode: tool.executionMode,
+    execute: async (
+      _toolCallId: string,
+      params: unknown,
+      signal: AbortSignal,
+      onUpdate?: (update: { content: []; details: { progress: ToolProgress } }) => void
+    ) =>
+      executeToolForAgent(tool, params, {
+        ...context,
+        abortSignal: signal,
+        reportProgress: (progress) => onUpdate?.({ content: [], details: { progress } }),
+      }),
+  }))
 }
