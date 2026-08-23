@@ -3,13 +3,25 @@ import { describe, it } from 'node:test'
 import type { Api as PiApi, Model as PiModel } from '@earendil-works/pi-ai'
 import type { AIChatManager } from '../chats'
 import type { AgentStreamChunk } from '../agent/event-handler'
-import { buildCrossChatSystemPrompt, runCrossChatAgent } from '../cross-chat-agent'
+import {
+  buildCrossChatSystemPrompt,
+  resolveCrossChatToolResultTokenBudget,
+  runCrossChatAgent,
+} from '../cross-chat-agent'
+
+describe('cross-chat tool result budget', () => {
+  it('keeps the proportional budget for ordinary models and caps very large contexts', () => {
+    assert.equal(resolveCrossChatToolResultTokenBudget(128_000), 64_000)
+    assert.equal(resolveCrossChatToolResultTokenBudget(1_000_000), 128_000)
+  })
+})
 
 describe('cross-chat agent prompt', () => {
   it('locks the agent to dedicated tools and makes scope semantic rather than persistent', () => {
     const prompt = buildCrossChatSystemPrompt('zh-CN', new Date('2026-08-23T12:00:00Z'))
     for (const tool of [
       'resolve_chat_entities',
+      'read_recent_session',
       'inspect_contact_sessions',
       'inspect_shared_interactions',
       'search_messages_globally',
@@ -29,22 +41,31 @@ describe('cross-chat agent prompt', () => {
     assert.match(prompt, /唯一候选自动继续/)
     assert.match(prompt, /多个候选必须停下来请用户确认/)
     assert.match(prompt, /限定 scopes 时，可以不提供关键词/)
-    assert.match(prompt, /最近.*90 天/)
+    assert.match(prompt, /最近.*30 天/)
     assert.match(prompt, /recent_days/)
     assert.match(prompt, /当前日期是.*2026.*8.*23/)
     assert.match(prompt, /真实当前时间为基准/)
     assert.match(prompt, /禁止根据数据库截止时间.*手工计算/)
     assert.match(prompt, /sender.*owner/)
     assert.match(prompt, /本人发言.*检索种子/)
+    assert.match(prompt, /“我和某人最近聊了什么”/)
+    assert.match(prompt, /只使用.*私聊/)
+    assert.match(prompt, /直接调用 read_recent_session/)
+    assert.match(prompt, /不要先用 search_messages_globally.*填满.*证据预算/)
+    assert.match(prompt, /不要仅因为.*hasEarlierMessages=true.*自动扩大搜索/)
+    assert.match(prompt, /最近一条已导入私聊.*具体时间/)
+    assert.match(prompt, /工具自行控制证据量/)
+    assert.match(prompt, /不要传入消息数量、会话数量或执行时长预算/)
     assert.match(prompt, /coverage/)
     assert.doesNotMatch(prompt, /四个工具/)
     assert.doesNotMatch(prompt, /可以使用.*execute_sql/)
   })
 
-  it('keeps the English prompt on the same six-tool investigation contract', () => {
+  it('keeps the English prompt on the same seven-tool investigation contract', () => {
     const prompt = buildCrossChatSystemPrompt('en-US', new Date('2026-08-23T12:00:00Z'))
     for (const tool of [
       'resolve_chat_entities',
+      'read_recent_session',
       'inspect_contact_sessions',
       'inspect_shared_interactions',
       'search_messages_globally',
@@ -59,6 +80,14 @@ describe('cross-chat agent prompt', () => {
     assert.match(prompt, /current date is.*August 23, 2026/i)
     assert.match(prompt, /real current time/)
     assert.match(prompt, /Never calculate start_time from a dataset cutoff/)
+    assert.match(prompt, /last 30 days/)
+    assert.match(prompt, /what have this person and I been talking about recently/i)
+    assert.match(prompt, /use only the resolved direct private session/i)
+    assert.match(prompt, /call read_recent_session instead of filling the cross-chat search evidence budget/i)
+    assert.match(prompt, /Do not expand merely because selection.hasEarlierMessages is true/i)
+    assert.match(prompt, /latest imported private-chat timestamp/i)
+    assert.match(prompt, /tool controls evidence volume/i)
+    assert.match(prompt, /Do not pass message-count, session-count, or execution-time budgets/)
     assert.doesNotMatch(prompt, /four tools/)
   })
 })

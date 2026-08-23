@@ -25,6 +25,7 @@ import {
   getChartCapabilitySkill,
   getSkillConfigWithBuiltinChart,
   resolveChartRuntimeForRequest,
+  resolveCrossChatToolResultTokenBudget,
   runCrossChatAgent,
 } from '@openchatlab/node-runtime'
 import { getChatOverview, normalizeBuiltinToolNames } from '@openchatlab/core'
@@ -153,7 +154,7 @@ export function createCliRunAgentStream(
         sessionAdapter: options.sessionAdapter,
         locale,
         preprocessConfig: params.preprocessConfig,
-        maxToolResultTokens,
+        maxToolResultTokens: resolveCrossChatToolResultTokenBudget(contextWindow),
       })
       await runCrossChatAgent({
         userMessage,

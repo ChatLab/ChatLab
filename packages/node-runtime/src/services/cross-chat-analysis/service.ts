@@ -5,6 +5,7 @@ import {
   getParticipantSetInteractionFacts,
   getMembers,
   getRecentMessages,
+  getSegmentSummaries,
   getSearchMessageContext as getCoreSearchMessageContext,
   getSessionMeta,
   getSessionOverview,
@@ -31,6 +32,7 @@ import {
   type CrossChatOverviewRequest,
   type CrossChatOverviewResult,
   type CrossChatParticipantRef,
+  type CrossChatRecentSessionResult,
   type CrossChatResolvedContact,
   type CrossChatResolvedSession,
   type CrossChatSearchRequest,
@@ -48,12 +50,16 @@ import type { ContactsService } from '../contacts'
 
 const DEFAULT_MAX_SESSIONS = 24
 const MAX_MAX_SESSIONS = 100
-const DEFAULT_MAX_EVIDENCE = 80
-const MAX_MAX_EVIDENCE = 200
+const DEFAULT_MAX_EVIDENCE = 1_000
+const MAX_MAX_EVIDENCE = 1_000
 const DEFAULT_MAX_WALL_TIME_MS = 8_000
 const MAX_MAX_WALL_TIME_MS = 30_000
 const DEFAULT_CONTEXT_SIZE = 10
 const MAX_CONTEXT_SIZE = 50
+const RECENT_SESSION_MESSAGE_LIMIT = 200
+const RECENT_SESSION_SUMMARY_LIMIT = 5
+const SEARCH_CONTEXT_BEFORE = 2
+const SEARCH_CONTEXT_AFTER = 2
 const SECONDS_PER_DAY = 86400
 const MAX_RECENT_DAYS = 3650
 const CONTACT_SESSIONS_ALGORITHM_VERSION = 'contact-sessions-v1'
@@ -83,6 +89,7 @@ export interface CrossChatAnalysisService {
     request: CrossChatSharedInteractionsRequest,
     options?: CrossChatOperationOptions
   ): Promise<CrossChatSharedInteractionsResult>
+  readRecentSession(sessionId: string): CrossChatRecentSessionResult
   searchMessages(request: CrossChatSearchRequest, options?: CrossChatOperationOptions): Promise<CrossChatSearchResult>
   getMessageContext(request: CrossChatMessageContextRequest): CrossChatMessageContextResult
   getOverview(request: CrossChatOverviewRequest, options?: CrossChatOperationOptions): Promise<CrossChatOverviewResult>
@@ -659,7 +666,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     if (eligibleCandidateCount > selected.length) truncatedReasons.add('session_budget')
     if (timedOut) truncatedReasons.add('time_budget')
 
-    const messages: CrossChatMessageSource[] = []
+    const sessionResults: SessionSearchResult[] = []
     let totalMatches = 0
     let scannedSessions = 0
     let matchedSessions = 0
@@ -697,7 +704,15 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
         totalMatches += result.total ?? result.messages.length
         if (result.messages.length > 0) matchedSessions++
         if ((result.total ?? result.messages.length) > result.messages.length) truncatedReasons.add('evidence_budget')
-        messages.push(...result.messages.map((message) => toCrossChatMessage(candidate.descriptor, message)))
+        sessionResults.push({
+          candidate,
+          db,
+          totalMatches: result.total ?? result.messages.length,
+          matches: result.messages.map((message) => ({
+            ...toCrossChatMessage(candidate.descriptor, message),
+            evidenceRole: 'match' as const,
+          })),
+        })
       } catch (error) {
         failedSessionIds.add(candidate.descriptor.sessionId)
         appLogger.warn('cross-chat-analysis', `failed to search session: ${candidate.descriptor.sessionId}`, error)
@@ -707,6 +722,17 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
       await yieldToEventLoop()
     }
 
+    sessionResults.sort(compareSessionSearchResults)
+    const evidence = collectSearchEvidence(sessionResults, maxEvidence, startTs, endTs, {
+      deadline: startedAt + maxWallTimeMs,
+      now: () => this.now(),
+      signal: options.signal,
+    })
+    const messages = evidence.messages
+    if (evidence.timedOut) truncatedReasons.add('time_budget')
+    const returnedMatchCount = messages.filter((message) => message.evidenceRole === 'match').length
+    if (returnedMatchCount < totalMatches) truncatedReasons.add('evidence_budget')
+
     const sortMultiplier = request.sort === 'asc' ? 1 : -1
     messages.sort(
       (left, right) =>
@@ -714,10 +740,6 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
           left.sessionId.localeCompare(right.sessionId) ||
           left.messageId - right.messageId) * sortMultiplier
     )
-    if (messages.length > maxEvidence) {
-      messages.length = maxEvidence
-      truncatedReasons.add('evidence_budget')
-    }
     options.onProgress?.({ processedSessions, totalSessions: selected.length })
 
     return {
@@ -737,6 +759,41 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
         ownerResolution,
         truncated: truncatedReasons.size > 0,
         truncatedReasons: [...truncatedReasons],
+      },
+    }
+  }
+
+  readRecentSession(sessionId: string): CrossChatRecentSessionResult {
+    const db = this.deps.adapter.ensureReadonly(sessionId)
+    const descriptor = getSessionDescriptor(sessionId, db)
+    if (!descriptor) throw createNotFoundError(`Session not found: ${sessionId}`)
+
+    const recent = searchMessagesByKeywords(db, [], {
+      sort: 'desc',
+      limit: RECENT_SESSION_MESSAGE_LIMIT,
+    })
+    const summaries = getSegmentSummaries(db, { limit: RECENT_SESSION_SUMMARY_LIMIT })
+      .filter((segment): segment is typeof segment & { summary: string } => typeof segment.summary === 'string')
+      .map((segment) => ({
+        segmentId: segment.id,
+        startTs: segment.startTs,
+        endTs: segment.endTs,
+        messageCount: segment.messageCount,
+        participants: segment.participants,
+        summary: segment.summary,
+      }))
+    const messages = recent.messages.map((message) => toCrossChatMessage(descriptor, message))
+    const totalMessages = recent.total ?? messages.length
+
+    return {
+      source: descriptor,
+      messages,
+      summaries,
+      coverage: {
+        totalMessages,
+        returnedMessages: messages.length,
+        returnedSummaries: summaries.length,
+        hasEarlierMessages: totalMessages > messages.length,
       },
     }
   }
@@ -927,6 +984,119 @@ function normalizeRecentDays(value: number | undefined): number | undefined {
 interface SearchCandidate {
   descriptor: CrossChatSessionDescriptor
   memberIds?: number[]
+}
+
+interface SessionSearchResult {
+  candidate: SearchCandidate
+  db: DatabaseAdapter
+  totalMatches: number
+  matches: CrossChatMessageSource[]
+}
+
+function compareSessionSearchResults(left: SessionSearchResult, right: SessionSearchResult): number {
+  const leftPrivate = left.candidate.descriptor.sessionType === ChatType.PRIVATE
+  const rightPrivate = right.candidate.descriptor.sessionType === ChatType.PRIVATE
+  if (leftPrivate !== rightPrivate) return leftPrivate ? -1 : 1
+  return (
+    right.totalMatches - left.totalMatches ||
+    (right.candidate.descriptor.lastMessageTs ?? Number.NEGATIVE_INFINITY) -
+      (left.candidate.descriptor.lastMessageTs ?? Number.NEGATIVE_INFINITY)
+  )
+}
+
+function collectSearchEvidence(
+  results: SessionSearchResult[],
+  maxMessages: number,
+  startTs?: number,
+  endTs?: number,
+  options: { deadline: number; now: () => number; signal?: AbortSignal } = {
+    deadline: Number.POSITIVE_INFINITY,
+    now: Date.now,
+  }
+): { messages: CrossChatMessageSource[]; timedOut: boolean } {
+  const selected = new Map<string, CrossChatMessageSource>()
+  let timedOut = false
+
+  for (const result of results) {
+    let matchIndex = 0
+    while (matchIndex < result.matches.length && selected.size < maxMessages) {
+      throwIfAborted(options.signal)
+      if (options.now() >= options.deadline) {
+        timedOut = true
+        break
+      }
+      const remaining = maxMessages - selected.size
+      const expectedBlockSize = SEARCH_CONTEXT_BEFORE + SEARCH_CONTEXT_AFTER + 1
+      const batchSize = Math.min(
+        result.matches.length - matchIndex,
+        remaining < expectedBlockSize ? 1 : Math.max(1, Math.floor(remaining / expectedBlockSize))
+      )
+      const batch = result.matches.slice(matchIndex, matchIndex + batchSize)
+      const matchIds = new Set(batch.map((message) => message.messageId))
+      const contextMessages = getCoreSearchMessageContext(
+        result.db,
+        [...matchIds],
+        SEARCH_CONTEXT_BEFORE,
+        SEARCH_CONTEXT_AFTER
+      )
+        .map((message) => ({
+          ...toCrossChatMessage(result.candidate.descriptor, message),
+          evidenceRole: matchIds.has(message.id) ? ('match' as const) : ('context' as const),
+        }))
+        .filter((message) => isWithinSearchRange(message.timestamp, startTs, endTs))
+
+      for (const matchId of matchIds) {
+        const key = crossChatMessageKey(result.candidate.descriptor.sessionId, matchId)
+        const existing = selected.get(key)
+        if (existing?.evidenceRole === 'context') selected.set(key, { ...existing, evidenceRole: 'match' })
+      }
+
+      const unseen = contextMessages.filter(
+        (message) => !selected.has(crossChatMessageKey(message.sessionId, message.messageId))
+      )
+      const accepted =
+        unseen.length <= remaining ? unseen : prioritizeContextMessages(unseen, matchIds).slice(0, remaining)
+      for (const message of accepted) {
+        const key = crossChatMessageKey(message.sessionId, message.messageId)
+        const existing = selected.get(key)
+        if (!existing || (existing.evidenceRole === 'context' && message.evidenceRole === 'match')) {
+          selected.set(key, message)
+        }
+      }
+      matchIndex += batchSize
+    }
+    if (timedOut || selected.size >= maxMessages) break
+  }
+
+  return { messages: [...selected.values()], timedOut }
+}
+
+function prioritizeContextMessages(
+  messages: CrossChatMessageSource[],
+  matchIds: Set<number>
+): CrossChatMessageSource[] {
+  return [...messages].sort((left, right) => {
+    const leftMatch = matchIds.has(left.messageId)
+    const rightMatch = matchIds.has(right.messageId)
+    if (leftMatch !== rightMatch) return leftMatch ? -1 : 1
+    const leftDistance = nearestMessageIdDistance(left.messageId, matchIds)
+    const rightDistance = nearestMessageIdDistance(right.messageId, matchIds)
+    return leftDistance - rightDistance || left.messageId - right.messageId
+  })
+}
+
+function nearestMessageIdDistance(messageId: number, matchIds: Set<number>): number {
+  let distance = Number.POSITIVE_INFINITY
+  for (const matchId of matchIds) distance = Math.min(distance, Math.abs(messageId - matchId))
+  return distance
+}
+
+function crossChatMessageKey(sessionId: string, messageId: number): string {
+  return `${sessionId}:${messageId}`
+}
+
+function isWithinSearchRange(timestamp: number, startTs: number | undefined, endTs: number | undefined): boolean {
+  return (startTs === undefined || timestamp >= startTs) && (endTs === undefined || timestamp <= endTs)
 }
 
 function addBoundedSearchCandidate(

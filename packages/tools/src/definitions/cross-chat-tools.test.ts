@@ -8,6 +8,7 @@ import type {
   CrossChatMessageContextResult,
   CrossChatMessageSource,
   CrossChatOverviewResult,
+  CrossChatRecentSessionResult,
   CrossChatSearchResult,
   CrossChatSharedInteractionsResult,
 } from '@openchatlab/shared-types'
@@ -94,6 +95,35 @@ function contactSessionsResult(sessionCount: number, sessionName = 'Work group')
       truncated: true,
       truncatedReasons: ['page_size'],
       contactCacheStatus: 'fresh',
+    },
+  }
+}
+
+function recentSessionResult(): CrossChatRecentSessionResult {
+  return {
+    source: {
+      sessionId: 'session-a',
+      sessionName: 'Session A',
+      sessionType: ChatType.PRIVATE,
+      platform: 'test',
+      lastMessageTs: 10,
+    },
+    messages: [messageSource('session-a', 7, 10, 'private raw content')],
+    summaries: [
+      {
+        segmentId: 3,
+        startTs: 8,
+        endTs: 10,
+        messageCount: 2,
+        participants: ['Alice'],
+        summary: 'Recent topic summary',
+      },
+    ],
+    coverage: {
+      totalMessages: 100,
+      returnedMessages: 1,
+      returnedSummaries: 1,
+      hasEarlierMessages: true,
     },
   }
 }
@@ -255,6 +285,7 @@ function createContext(overrides: Partial<CrossChatAnalysisToolService> = {}): C
         identityCollisionSessions: 0,
       },
     }),
+    readRecentSession: (): CrossChatRecentSessionResult => recentSessionResult(),
     searchMessages: async (): Promise<CrossChatSearchResult> => ({
       messages: [
         {
@@ -319,10 +350,11 @@ function createContext(overrides: Partial<CrossChatAnalysisToolService> = {}): C
 }
 
 describe('cross-chat agent registry', () => {
-  it('contains only the six dedicated tools and is isolated from session and MCP registries', () => {
+  it('contains only the seven dedicated tools and is isolated from session and MCP registries', () => {
     const names = CROSS_CHAT_AGENT_TOOL_REGISTRY.map((tool) => tool.name)
     assert.deepEqual(names, [
       'resolve_chat_entities',
+      'read_recent_session',
       'search_messages_globally',
       'get_cross_chat_message_context',
       'get_cross_chat_overview',
@@ -339,6 +371,37 @@ describe('cross-chat agent registry', () => {
         false
       )
     }
+  })
+
+  it('reads one resolved session through the bounded recap path and preserves evidence', async () => {
+    let capturedSessionId: string | undefined
+    const context = createContext({
+      readRecentSession: (sessionId) => {
+        capturedSessionId = sessionId
+        return recentSessionResult()
+      },
+    })
+    const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'read_recent_session')
+    assert.ok(tool)
+    assert.deepEqual(Object.keys(tool.inputSchema.properties ?? {}), ['session_id'])
+
+    const result = await tool.handler({ session_id: 'session-a' }, context)
+    const content = JSON.parse(result.content)
+
+    assert.equal(capturedSessionId, 'session-a')
+    assert.equal(content.selection.strategy, 'latest_session_slice')
+    assert.equal(content.selection.hasEarlierMessages, true)
+    assert.equal(content.messages[0].content, '[redacted]')
+    assert.equal(content.summaries[0].summary, 'Recent topic summary')
+    assert.equal(result.data?.crossChatEvidence.sources[0].snippet, '[redacted]')
+  })
+
+  it('keeps latest private-chat recaps outside the default thirty-day window', () => {
+    const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'search_messages_globally')
+    assert.ok(tool)
+    assert.match(tool.description, /latest available private-chat recap/i)
+    assert.match(tool.description, /omit recent_days/i)
+    assert.match(tool.inputSchema.properties?.recent_days?.description ?? '', /latest available private-chat recap/i)
   })
 
   it('forwards exact shared-interaction participants without accepting display names', async () => {
@@ -816,6 +879,15 @@ describe('cross-chat agent registry', () => {
     const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'search_messages_globally')
     assert.ok(tool)
     const result = await tool.handler({ keywords: ['private'] }, createContext())
+    const modelData = JSON.parse(result.content) as {
+      returned: number
+      selection: {
+        matchedMessages: number
+        contextMessages: number
+        privateMessages: number
+        groupMessages: number
+      }
+    }
     const data = result.data as {
       crossChatEvidence: { sources: Array<{ sessionId: string; messageId: number; snippet: string }> }
     }
@@ -823,6 +895,13 @@ describe('cross-chat agent registry', () => {
     assert.equal(result.content.includes('private raw content'), false)
     assert.equal(result.content.includes('[redacted]'), true)
     assert.equal(result.content.includes('crossChatEvidence'), false)
+    assert.equal(modelData.returned, 1)
+    assert.deepEqual(modelData.selection, {
+      matchedMessages: 1,
+      contextMessages: 0,
+      privateMessages: 1,
+      groupMessages: 0,
+    })
     assert.deepEqual(data.crossChatEvidence.sources, [
       {
         sessionId: 'session-a',
@@ -943,6 +1022,44 @@ describe('cross-chat agent registry', () => {
     assert.ok(details.coverage.truncatedReasons.includes('evidence_budget'))
   })
 
+  it('budgets a thousand search messages with logarithmic tokenizer calls', async () => {
+    const messages = Array.from({ length: 1_000 }, (_, index) =>
+      messageSource('a', index + 1, index + 1, `第 ${index + 1} 条消息：${'聊天内容'.repeat(20)}`)
+    )
+    const context = createContext({
+      searchMessages: async () => ({
+        messages,
+        totalMatches: messages.length,
+        appliedFilters: { startTs: null, endTs: null, recentDays: null, sender: 'all' },
+        coverage: {
+          candidateSessions: 1,
+          scannedSessions: 1,
+          matchedSessions: 1,
+          failedSessions: 0,
+          truncated: false,
+          truncatedReasons: [],
+        },
+      }),
+    })
+    let tokenCountCalls = 0
+    context.maxToolResultTokens = 20_000
+    context.countTokens = (text) => {
+      tokenCountCalls++
+      return Math.ceil(text.length / 4)
+    }
+    context.preprocessMessagesBySession = (_sessionId, sessionMessages) => sessionMessages
+    const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'search_messages_globally')
+    assert.ok(tool)
+
+    const result = await tool.handler({ keywords: ['聊天'] }, context)
+    const modelData = JSON.parse(result.content) as { returned: number; coverage: { truncated: boolean } }
+
+    assert.ok(modelData.returned > 0)
+    assert.ok(modelData.returned < messages.length)
+    assert.equal(modelData.coverage.truncated, true)
+    assert.ok(tokenCountCalls <= 11, `expected at most 11 tokenizer calls, got ${tokenCountCalls}`)
+  })
+
   it('allows recent-message sampling only when explicit scopes are present', async () => {
     let captured: unknown
     const context = createContext({
@@ -980,10 +1097,47 @@ describe('cross-chat agent registry', () => {
       sender: 'all',
       matchMode: 'any',
       sort: 'desc',
-      maxSessions: undefined,
-      maxEvidence: undefined,
-      maxWallTimeMs: undefined,
     })
+  })
+
+  it('keeps evidence and execution budgets out of the model-visible search contract', async () => {
+    let captured: unknown
+    const context = createContext({
+      searchMessages: async (request) => {
+        captured = request
+        return {
+          messages: [],
+          totalMatches: 0,
+          appliedFilters: { startTs: null, endTs: null, recentDays: null, sender: 'all' },
+          coverage: {
+            candidateSessions: 1,
+            scannedSessions: 1,
+            matchedSessions: 0,
+            failedSessions: 0,
+            truncated: false,
+            truncatedReasons: [],
+          },
+        }
+      },
+    })
+    const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'search_messages_globally')
+    assert.ok(tool)
+
+    assert.equal(tool.inputSchema.properties?.max_evidence, undefined)
+    assert.equal(tool.inputSchema.properties?.max_sessions, undefined)
+    assert.equal(tool.inputSchema.properties?.max_wall_time_ms, undefined)
+    await tool.handler(
+      {
+        keywords: ['activity'],
+        max_evidence: 1,
+        max_sessions: 1,
+        max_wall_time_ms: 1,
+      },
+      context
+    )
+    assert.equal('maxEvidence' in (captured as Record<string, unknown>), false)
+    assert.equal('maxSessions' in (captured as Record<string, unknown>), false)
+    assert.equal('maxWallTimeMs' in (captured as Record<string, unknown>), false)
   })
 
   it('forwards relative time and owner-only filters for global discovery', async () => {
@@ -997,7 +1151,7 @@ describe('cross-chat agent registry', () => {
           appliedFilters: {
             startTs: 100,
             endTs: null,
-            recentDays: 90,
+            recentDays: 30,
             sender: 'owner',
           },
           coverage: {
@@ -1018,20 +1172,17 @@ describe('cross-chat agent registry', () => {
     })
     const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'search_messages_globally')
     assert.ok(tool)
-    await tool.handler({ keywords: ['买房'], recent_days: 90, sender: 'owner' }, context)
+    await tool.handler({ keywords: ['买房'], recent_days: 30, sender: 'owner' }, context)
 
     assert.deepEqual(captured, {
       keywords: ['买房'],
       scopes: undefined,
       startTs: undefined,
       endTs: undefined,
-      recentDays: 90,
+      recentDays: 30,
       sender: 'owner',
       matchMode: 'any',
       sort: 'desc',
-      maxSessions: undefined,
-      maxEvidence: undefined,
-      maxWallTimeMs: undefined,
     })
   })
 

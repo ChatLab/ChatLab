@@ -618,6 +618,8 @@ export interface CrossChatMessageSource extends CrossChatSessionDescriptor {
   content: string
   timestamp: number
   messageType: number
+  /** Whether this row directly matched the search or was loaded as surrounding context. */
+  evidenceRole?: 'match' | 'context'
 }
 
 export type CrossChatTruncationReason = 'session_budget' | 'evidence_budget' | 'time_budget'
@@ -643,6 +645,27 @@ export interface CrossChatSearchResult {
     }
     truncated: boolean
     truncatedReasons: CrossChatTruncationReason[]
+  }
+}
+
+export interface CrossChatRecentSessionSummary {
+  segmentId: number
+  startTs: number
+  endTs: number
+  messageCount: number
+  participants: string[]
+  summary: string
+}
+
+export interface CrossChatRecentSessionResult {
+  source: CrossChatSessionDescriptor
+  messages: CrossChatMessageSource[]
+  summaries: CrossChatRecentSessionSummary[]
+  coverage: {
+    totalMessages: number
+    returnedMessages: number
+    returnedSummaries: number
+    hasEarlierMessages: boolean
   }
 }
 

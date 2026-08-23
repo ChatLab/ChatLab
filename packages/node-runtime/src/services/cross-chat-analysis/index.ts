@@ -10,6 +10,8 @@ export type {
   CrossChatOverviewItem,
   CrossChatOverviewRequest,
   CrossChatOverviewResult,
+  CrossChatRecentSessionResult,
+  CrossChatRecentSessionSummary,
   CrossChatResolvedContact,
   CrossChatResolvedContactSession,
   CrossChatResolvedSession,

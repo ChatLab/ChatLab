@@ -29,7 +29,7 @@ const recentDaysProperty = {
   type: 'number' as const,
   minimum: 1,
   description:
-    'Relative time window ending at the real current time. Use 90 when the user says recent/recently without a more specific range.',
+    'Relative time window ending at the real current time. Use 30 for unspecified recent activity, but omit it for a latest available private-chat recap without an explicit date or duration.',
 }
 
 const resolveSchema: JsonSchema = {
@@ -78,11 +78,19 @@ const searchSchema: JsonSchema = {
         "Message sender filter. Use owner when the user's wording makes them the subject, such as 'I discussed buying a home'.",
     },
     sort: { type: 'string', enum: ['asc', 'desc'], description: 'Timestamp order; defaults to newest first' },
-    max_sessions: { type: 'number', description: 'Maximum sessions to scan' },
-    max_evidence: { type: 'number', description: 'Maximum evidence messages returned' },
-    max_wall_time_ms: { type: 'number', description: 'Maximum wall time for this scan' },
     ...timeParamProperties,
   },
+}
+
+const recentSessionSchema: JsonSchema = {
+  type: 'object',
+  properties: {
+    session_id: {
+      type: 'string',
+      description: 'One exact session ID returned by resolve_chat_entities',
+    },
+  },
+  required: ['session_id'],
 }
 
 const contextSchema: JsonSchema = {
@@ -227,9 +235,6 @@ async function searchHandler(
       sender: params.sender === 'owner' ? 'owner' : 'all',
       matchMode: params.match_mode === 'all' ? 'all' : 'any',
       sort: params.sort === 'asc' ? 'asc' : 'desc',
-      maxSessions: parseOptionalNumber(params.max_sessions),
-      maxEvidence: parseOptionalNumber(params.max_evidence),
-      maxWallTimeMs: parseOptionalNumber(params.max_wall_time_ms),
     },
     {
       signal: context.abortSignal,
@@ -252,6 +257,7 @@ async function searchHandler(
   const buildModelData = (messages: CrossChatMessageSource[], budgetTruncated: boolean) => ({
     totalMatches: result.totalMatches,
     returned: messages.length,
+    selection: summarizeEvidenceSelection(messages),
     appliedFilters: result.appliedFilters,
     coverage: buildCoverage(budgetTruncated),
     messages: messages.map(toModelMessage),
@@ -273,6 +279,51 @@ async function searchHandler(
   // Evidence details are persisted for source cards, but duplicating their snippets in content would charge the
   // model twice for the same text and invalidate maxToolResultTokens.
   return { content: JSON.stringify(modelData), data }
+}
+
+async function readRecentSessionHandler(
+  params: Record<string, unknown>,
+  context: CrossChatToolExecutionContext
+): Promise<ToolResult> {
+  const result = context.analysisService.readRecentSession(requireString(params.session_id, 'session_id'))
+  const safeMessages = await preprocessBySession(context, result.messages)
+  const buildModelData = (messages: CrossChatMessageSource[], budgetTruncated: boolean) => ({
+    source: result.source,
+    selection: {
+      strategy: 'latest_session_slice',
+      totalMessages: result.coverage.totalMessages,
+      returnedMessages: messages.length,
+      returnedSummaries: result.summaries.length,
+      hasEarlierMessages: result.coverage.hasEarlierMessages,
+      toolResultTruncated: budgetTruncated,
+    },
+    summaries: result.summaries,
+    messages: messages.map(toModelMessage),
+  })
+  const limited = limitMessagesToBudget(safeMessages, context.maxToolResultTokens, buildModelData, {
+    countTokens: context.countTokens,
+  })
+  const modelData = buildModelData(limited.messages, limited.truncated)
+  const evidence: CrossChatEvidencePayload = {
+    version: 1,
+    query: 'recent session recap',
+    sources: limited.messages.map(toEvidenceSource),
+    coverage: {
+      candidateSessions: 1,
+      scannedSessions: 1,
+      matchedSessions: limited.messages.length > 0 ? 1 : 0,
+      failedSessions: 0,
+      truncated: limited.truncated,
+      truncatedReasons: limited.truncated ? ['evidence_budget'] : [],
+    },
+  }
+  return {
+    content: JSON.stringify(modelData),
+    data: {
+      ...modelData,
+      crossChatEvidence: evidence,
+    },
+  }
 }
 
 async function contextHandler(
@@ -424,10 +475,20 @@ export const resolveChatEntitiesTool: ToolDefinition<CrossChatToolExecutionConte
   category: 'core',
 }
 
+export const readRecentSessionTool: ToolDefinition<CrossChatToolExecutionContext> = {
+  name: 'read_recent_session',
+  description:
+    'Read one exactly resolved session for a concise latest-available recap. The tool internally returns a bounded newest message slice plus up to five existing segment summaries, with source evidence and preprocessing. Use it after resolve_chat_entities when the user asks what happened recently in one private chat or one explicitly selected session without a calendar range. Do not pass message budgets. For explicit dates, durations, keywords, multi-session work, or deeper history, use search_messages_globally instead.',
+  inputSchema: recentSessionSchema,
+  handler: readRecentSessionHandler,
+  category: 'core',
+  truncationStrategy: 'keep_first',
+}
+
 export const searchMessagesGloballyTool: ToolDefinition<CrossChatToolExecutionContext> = {
   name: 'search_messages_globally',
   description:
-    "Search exact keywords across resolved contacts or sessions. Use recent_days=90 when 'recent' has no explicit duration, and sender=owner when the user is the subject of the requested action. Owner hits are discovery seeds; expand their context to identify other participants. With explicit scopes, omit keywords to sample recent messages. Unscoped global discovery always requires keywords. Results include applied filters, source identity, coverage, and truncation status.",
+    'Search exact keywords across resolved contacts or sessions. Use recent_days=30 for unspecified recent activity, but for a latest available private-chat recap without an explicit date or duration, scope only the direct private session and omit recent_days. Use sender=owner when the user is the subject of the requested action. The tool controls evidence volume internally, prioritizes private-chat evidence, ranks remaining group sources by matching activity, and automatically includes surrounding context. With explicit scopes, omit keywords to sample recent messages. Unscoped global discovery always requires keywords. Results include applied filters, source identity, coverage, and truncation status.',
   inputSchema: searchSchema,
   handler: searchHandler,
   category: 'core',
@@ -456,7 +517,7 @@ export const getCrossChatOverviewTool: ToolDefinition<CrossChatToolExecutionCont
 export const inspectContactSessionsTool: ToolDefinition<CrossChatToolExecutionContext> = {
   name: 'inspect_contact_sessions',
   description:
-    "Inspect one resolved contact across imported private and group sessions. Returns the contact's own message counts, first/last speech, active days, roster-only presence, dataset cutoff, and coverage. Use recent_days=90 for recent activity without an explicit duration; never derive start_time from the dataset cutoff. Use only for person source/activity questions after exact identity resolution; this tool does not infer relationship labels or return message text.",
+    "Inspect one resolved contact across imported private and group sessions. Returns the contact's own message counts, first/last speech, active days, roster-only presence, dataset cutoff, and coverage. Use recent_days=30 for recent activity without an explicit duration; never derive start_time from the dataset cutoff. Use only for person source/activity questions after exact identity resolution; this tool does not infer relationship labels or return message text.",
   inputSchema: inspectContactSessionsSchema,
   handler: inspectContactSessionsHandler,
   category: 'core',
@@ -465,7 +526,7 @@ export const inspectContactSessionsTool: ToolDefinition<CrossChatToolExecutionCo
 export const inspectSharedInteractionsTool: ToolDefinition<CrossChatToolExecutionContext> = {
   name: 'inspect_shared_interactions',
   description:
-    'Inspect common imported sessions for two to five exactly resolved people, including owner when requested. Returns per-person activity, directional replies, proximity signals, co-active days, message anchors, dataset cutoff, and coverage. Use recent_days=90 for recent interaction questions without an explicit duration; never derive start_time from the dataset cutoff. Common sessions contain every requested participant. These structural signals guide evidence reading and must never be treated as relationship labels or replace message context.',
+    'Inspect common imported sessions for two to five exactly resolved people, including owner when requested. Returns per-person activity, directional replies, proximity signals, co-active days, message anchors, dataset cutoff, and coverage. Use recent_days=30 for recent interaction questions without an explicit duration; never derive start_time from the dataset cutoff. Common sessions contain every requested participant. These structural signals guide evidence reading and must never be treated as relationship labels or replace message context.',
   inputSchema: inspectSharedInteractionsSchema,
   handler: inspectSharedInteractionsHandler,
   category: 'core',
@@ -818,10 +879,30 @@ function limitMessagesToBudget(
   }
 
   const countTokens = options.countTokens ?? estimatePayloadTokens
-  const priorityIndexes = options.priorityIndexes ?? prepared.map((_, index) => index)
+  const priorityIndexes = [...new Set(options.priorityIndexes ?? prepared.map((_, index) => index))].filter(
+    (index) => index >= 0 && index < prepared.length
+  )
+
+  if (!options.continueAfterOverflow) {
+    let low = 0
+    let high = priorityIndexes.length
+    // 普通搜索按优先级取连续前缀，使用二分将大结果集的完整序列化和 tokenizer 调用降到对数级。
+    while (low < high) {
+      const middle = Math.ceil((low + high) / 2)
+      const candidateIndexes = priorityIndexes.slice(0, middle).sort((left, right) => left - right)
+      const candidateMessages = candidateIndexes.map((candidateIndex) => prepared[candidateIndex])
+      const truncated = candidateMessages.length < prepared.length
+      const serializedCandidate = JSON.stringify(buildPayload(candidateMessages, truncated))
+      if (countTokens(serializedCandidate) <= maxToolResultTokens) low = middle
+      else high = middle - 1
+    }
+    const limitedIndexes = priorityIndexes.slice(0, low).sort((left, right) => left - right)
+    const limited = limitedIndexes.map((index) => prepared[index])
+    return { messages: limited, truncated: limited.length < prepared.length }
+  }
+
   const selectedIndexes = new Set<number>()
   for (const index of priorityIndexes) {
-    if (index < 0 || index >= prepared.length || selectedIndexes.has(index)) continue
     const candidateIndexes = [...selectedIndexes, index].sort((left, right) => left - right)
     const candidateMessages = candidateIndexes.map((candidateIndex) => prepared[candidateIndex])
     const truncated = candidateMessages.length < prepared.length
@@ -1063,7 +1144,22 @@ function toModelMessage(message: CrossChatMessageSource): Record<string, unknown
     senderName: message.senderName,
     timestamp: message.timestamp,
     content: message.content,
+    evidenceRole: message.evidenceRole,
   }
+}
+
+function summarizeEvidenceSelection(messages: CrossChatMessageSource[]): Record<string, number> {
+  let matchedMessages = 0
+  let contextMessages = 0
+  let privateMessages = 0
+  let groupMessages = 0
+  for (const message of messages) {
+    if (message.evidenceRole === 'context') contextMessages++
+    else matchedMessages++
+    if (message.sessionType === 'private') privateMessages++
+    else groupMessages++
+  }
+  return { matchedMessages, contextMessages, privateMessages, groupMessages }
 }
 
 function toEvidenceSource(message: CrossChatMessageSource): CrossChatEvidencePayload['sources'][number] {
