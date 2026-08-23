@@ -4,7 +4,12 @@ import type {
   PreprocessConfig,
   SessionRuntimeAdapter,
 } from '@openchatlab/node-runtime'
-import { countTokens, preprocessCrossChatMessages } from '@openchatlab/node-runtime'
+import {
+  countTokens,
+  preprocessCrossChatLabel,
+  preprocessCrossChatMessages,
+  preprocessCrossChatSummaries,
+} from '@openchatlab/node-runtime'
 import { createCrossChatAgentToolAdapters, type CrossChatToolExecutionContext } from '@openchatlab/tools'
 
 export function createCliCrossChatTools(options: {
@@ -26,6 +31,15 @@ export function createCliCrossChatTools(options: {
         messages,
         options.preprocessConfig as PreprocessConfig | undefined
       ),
+    preprocessSummariesBySession: (sessionId, summaries) =>
+      preprocessCrossChatSummaries(
+        options.sessionAdapter,
+        sessionId,
+        summaries,
+        options.preprocessConfig as PreprocessConfig | undefined
+      ),
+    preprocessModelLabel: (value, pseudonym) =>
+      preprocessCrossChatLabel(value, pseudonym, options.preprocessConfig as PreprocessConfig | undefined),
   }
 
   return createCrossChatAgentToolAdapters(context) as AgentTool<any, any>[]

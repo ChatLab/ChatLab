@@ -220,7 +220,10 @@ function groupSessionsRankingResult(): CrossChatGroupSessionsRankingResult {
   }
 }
 
-function globalActivitySummaryResult(dataState: CrossChatGlobalActivitySummaryResult['dataState'] = 'fresh') {
+function globalActivitySummaryResult(
+  dataState: CrossChatGlobalActivitySummaryResult['dataState'] = 'fresh',
+  dailyActivityCount = 1
+) {
   return {
     mode: 'year',
     dataState,
@@ -237,7 +240,10 @@ function globalActivitySummaryResult(dataState: CrossChatGlobalActivitySummaryRe
       },
       monthlyActivity: [{ month: '2026-01', messageCount: 100 }],
       monthlyDirectContacts: [{ month: '2026-01', contactCount: 5 }],
-      dailyActivity: [{ date: '2026-01-01', messageCount: 10 }],
+      dailyActivity: Array.from({ length: dailyActivityCount }, (_, index) => ({
+        date: new Date(Date.UTC(2024, 0, index + 1)).toISOString().slice(0, 10),
+        messageCount: index + 1,
+      })),
       messageTypes: [{ type: 0, count: 100 }],
       textLength: { textMessageCount: 100, median: 5, p90: 20, buckets: [] },
       coverage: {
@@ -493,6 +499,8 @@ function createContext(overrides: Partial<CrossChatAnalysisToolService> = {}): C
     analysisService: service,
     preprocessMessagesBySession: (_sessionId, messages) =>
       messages.map((message) => ({ ...message, senderName: 'U1', content: '[redacted]' })),
+    preprocessSummariesBySession: (_sessionId, summaries) => summaries,
+    preprocessModelLabel: (value) => value,
   }
 }
 
@@ -609,6 +617,82 @@ describe('cross-chat agent registry', () => {
     })
   })
 
+  it('keeps a multi-group overview within the injected tool token budget', async () => {
+    const overview: CrossChatOverviewResult = {
+      appliedRange: {
+        startTs: 100,
+        endTs: 200,
+        dataEarliestMessageTs: 100,
+        dataLatestMessageTs: 200,
+        currentTs: 300,
+      },
+      items: Array.from({ length: 24 }, (_, sessionIndex) => ({
+        sessionId: `group-${sessionIndex}-abcdefghijklmnop`,
+        sessionName: `Project collaboration group ${sessionIndex}`,
+        sessionType: ChatType.GROUP,
+        platform: 'test',
+        label: `Project collaboration group ${sessionIndex}`,
+        memberActivities: [],
+        totalMessages: 10_000 + sessionIndex,
+        activeDays: 200,
+        activeMembers: 80,
+        firstMessageTs: 100,
+        lastMessageTs: 200,
+        ownerStatus: 'resolved',
+        ownerMessages: 1_000,
+        ownerActiveDays: 150,
+        topMembers: Array.from({ length: 5 }, (_, memberIndex) => ({
+          memberId: memberIndex + 1,
+          platformId: `wxid-${sessionIndex}-${memberIndex}-abcdefghijklmnop`,
+          memberName: `Member ${memberIndex} from project group ${sessionIndex}`,
+          messageCount: 2_000 - memberIndex,
+          activeDays: 120,
+          firstMessageTs: 100,
+          lastMessageTs: 200,
+        })),
+      })),
+      coverage: {
+        candidateSessions: 24,
+        analyzedSessions: 24,
+        excludedSessions: 0,
+        missingOwnerSessions: 0,
+        unresolvedOwnerSessions: 0,
+        failedSessions: 0,
+        failedSessionIds: [],
+        complete: true,
+        truncated: false,
+        truncatedReasons: [],
+      },
+    }
+    const context = createContext({ getOverview: async () => overview })
+    let tokenizerCalls = 0
+    const countTokens = (text: string) => {
+      tokenizerCalls++
+      return Math.ceil(Array.from(text).length / 4)
+    }
+    context.maxToolResultTokens = 4_096
+    context.countTokens = countTokens
+    const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'get_cross_chat_overview')
+    assert.ok(tool)
+
+    const result = await tool.handler(
+      { scopes: overview.items.map((item) => ({ sessionId: item.sessionId })) },
+      context
+    )
+    const content = JSON.parse(result.content)
+
+    assert.ok(tokenizerCalls > 0)
+    assert.ok(countTokens(result.content) <= context.maxToolResultTokens)
+    assert.equal(content.selection.sessionItemsTotal, 24)
+    assert.equal(content.selection.sessionItemsReturned, 24)
+    assert.equal(content.selection.topMembersTotal, 120)
+    assert.ok(content.selection.topMembersReturned < 120)
+    assert.equal(content.selection.toolResultTruncated, true)
+    assert.ok(content.selection.truncatedReasons.includes('top_members_budget'))
+    assert.equal((result.data as CrossChatOverviewResult).items.length, 24)
+    assert.equal((result.data as CrossChatOverviewResult).items[0]?.topMembers.length, 5)
+  })
+
   it('requires an explicit group-ranking mode and forwards the exact range', async () => {
     let captured: Parameters<CrossChatAnalysisToolService['rankGroupSessions']>[0] | undefined
     const context = createContext({
@@ -627,6 +711,97 @@ describe('cross-chat agent registry', () => {
     assert.equal(captured?.recentDays, 30)
     assert.equal(captured?.limit, 8)
     await assert.rejects(() => tool.handler({ mode: 'unknown' }, context), /mode must be/)
+  })
+
+  it('preprocesses model-visible names in rankings and overview while retaining local details', async () => {
+    const context = createContext({
+      getOverview: async () => ({
+        appliedRange: {
+          startTs: null,
+          endTs: null,
+          dataEarliestMessageTs: 100,
+          dataLatestMessageTs: 200,
+          currentTs: 300,
+        },
+        items: [
+          {
+            sessionId: 'group-a',
+            sessionName: 'Secret Group',
+            sessionType: ChatType.GROUP,
+            platform: 'test',
+            lastMessageTs: 200,
+            label: 'Selected Alice',
+            memberIds: [2],
+            memberNames: ['Alice'],
+            memberActivities: [
+              {
+                memberId: 2,
+                platformId: 'user-2',
+                memberName: 'Alice',
+                messageCount: 20,
+                activeDays: 3,
+                firstMessageTs: 100,
+                lastMessageTs: 200,
+              },
+            ],
+            totalMessages: 20,
+            activeDays: 3,
+            activeMembers: 1,
+            firstMessageTs: 100,
+            ownerStatus: 'resolved',
+            ownerMessages: 5,
+            ownerActiveDays: 2,
+            topMembers: [
+              {
+                memberId: 3,
+                platformId: 'user-3',
+                memberName: 'Bob',
+                messageCount: 30,
+                activeDays: 4,
+                firstMessageTs: 100,
+                lastMessageTs: 200,
+              },
+            ],
+          },
+        ],
+        coverage: {
+          candidateSessions: 1,
+          analyzedSessions: 1,
+          excludedSessions: 0,
+          missingOwnerSessions: 0,
+          unresolvedOwnerSessions: 0,
+          failedSessions: 0,
+          failedSessionIds: [],
+          complete: true,
+          truncated: false,
+          truncatedReasons: [],
+        },
+      }),
+    })
+    context.preprocessModelLabel = (_value, pseudonym) => pseudonym
+
+    const privateTool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'rank_private_contacts')
+    const groupTool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'rank_group_sessions')
+    const overviewTool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'get_cross_chat_overview')
+    assert.ok(privateTool)
+    assert.ok(groupTool)
+    assert.ok(overviewTool)
+
+    const privateResult = await privateTool.handler({}, context)
+    const groupResult = await groupTool.handler({ mode: 'owner_activity' }, context)
+    const overviewResult = await overviewTool.handler({ scopes: [{ sessionId: 'group-a' }] }, context)
+    const privateContent = JSON.parse(privateResult.content)
+    const groupContent = JSON.parse(groupResult.content)
+    const overviewContent = JSON.parse(overviewResult.content)
+
+    assert.equal(privateContent.items[0].displayName, 'Contact1')
+    assert.equal(groupContent.items[0].sessionName, 'Group1')
+    assert.equal(overviewContent.items[0].sessionName, 'Session1')
+    assert.equal(overviewContent.items[0].label, 'Session1')
+    assert.equal(overviewContent.items[0].memberActivities[0].memberName, 'U2@group-a')
+    assert.equal(overviewContent.items[0].topMembers[0].memberName, 'U3@group-a')
+    assert.equal((privateResult.data as CrossChatPrivateContactsRankingResult).items[0].displayName, 'Alice')
+    assert.equal((groupResult.data as CrossChatGroupSessionsRankingResult).items[0].sessionName, 'Group A')
   })
 
   it('reads the cached global activity summary without exposing cache signatures', async () => {
@@ -651,6 +826,27 @@ describe('cross-chat agent registry', () => {
     assert.deepEqual(result.data, globalActivitySummaryResult('stale'))
   })
 
+  it('keeps a full-year activity summary within the injected tool token budget', async () => {
+    const fullSummary = globalActivitySummaryResult('fresh', 366)
+    const context = createContext({ getGlobalActivitySummary: () => fullSummary })
+    const countTokens = (text: string) => Math.ceil(Array.from(text).length / 4)
+    context.maxToolResultTokens = 1_000
+    context.countTokens = countTokens
+    const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'get_global_activity_summary')
+    assert.ok(tool)
+
+    const result = await tool.handler({ mode: 'year', year: 2024 }, context)
+    const content = JSON.parse(result.content)
+
+    assert.ok(countTokens(result.content) <= context.maxToolResultTokens)
+    assert.equal(content.metrics.sentMessageCount, 100)
+    assert.equal(content.selection.dailyActivityTotal, 366)
+    assert.ok(content.selection.dailyActivityReturned < 366)
+    assert.equal(content.selection.toolResultTruncated, true)
+    assert.ok(content.selection.truncatedReasons.includes('daily_activity_budget'))
+    assert.equal((result.data as CrossChatGlobalActivitySummaryResult).summary.dailyActivity.length, 366)
+  })
+
   it('reads one resolved session through the bounded recap path and preserves evidence', async () => {
     let capturedSessionId: string | undefined
     const context = createContext({
@@ -672,6 +868,64 @@ describe('cross-chat agent registry', () => {
     assert.equal(content.messages[0].content, '[redacted]')
     assert.equal(content.summaries[0].summary, 'Recent topic summary')
     assert.equal(result.data?.crossChatEvidence.sources[0].snippet, '[redacted]')
+  })
+
+  it('uses only privacy-processed summaries in recent session tool content', async () => {
+    const context = createContext({
+      readRecentSession: () => {
+        const result = recentSessionResult()
+        return {
+          ...result,
+          summaries: [
+            ...result.summaries,
+            {
+              ...result.summaries[0],
+              segmentId: 4,
+              participants: ['Bob'],
+              summary: 'Filtered summary',
+            },
+          ],
+        }
+      },
+    })
+    context.preprocessSummariesBySession = (sessionId, summaries) => {
+      assert.equal(sessionId, 'session-a')
+      return summaries.slice(0, 1).map((summary) => ({
+        ...summary,
+        participants: ['U1@session-a'],
+        summary: summary.summary.replace('Recent topic summary', '[safe summary]'),
+      }))
+    }
+    const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'read_recent_session')
+    assert.ok(tool)
+
+    const result = await tool.handler({ session_id: 'session-a' }, context)
+    const content = JSON.parse(result.content)
+
+    assert.equal(content.selection.returnedSummaries, 1)
+    assert.equal(content.summaries[0].summary, '[safe summary]')
+    assert.deepEqual(content.summaries[0].participants, ['U1@session-a'])
+    assert.equal(result.content.includes('Recent topic summary'), false)
+    assert.equal(result.content.includes('Filtered summary'), false)
+    assert.equal(result.content.includes('Alice'), false)
+    assert.equal(result.content.includes('Bob'), false)
+  })
+
+  it('preprocesses recent-session labels only in model-visible content', async () => {
+    const context = createContext()
+    context.preprocessModelLabel = (_value, pseudonym) => pseudonym
+    const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'read_recent_session')
+    assert.ok(tool)
+
+    const result = await tool.handler({ session_id: 'session-a' }, context)
+    const content = JSON.parse(result.content)
+
+    assert.equal(content.source.sessionName, 'Session1')
+    assert.equal(content.messages[0].sessionName, 'Session1')
+    assert.equal(result.content.includes('Session A'), false)
+    assert.equal(result.data?.source.sessionName, 'Session A')
+    assert.equal(result.data?.messages[0].sessionName, 'Session session-a')
+    assert.equal(result.data?.crossChatEvidence.sources[0].sessionName, 'Session session-a')
   })
 
   it('keeps latest private-chat recaps outside the default thirty-day window', () => {

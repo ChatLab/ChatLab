@@ -60,6 +60,8 @@ test('the shared Desktop and CLI Web adapter exposes and executes all ten cross-
     analysisService,
     maxToolResultTokens: 16_000,
     preprocessMessagesBySession: async (_sessionId, messages) => messages,
+    preprocessSummariesBySession: async (_sessionId, summaries) => summaries,
+    preprocessModelLabel: (value) => value,
   })
 
   assert.equal(tools.length, 10)

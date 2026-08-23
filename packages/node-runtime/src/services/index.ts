@@ -54,7 +54,12 @@ export { CONTACTS_ALGORITHM_VERSION, createContactsService } from './contacts'
 export type { ContactsComputeRunner, ContactsService, ContactsServiceDeps, ContactsServiceOptions } from './contacts'
 
 // Cross-chat AI analysis service
-export { createCrossChatAnalysisService, preprocessCrossChatMessages } from './cross-chat-analysis'
+export {
+  createCrossChatAnalysisService,
+  preprocessCrossChatLabel,
+  preprocessCrossChatMessages,
+  preprocessCrossChatSummaries,
+} from './cross-chat-analysis'
 export type {
   CrossChatAnalysisService,
   CrossChatAnalysisServiceDeps,
