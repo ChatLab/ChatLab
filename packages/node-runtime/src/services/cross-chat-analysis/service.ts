@@ -35,6 +35,9 @@ import {
   type CrossChatOverviewRequest,
   type CrossChatOverviewResult,
   type CrossChatParticipantRef,
+  type CrossChatGroupSessionRankItem,
+  type CrossChatGroupSessionsRankingRequest,
+  type CrossChatGroupSessionsRankingResult,
   type CrossChatPrivateContactRankItem,
   type CrossChatPrivateContactsRankingRequest,
   type CrossChatPrivateContactsRankingResult,
@@ -78,6 +81,7 @@ const MAX_SHARED_INTERACTIONS_PAGE_SIZE = 50
 const DEFAULT_MAX_ANCHORS_PER_PAIR = 4
 const MAX_MAX_ANCHORS_PER_PAIR = 8
 const PRIVATE_CONTACTS_RANKING_ALGORITHM_VERSION = 'private-contacts-ranking-v1'
+const GROUP_SESSIONS_RANKING_ALGORITHM_VERSION = 'group-sessions-ranking-v1'
 const DEFAULT_RANKING_LIMIT = 10
 const MAX_RANKING_LIMIT = 50
 const RANKING_MAX_WALL_TIME_MS = 30_000
@@ -105,6 +109,10 @@ export interface CrossChatAnalysisService {
     request: CrossChatPrivateContactsRankingRequest,
     options?: CrossChatOperationOptions
   ): Promise<CrossChatPrivateContactsRankingResult>
+  rankGroupSessions(
+    request: CrossChatGroupSessionsRankingRequest,
+    options?: CrossChatOperationOptions
+  ): Promise<CrossChatGroupSessionsRankingResult>
   searchMessages(request: CrossChatSearchRequest, options?: CrossChatOperationOptions): Promise<CrossChatSearchResult>
   getMessageContext(request: CrossChatMessageContextRequest): CrossChatMessageContextResult
   getOverview(request: CrossChatOverviewRequest, options?: CrossChatOperationOptions): Promise<CrossChatOverviewResult>
@@ -977,6 +985,134 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     }
   }
 
+  async rankGroupSessions(
+    request: CrossChatGroupSessionsRankingRequest,
+    options: CrossChatOperationOptions = {}
+  ): Promise<CrossChatGroupSessionsRankingResult> {
+    throwIfAborted(options.signal)
+    if (request.mode !== 'owner_activity' && request.mode !== 'total_activity') {
+      throw new Error('mode must be owner_activity or total_activity')
+    }
+    const range = normalizeInspectionRange(request.startTs, request.endTs, request.recentDays, () => this.now())
+    const limit = clampInteger(request.limit, DEFAULT_RANKING_LIMIT, 1, MAX_RANKING_LIMIT)
+    const excludedSessionIds = new Set(this.deps.getExcludedSessionIds?.() ?? [])
+    const sessionIds = this.deps.adapter.listSessionCandidateIds?.() ?? this.deps.adapter.listSessionIds()
+    const deadline = this.now() + RANKING_MAX_WALL_TIME_MS
+    const items: CrossChatGroupSessionRankItem[] = []
+    const failedSessionIds: string[] = []
+    const coverage = {
+      candidateSessions: 0,
+      scannedSessions: 0,
+      analyzedSessions: 0,
+      excludedSessions: 0,
+      missingOwnerSessions: 0,
+      unresolvedOwnerSessions: 0,
+      failedSessions: 0,
+      failedSessionIds,
+      complete: true,
+      truncated: false,
+      truncatedReasons: [] as Array<'time_budget'>,
+    }
+    let dataEarliestMessageTs: number | null = null
+    let dataLatestMessageTs: number | null = null
+    let processedSessions = 0
+
+    options.onProgress?.({ processedSessions: 0, totalSessions: sessionIds.length })
+    for (const [index, sessionId] of sessionIds.entries()) {
+      throwIfAborted(options.signal)
+      if (this.now() >= deadline) {
+        coverage.truncated = true
+        coverage.truncatedReasons.push('time_budget')
+        break
+      }
+      options.onProgress?.({ processedSessions: index, totalSessions: sessionIds.length, currentSessionId: sessionId })
+      try {
+        const db = this.deps.adapter.openReadonly(sessionId)
+        if (!db) {
+          coverage.failedSessions++
+          failedSessionIds.push(sessionId)
+          continue
+        }
+        const descriptor = getSessionDescriptor(sessionId, db)
+        if (!descriptor || descriptor.sessionType !== ChatType.GROUP) continue
+        coverage.candidateSessions++
+        coverage.scannedSessions++
+        if (excludedSessionIds.has(sessionId)) {
+          coverage.excludedSessions++
+          continue
+        }
+
+        const facts = getCrossChatSessionActivityFacts(db, range)
+        dataEarliestMessageTs = minNullable(dataEarliestMessageTs, facts.dataEarliestMessageTs)
+        dataLatestMessageTs = maxNullable(dataLatestMessageTs, facts.dataLatestMessageTs)
+        const meta = getSessionMeta(db)
+        let ownerStatus: CrossChatGroupSessionRankItem['ownerStatus'] = 'missing'
+        let ownerMessages: number | null = null
+        let ownerActiveDays: number | null = null
+        if (!meta?.ownerId?.trim()) {
+          coverage.missingOwnerSessions++
+        } else {
+          const owner = resolveOwnerMember(db)
+          if (!owner) {
+            ownerStatus = 'unresolved'
+            coverage.unresolvedOwnerSessions++
+          } else {
+            ownerStatus = 'resolved'
+            const ownerActivity = facts.members.find((member) => member.memberId === owner.id)
+            ownerMessages = ownerActivity?.messageCount ?? 0
+            ownerActiveDays = ownerActivity?.activeDays ?? 0
+          }
+        }
+        if (request.mode === 'owner_activity' && ownerStatus !== 'resolved') continue
+
+        coverage.analyzedSessions++
+        if (facts.totalMessages === 0) continue
+        items.push({
+          ...descriptor,
+          rank: 0,
+          lastMessageTs: facts.lastMessageTs,
+          totalMessages: facts.totalMessages,
+          ownerMessages,
+          ownerMessageShare:
+            ownerMessages === null || facts.totalMessages === 0 ? null : roundRatio(ownerMessages, facts.totalMessages),
+          ownerActiveDays,
+          activeMembers: facts.activeMembers,
+          activeDays: facts.activeDays,
+          firstMessageTs: facts.firstMessageTs,
+          ownerStatus,
+        })
+      } catch (error) {
+        coverage.failedSessions++
+        failedSessionIds.push(sessionId)
+        appLogger.warn('cross-chat-analysis', `failed to rank group session: ${sessionId}`, error)
+      } finally {
+        processedSessions = index + 1
+        await yieldToEventLoop()
+      }
+    }
+    options.onProgress?.({ processedSessions, totalSessions: sessionIds.length })
+
+    coverage.complete =
+      !coverage.truncated &&
+      coverage.failedSessions === 0 &&
+      (request.mode === 'total_activity' ||
+        (coverage.missingOwnerSessions === 0 && coverage.unresolvedOwnerSessions === 0))
+    items.sort((left, right) => compareGroupSessionRankItems(left, right, request.mode))
+    const rankedItems = items.slice(0, limit).map((item, index) => ({ ...item, rank: index + 1 }))
+    return {
+      algorithmVersion: GROUP_SESSIONS_RANKING_ALGORITHM_VERSION,
+      mode: request.mode,
+      appliedRange: {
+        ...range,
+        dataEarliestMessageTs,
+        dataLatestMessageTs,
+        currentTs: Math.floor(this.now() / 1000),
+      },
+      items: rankedItems,
+      coverage,
+    }
+  }
+
   getMessageContext(request: CrossChatMessageContextRequest): CrossChatMessageContextResult {
     const db = this.deps.adapter.ensureReadonly(request.sessionId)
     const descriptor = getSessionDescriptor(request.sessionId, db)
@@ -1192,6 +1328,27 @@ function comparePrivateContactRankAccumulators(
     (right.lastMessageTs ?? Number.NEGATIVE_INFINITY) - (left.lastMessageTs ?? Number.NEGATIVE_INFINITY) ||
     left.contactKey.localeCompare(right.contactKey)
   )
+}
+
+function compareGroupSessionRankItems(
+  left: CrossChatGroupSessionRankItem,
+  right: CrossChatGroupSessionRankItem,
+  mode: CrossChatGroupSessionsRankingResult['mode']
+): number {
+  const primaryDifference =
+    mode === 'owner_activity'
+      ? (right.ownerMessages ?? Number.NEGATIVE_INFINITY) - (left.ownerMessages ?? Number.NEGATIVE_INFINITY)
+      : right.totalMessages - left.totalMessages
+  return (
+    primaryDifference ||
+    (right.lastMessageTs ?? Number.NEGATIVE_INFINITY) - (left.lastMessageTs ?? Number.NEGATIVE_INFINITY) ||
+    left.sessionId.localeCompare(right.sessionId)
+  )
+}
+
+function roundRatio(numerator: number, denominator: number): number {
+  if (denominator <= 0) return 0
+  return Math.round((numerator / denominator) * 10_000) / 10_000
 }
 
 interface SessionSearchResult {

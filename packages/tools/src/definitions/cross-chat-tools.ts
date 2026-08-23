@@ -4,6 +4,7 @@ import type {
   CrossChatContactSessionsResult,
   CrossChatEntityResolution,
   CrossChatEvidencePayload,
+  CrossChatGroupSessionsRankingResult,
   CrossChatMessageSource,
   CrossChatParticipantRef,
   CrossChatPrivateContactsRankingResult,
@@ -130,6 +131,22 @@ const rankPrivateContactsSchema: JsonSchema = {
     recent_days: recentDaysProperty,
     ...timeParamProperties,
   },
+}
+
+const rankGroupSessionsSchema: JsonSchema = {
+  type: 'object',
+  properties: {
+    mode: {
+      type: 'string',
+      enum: ['owner_activity', 'total_activity'],
+      description:
+        "Use owner_activity for 'where was I most active' and total_activity for 'which groups were busiest overall'.",
+    },
+    limit: { type: 'number', minimum: 1, maximum: 50, description: 'Number of ranked groups to return' },
+    recent_days: recentDaysProperty,
+    ...timeParamProperties,
+  },
+  required: ['mode'],
 }
 
 const inspectContactSessionsSchema: JsonSchema = {
@@ -418,6 +435,36 @@ async function rankPrivateContactsHandler(
   return { content: JSON.stringify(result), data: result }
 }
 
+async function rankGroupSessionsHandler(
+  params: Record<string, unknown>,
+  context: CrossChatToolExecutionContext
+): Promise<ToolResult> {
+  const timeFilter = parseExtendedTimeParams(params)
+  const mode = requireString(params.mode, 'mode')
+  if (mode !== 'owner_activity' && mode !== 'total_activity') {
+    throw new Error('mode must be owner_activity or total_activity')
+  }
+  const result: CrossChatGroupSessionsRankingResult = await context.analysisService.rankGroupSessions(
+    {
+      mode,
+      startTs: timeFilter?.startTs,
+      endTs: timeFilter?.endTs,
+      recentDays: parseOptionalNumber(params.recent_days),
+      limit: parseOptionalNumber(params.limit),
+    },
+    {
+      signal: context.abortSignal,
+      onProgress: (progress) =>
+        context.reportProgress?.({
+          phase: 'analyzing',
+          current: progress.processedSessions,
+          total: progress.totalSessions,
+        }),
+    }
+  )
+  return { content: JSON.stringify(result), data: result }
+}
+
 async function inspectContactSessionsHandler(
   params: Record<string, unknown>,
   context: CrossChatToolExecutionContext
@@ -561,6 +608,15 @@ export const rankPrivateContactsTool: ToolDefinition<CrossChatToolExecutionConte
     'Deterministically rank private-chat contacts across all eligible imported sessions for an exact time range. Use this for questions such as who the user chatted with most or had the most active private-chat days. This tool counts non-system messages and never uses keyword-search hits as a ranking proxy. Results include owner/contact splits, dataset cutoff, identity coverage, and completeness.',
   inputSchema: rankPrivateContactsSchema,
   handler: rankPrivateContactsHandler,
+  category: 'core',
+}
+
+export const rankGroupSessionsTool: ToolDefinition<CrossChatToolExecutionContext> = {
+  name: 'rank_group_sessions',
+  description:
+    'Deterministically rank imported group sessions for an exact time range. mode=owner_activity answers where the user personally spoke most; mode=total_activity answers which groups were busiest overall. Never mix these metrics or substitute sampled search hits. Results include total and owner counts, active members/days, owner-resolution coverage, dataset cutoff, and completeness.',
+  inputSchema: rankGroupSessionsSchema,
+  handler: rankGroupSessionsHandler,
   category: 'core',
 }
 

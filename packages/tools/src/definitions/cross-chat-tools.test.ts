@@ -5,6 +5,7 @@ import type {
   CrossChatContactLookupResult,
   CrossChatContactSessionsResult,
   CrossChatEntityResolution,
+  CrossChatGroupSessionsRankingResult,
   CrossChatMessageContextResult,
   CrossChatMessageSource,
   CrossChatOverviewResult,
@@ -173,6 +174,51 @@ function privateContactsRankingResult(): CrossChatPrivateContactsRankingResult {
   }
 }
 
+function groupSessionsRankingResult(): CrossChatGroupSessionsRankingResult {
+  return {
+    algorithmVersion: 'test',
+    mode: 'owner_activity',
+    appliedRange: {
+      startTs: null,
+      endTs: null,
+      dataEarliestMessageTs: 100,
+      dataLatestMessageTs: 200,
+      currentTs: 300,
+    },
+    items: [
+      {
+        rank: 1,
+        sessionId: 'group-a',
+        sessionName: 'Group A',
+        sessionType: ChatType.GROUP,
+        platform: 'test',
+        totalMessages: 100,
+        ownerMessages: 20,
+        ownerMessageShare: 0.2,
+        ownerActiveDays: 5,
+        activeMembers: 10,
+        activeDays: 7,
+        firstMessageTs: 100,
+        lastMessageTs: 200,
+        ownerStatus: 'resolved',
+      },
+    ],
+    coverage: {
+      candidateSessions: 1,
+      scannedSessions: 1,
+      analyzedSessions: 1,
+      excludedSessions: 0,
+      missingOwnerSessions: 0,
+      unresolvedOwnerSessions: 0,
+      failedSessions: 0,
+      failedSessionIds: [],
+      complete: true,
+      truncated: false,
+      truncatedReasons: [],
+    },
+  }
+}
+
 function sharedInteractionsResult(anchorsTruncated: boolean): CrossChatSharedInteractionsResult {
   return {
     algorithmVersion: 'test',
@@ -332,6 +378,7 @@ function createContext(overrides: Partial<CrossChatAnalysisToolService> = {}): C
     }),
     readRecentSession: (): CrossChatRecentSessionResult => recentSessionResult(),
     rankPrivateContacts: async (): Promise<CrossChatPrivateContactsRankingResult> => privateContactsRankingResult(),
+    rankGroupSessions: async (): Promise<CrossChatGroupSessionsRankingResult> => groupSessionsRankingResult(),
     searchMessages: async (): Promise<CrossChatSearchResult> => ({
       messages: [
         {
@@ -396,7 +443,7 @@ function createContext(overrides: Partial<CrossChatAnalysisToolService> = {}): C
 }
 
 describe('cross-chat agent registry', () => {
-  it('contains only the eight dedicated tools and is isolated from session and MCP registries', () => {
+  it('contains only the nine dedicated tools and is isolated from session and MCP registries', () => {
     const names = CROSS_CHAT_AGENT_TOOL_REGISTRY.map((tool) => tool.name)
     assert.deepEqual(names, [
       'resolve_chat_entities',
@@ -405,6 +452,7 @@ describe('cross-chat agent registry', () => {
       'get_cross_chat_message_context',
       'get_cross_chat_overview',
       'rank_private_contacts',
+      'rank_group_sessions',
       'inspect_contact_sessions',
       'inspect_shared_interactions',
     ])
@@ -446,6 +494,26 @@ describe('cross-chat agent registry', () => {
     assert.equal(typeof captured?.startTs, 'number')
     assert.equal(typeof captured?.endTs, 'number')
     assert.deepEqual(result.data, privateContactsRankingResult())
+  })
+
+  it('requires an explicit group-ranking mode and forwards the exact range', async () => {
+    let captured: Parameters<CrossChatAnalysisToolService['rankGroupSessions']>[0] | undefined
+    const context = createContext({
+      rankGroupSessions: async (request) => {
+        captured = request
+        return groupSessionsRankingResult()
+      },
+    })
+    const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'rank_group_sessions')
+    assert.ok(tool)
+    assert.deepEqual(tool.inputSchema.required, ['mode'])
+
+    await tool.handler({ mode: 'total_activity', recent_days: 30, limit: 8 }, context)
+
+    assert.equal(captured?.mode, 'total_activity')
+    assert.equal(captured?.recentDays, 30)
+    assert.equal(captured?.limit, 8)
+    await assert.rejects(() => tool.handler({ mode: 'unknown' }, context), /mode must be/)
   })
 
   it('reads one resolved session through the bounded recap path and preserves evidence', async () => {
