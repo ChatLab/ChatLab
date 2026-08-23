@@ -975,6 +975,16 @@ test('contact session inspection honors time ranges, session-scoped identity, an
     assert.equal(first.appliedRange.endTs, Math.floor(new Date(2026, 7, 24, 23, 59, 59).getTime() / 1000))
 
     now = new Date(2026, 7, 25, 0, 0, 2).getTime()
+    await assert.rejects(
+      () =>
+        service.inspectContactSessions({
+          contactKey: 'test:alice',
+          recentDays: 7,
+          pageSize: 1,
+          cursor: first.coverage.nextCursor ?? undefined,
+        }),
+      /cursor is invalid/
+    )
     const second = await service.inspectContactSessions({
       contactKey: 'test:alice',
       recentDays: 30,
@@ -1361,6 +1371,16 @@ test('shared interaction inspection resumes common sessions without skipping a p
     assert.ok(first.coverage.truncatedReasons.includes('page_size'))
 
     now = new Date(2026, 7, 25, 0, 0, 2).getTime()
+    await assert.rejects(
+      () =>
+        service.inspectSharedInteractions({
+          participants,
+          recentDays: 7,
+          pageSize: 1,
+          cursor: first.coverage.nextCursor ?? undefined,
+        }),
+      /cursor is invalid/
+    )
     const second = await service.inspectSharedInteractions({
       participants,
       recentDays: 30,
