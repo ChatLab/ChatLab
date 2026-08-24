@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, it } from 'node:test'
+import Database from 'better-sqlite3'
 import type { AIMemoryEntry, AIMemoryScope } from '@openchatlab/shared-types'
 import { AI_MEMORY_CONTENT_MAX_CHARS, AIMemoryService, buildEntityMemoryPrompt } from '../memory'
 
@@ -27,8 +28,40 @@ function cleanup(dir: string): void {
   }
 }
 
+function createVersionOneDatabase(dir: string): void {
+  const dbPath = join(dir, 'memory.db')
+  const db = sqliteNativeBinding ? new Database(dbPath, { nativeBinding: sqliteNativeBinding }) : new Database(dbPath)
+  db.exec(`
+    CREATE TABLE ai_memory (
+      id TEXT PRIMARY KEY,
+      scope_type TEXT NOT NULL CHECK (scope_type IN ('global', 'contact', 'group')),
+      scope_id TEXT,
+      content TEXT NOT NULL,
+      source_type TEXT NOT NULL CHECK (source_type IN ('user', 'ai')),
+      source_ai_chat_id TEXT,
+      source_message_id TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      CHECK (
+        (scope_type = 'global' AND scope_id IS NULL) OR
+        (scope_type IN ('contact', 'group') AND scope_id IS NOT NULL)
+      )
+    );
+    CREATE INDEX idx_ai_memory_scope_updated
+      ON ai_memory(scope_type, scope_id, updated_at DESC, id ASC);
+    INSERT INTO ai_memory (
+      id, scope_type, scope_id, content, source_type,
+      source_ai_chat_id, source_message_id, created_at, updated_at
+    ) VALUES
+      ('legacy-global', 'global', NULL, '先给结论', 'user', NULL, NULL, 1, 1),
+      ('legacy-contact', 'contact', 'contact-a', '大学同学', 'ai', 'chat-a', NULL, 2, 2);
+    PRAGMA user_version = 1;
+  `)
+  db.close()
+}
+
 describe('AIMemoryService', () => {
-  it('persists global, contact, and group memories across reopen', () => {
+  it('persists global, self, contact, and group memories across reopen', () => {
     const dir = createTempDir()
     try {
       let id = 0
@@ -42,6 +75,12 @@ describe('AIMemoryService', () => {
         content: '最近默认按 90 天计算',
         sourceType: 'user',
         sourceAIChatId: 'chat-1',
+      })
+      first.create({
+        scopeType: 'self',
+        scopeId: null,
+        content: '用户目前在上海工作',
+        sourceType: 'user',
       })
       first.create({
         scopeType: 'contact',
@@ -63,13 +102,42 @@ describe('AIMemoryService', () => {
         reopened.list().map((entry) => [entry.id, entry.scopeType, entry.scopeId, entry.sourceType]),
         [
           ['memory-1', 'global', null, 'user'],
-          ['memory-2', 'contact', 'contact:qq:10001', 'user'],
-          ['memory-3', 'group', 'session-group-1', 'ai'],
+          ['memory-2', 'self', null, 'user'],
+          ['memory-3', 'contact', 'contact:qq:10001', 'user'],
+          ['memory-4', 'group', 'session-group-1', 'ai'],
         ]
       )
       assert.equal(reopened.get('memory-1')?.sourceAIChatId, 'chat-1')
-      assert.equal(reopened.getSchemaVersion(), 1)
+      assert.equal(reopened.getSchemaVersion(), 2)
       reopened.close()
+    } finally {
+      cleanup(dir)
+    }
+  })
+
+  it('migrates version 1 without losing existing memories and then accepts self memories', () => {
+    const dir = createTempDir()
+    try {
+      createVersionOneDatabase(dir)
+      const service = createService(dir, { now: () => 3, idFactory: () => 'self-memory' })
+
+      assert.equal(service.getSchemaVersion(), 2)
+      assert.deepEqual(
+        service.list().map((entry) => [entry.id, entry.scopeType, entry.scopeId, entry.content]),
+        [
+          ['legacy-contact', 'contact', 'contact-a', '大学同学'],
+          ['legacy-global', 'global', null, '先给结论'],
+        ]
+      )
+
+      service.create({
+        scopeType: 'self',
+        scopeId: null,
+        content: '用户正在维护 ChatLab',
+        sourceType: 'user',
+      })
+      assert.equal(service.list({ scopeType: 'self', scopeId: null })[0]?.content, '用户正在维护 ChatLab')
+      service.close()
     } finally {
       cleanup(dir)
     }
@@ -164,6 +232,10 @@ describe('AIMemoryService', () => {
       const service = createService(dir)
       assert.throws(
         () => service.create({ scopeType: 'global', scopeId: 'unexpected', content: 'x', sourceType: 'user' }),
+        /scopeId/i
+      )
+      assert.throws(
+        () => service.create({ scopeType: 'self', scopeId: 'unexpected', content: 'x', sourceType: 'user' }),
         /scopeId/i
       )
       assert.throws(

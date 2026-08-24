@@ -136,7 +136,7 @@ export type AIEntityRef =
       sessionType: 'private' | 'group'
     }
 
-export type AIMemoryScopeType = 'global' | 'contact' | 'group'
+export type AIMemoryScopeType = 'global' | 'self' | 'contact' | 'group'
 export type AIMemorySourceType = 'user' | 'ai'
 
 export interface AIMemoryScope {

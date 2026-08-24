@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { AIMemoryEntry, ContactItem } from '@openchatlab/shared-types'
-import { useAIService } from '@/services'
+import type { ContactItem } from '@openchatlab/shared-types'
 
 const props = defineProps<{
   selectedKey: string | null
@@ -19,11 +18,7 @@ const emit = defineEmits<{
   unmarkFriend: []
 }>()
 
-const { t, locale } = useI18n()
-const aiService = useAIService()
-const memories = ref<AIMemoryEntry[]>([])
-const isMemoryLoading = ref(false)
-const memoryLoadFailed = ref(false)
+const { t } = useI18n()
 
 const visibleAliases = computed(() => {
   const contact = props.contact
@@ -39,45 +34,6 @@ const showFriendActions = computed(() => canMarkFriend.value || canUnmarkFriend.
 function avatarText(contact: ContactItem): string {
   return contact.displayName.trim().slice(0, 1).toUpperCase() || '?'
 }
-
-function formatMemoryUpdatedAt(timestamp: number): string {
-  return new Intl.DateTimeFormat(locale.value, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(timestamp)
-}
-
-async function loadContactMemories(key: string): Promise<void> {
-  memories.value = []
-  memoryLoadFailed.value = false
-  isMemoryLoading.value = true
-  try {
-    const loaded = await aiService.getAIMemories({ scopeType: 'contact', scopeId: key })
-    if (props.selectedKey === key) memories.value = loaded
-  } catch {
-    if (props.selectedKey === key) memoryLoadFailed.value = true
-  } finally {
-    if (props.selectedKey === key) isMemoryLoading.value = false
-  }
-}
-
-function retryLoadMemories(): void {
-  if (props.selectedKey) void loadContactMemories(props.selectedKey)
-}
-
-watch(
-  () => props.selectedKey,
-  (key) => {
-    if (key) void loadContactMemories(key)
-    else {
-      memories.value = []
-      memoryLoadFailed.value = false
-      isMemoryLoading.value = false
-    }
-  },
-  { immediate: true }
-)
 </script>
 
 <template>
@@ -222,53 +178,6 @@ watch(
                 </UButton>
               </div>
             </div>
-          </div>
-        </section>
-
-        <section class="border-t border-gray-100 px-5 py-4 dark:border-white/5">
-          <div class="mb-3 flex items-center justify-between gap-3">
-            <h3
-              class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500"
-            >
-              <UIcon name="i-lucide-brain" class="h-3.5 w-3.5" />
-              {{ t('contacts.detail.memories') }}
-            </h3>
-            <span v-if="!isMemoryLoading && !memoryLoadFailed" class="text-[10px] text-gray-400 dark:text-gray-500">
-              {{ t('ai.global.memory.count', { count: memories.length }) }}
-            </span>
-          </div>
-
-          <div v-if="isMemoryLoading" class="flex items-center gap-2 py-3 text-xs text-gray-400 dark:text-gray-500">
-            <UIcon name="i-lucide-loader-2" class="h-3.5 w-3.5 animate-spin" />
-            <span>{{ t('common.loading') }}</span>
-          </div>
-          <div
-            v-else-if="memoryLoadFailed"
-            class="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3.5 py-3 dark:bg-white/5"
-          >
-            <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('contacts.detail.memoryLoadFailed') }}</span>
-            <UButton color="neutral" variant="ghost" size="xs" @click="retryLoadMemories">
-              {{ t('common.retry') }}
-            </UButton>
-          </div>
-          <p v-else-if="memories.length === 0" class="py-2 text-xs leading-5 text-gray-400 dark:text-gray-500">
-            {{ t('ai.global.memory.empty') }}
-          </p>
-          <div v-else class="space-y-2">
-            <article
-              v-for="memory in memories"
-              :key="memory.id"
-              class="rounded-xl bg-gray-50 px-3.5 py-3 dark:bg-white/5"
-            >
-              <p class="whitespace-pre-wrap break-words text-xs leading-5 text-gray-700 dark:text-gray-300">
-                {{ memory.content }}
-              </p>
-              <div class="mt-2 flex items-center gap-1.5 text-[10px] text-gray-400 dark:text-gray-500">
-                <span>{{ t(`ai.global.memory.source.${memory.sourceType}`) }}</span>
-                <span aria-hidden="true">·</span>
-                <span>{{ formatMemoryUpdatedAt(memory.updatedAt) }}</span>
-              </div>
-            </article>
           </div>
         </section>
       </div>

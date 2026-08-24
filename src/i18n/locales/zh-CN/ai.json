@@ -282,14 +282,15 @@
     "memory": {
       "button": "记忆",
       "title": "长期记忆",
-      "description": "管理 AI 在不同对话间持续使用的偏好和关系背景。",
+      "description": "管理 AI 在不同对话间持续使用的偏好、个人背景和关系记忆。",
       "preferences": "偏好",
+      "self": "关于我",
       "entities": "联系人和群聊",
       "count": "{count} 条",
       "empty": "暂无记忆，你可以在对话中让 AI 记住。",
       "proactive": {
         "title": "允许 AI 主动记忆",
-        "description": "允许 AI 保存有长期价值的偏好和关系结论；关闭后仍会保存你明确要求记住的内容。"
+        "description": "允许 AI 保存有长期价值的偏好、个人背景和关系结论；关闭后仍会保存你明确要求记住的内容。"
       },
       "source": {
         "user": "用户确认",

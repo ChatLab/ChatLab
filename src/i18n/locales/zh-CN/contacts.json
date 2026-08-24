@@ -57,8 +57,6 @@
     "scoreHelp": "综合分用于联系人排序。分数越高，代表互动信号越强。",
     "lastInteraction": "最近互动",
     "sources": "来源会话",
-    "memories": "记忆",
-    "memoryLoadFailed": "加载记忆失败",
     "sourceType": {
       "private": "私聊",
       "group": "群聊"

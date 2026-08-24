@@ -5,10 +5,10 @@ import type { CrossChatToolExecutionContext, JsonSchema, ToolDefinition, ToolRes
 const readSchema: JsonSchema = {
   type: 'object',
   properties: {
-    scope_type: { type: 'string', enum: ['global', 'contact', 'group'] },
+    scope_type: { type: 'string', enum: ['global', 'self', 'contact', 'group'] },
     scope_id: {
       type: 'string',
-      description: 'Stable contactKey or group sessionId. Omit for global memory.',
+      description: 'Stable contactKey or group sessionId. Omit for global and self memory.',
     },
     limit: { type: 'number', minimum: 1, maximum: 50, default: 20 },
   },
@@ -19,10 +19,10 @@ const writeSchema: JsonSchema = {
   type: 'object',
   properties: {
     id: { type: 'string', description: 'Stable memory ID. Provide it to update an existing memory.' },
-    scope_type: { type: 'string', enum: ['global', 'contact', 'group'] },
+    scope_type: { type: 'string', enum: ['global', 'self', 'contact', 'group'] },
     scope_id: {
       type: 'string',
-      description: 'Stable contactKey or group sessionId. Omit for global memory.',
+      description: 'Stable contactKey or group sessionId. Omit for global and self memory.',
     },
     content: { type: 'string', description: 'One durable fact or preference, without chat transcripts.' },
     source_type: {
@@ -45,7 +45,7 @@ const forgetSchema: JsonSchema = {
 export const memoryReadTool: ToolDefinition<CrossChatToolExecutionContext> = {
   name: 'memory_read',
   description:
-    'Read durable global preferences or memories for one resolved contact/group. AI-derived memories are leads and must be re-verified against current chat evidence.',
+    'Read durable global preferences, facts about the user, or memories for one resolved contact/group. Self memory is read on demand and is never injected automatically. AI-derived memories are leads and must be re-verified against current chat evidence.',
   inputSchema: readSchema,
   handler: memoryReadHandler,
 }
@@ -137,12 +137,12 @@ async function memoryForgetHandler(
 
 function parseScope(params: Record<string, unknown>): AIMemoryScope {
   const scopeType = params.scope_type
-  if (scopeType !== 'global' && scopeType !== 'contact' && scopeType !== 'group') {
-    throw new Error('scope_type must be global, contact, or group')
+  if (scopeType !== 'global' && scopeType !== 'self' && scopeType !== 'contact' && scopeType !== 'group') {
+    throw new Error('scope_type must be global, self, contact, or group')
   }
   const scopeId = optionalString(params.scope_id)
-  if (scopeType === 'global') {
-    if (scopeId) throw new Error('Global memory does not accept scope_id')
+  if (scopeType === 'global' || scopeType === 'self') {
+    if (scopeId) throw new Error(`${scopeType} memory does not accept scope_id`)
     return { scopeType, scopeId: null }
   }
   if (!scopeId) throw new Error(`${scopeType} memory requires a stable scope_id`)
@@ -177,7 +177,7 @@ async function assertResolvableEntityScope(
   scope: AIMemoryScope,
   context: CrossChatToolExecutionContext
 ): Promise<void> {
-  if (scope.scopeType === 'global') return
+  if (scope.scopeType === 'global' || scope.scopeType === 'self') return
 
   if (context.entityRefs?.length) {
     const matchesCurrentSelection = context.entityRefs.some((ref) =>

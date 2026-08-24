@@ -195,6 +195,36 @@ describe('global memory tools', () => {
     assert.equal((result.data as AIMemoryEntry).sourceType, 'user')
   })
 
+  it('reads and writes self memory on demand without an entity id', async () => {
+    const context = createContext()
+    const written = await memoryWriteTool.handler(
+      {
+        scope_type: 'self',
+        content: '用户目前在上海工作',
+        source_type: 'user',
+      },
+      context
+    )
+
+    assert.deepEqual(
+      {
+        scopeType: (written.data as AIMemoryEntry).scopeType,
+        scopeId: (written.data as AIMemoryEntry).scopeId,
+      },
+      { scopeType: 'self', scopeId: null }
+    )
+    const read = await memoryReadTool.handler({ scope_type: 'self' }, context)
+    assert.deepEqual(
+      (read.data as { entries: AIMemoryEntry[] }).entries.map((entry) => entry.content),
+      ['用户目前在上海工作']
+    )
+
+    await assert.rejects(
+      async () => memoryReadTool.handler({ scope_type: 'self', scope_id: 'owner' }, context),
+      /does not accept scope_id/i
+    )
+  })
+
   it('requires resolvable stable ids for entity scopes', async () => {
     const context = createContext()
     await assert.rejects(

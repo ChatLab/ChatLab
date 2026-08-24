@@ -11,8 +11,8 @@ interface MemoryScopeInput {
 
 function parseScope(input: MemoryScopeInput): AIMemoryScope {
   const scopeType = input.scopeType
-  if (scopeType !== 'global' && scopeType !== 'contact' && scopeType !== 'group') {
-    throw new Error('scopeType must be global, contact, or group')
+  if (scopeType !== 'global' && scopeType !== 'self' && scopeType !== 'contact' && scopeType !== 'group') {
+    throw new Error('scopeType must be global, self, contact, or group')
   }
 
   return {
