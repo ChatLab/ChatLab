@@ -2,17 +2,30 @@ import { randomUUID } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import Database from 'better-sqlite3'
-import type { AIMemoryEntry, AIMemoryScope, AIMemoryScopeType, AIMemorySourceType } from '@openchatlab/shared-types'
+import type {
+  AIEntityRef,
+  AIMemoryEntry,
+  AIMemoryScope,
+  AIMemoryScopeType,
+  AIMemorySourceType,
+} from '@openchatlab/shared-types'
 import { appLogger } from '../logging/app-logger'
 
 export const AI_MEMORY_CONTENT_MAX_CHARS = 2_000
 const AI_MEMORY_SCHEMA_VERSION = 1
+const AI_MEMORY_PROMPT_MAX_ENTRIES = 20
+const AI_MEMORY_PROMPT_MAX_CONTENT_CHARS = 4_000
 
 export function buildGlobalMemoryPrompt(entries: AIMemoryEntry[], locale = 'zh-CN'): string {
   const selected: AIMemoryEntry[] = []
   let contentChars = 0
   for (const entry of entries) {
-    if (selected.length >= 20 || contentChars + entry.content.length > 4_000) break
+    if (
+      selected.length >= AI_MEMORY_PROMPT_MAX_ENTRIES ||
+      contentChars + entry.content.length > AI_MEMORY_PROMPT_MAX_CONTENT_CHARS
+    ) {
+      break
+    }
     selected.push(entry)
     contentChars += entry.content.length
   }
@@ -24,6 +37,76 @@ export function buildGlobalMemoryPrompt(entries: AIMemoryEntry[], locale = 'zh-C
       locale.startsWith('zh')
         ? '- 部分全局记忆未注入；需要时调用 memory_read 读取。'
         : '- Some global memories were not injected; call memory_read when needed.'
+    )
+  }
+  return lines.join('\n')
+}
+
+interface EntityMemoryBucket {
+  scope: AIMemoryScope
+  displayName: string
+  entries: AIMemoryEntry[]
+}
+
+interface SelectedEntityMemory {
+  bucket: EntityMemoryBucket
+  entry: AIMemoryEntry
+}
+
+export function buildEntityMemoryPrompt(
+  entityRefs: AIEntityRef[] | undefined,
+  loadEntries: (scope: AIMemoryScope) => AIMemoryEntry[],
+  locale = 'zh-CN'
+): string {
+  const buckets: EntityMemoryBucket[] = []
+  const seenScopes = new Set<string>()
+
+  for (const ref of entityRefs ?? []) {
+    const scope: AIMemoryScope | null =
+      ref.type === 'contact'
+        ? { scopeType: 'contact', scopeId: ref.contactKey }
+        : ref.sessionType === 'group'
+          ? { scopeType: 'group', scopeId: ref.sessionId }
+          : null
+    if (!scope?.scopeId) continue
+
+    const scopeKey = `${scope.scopeType}:${scope.scopeId}`
+    if (seenScopes.has(scopeKey)) continue
+    seenScopes.add(scopeKey)
+    buckets.push({
+      scope,
+      displayName: ref.displayName,
+      entries: loadEntries(scope),
+    })
+  }
+
+  const candidates: SelectedEntityMemory[] = []
+  const maxBucketSize = Math.max(0, ...buckets.map((bucket) => bucket.entries.length))
+  for (let index = 0; index < maxBucketSize; index++) {
+    for (const bucket of buckets) {
+      const entry = bucket.entries[index]
+      if (entry) candidates.push({ bucket, entry })
+    }
+  }
+
+  const selected: SelectedEntityMemory[] = []
+  let contentChars = 0
+  for (const candidate of candidates) {
+    if (selected.length >= AI_MEMORY_PROMPT_MAX_ENTRIES) break
+    if (contentChars + candidate.entry.content.length > AI_MEMORY_PROMPT_MAX_CONTENT_CHARS) continue
+    selected.push(candidate)
+    contentChars += candidate.entry.content.length
+  }
+  if (selected.length === 0) return ''
+
+  const lines = selected.map(({ bucket, entry }) => {
+    return `- [scope=${bucket.scope.scopeType}; scope_id=${JSON.stringify(bucket.scope.scopeId)}; display_name=${JSON.stringify(bucket.displayName)}; id=${entry.id}; source=${entry.sourceType}] ${entry.content}`
+  })
+  if (selected.length < candidates.length) {
+    lines.push(
+      locale.startsWith('zh')
+        ? '- 部分当前实体记忆未注入；需要时调用 memory_read 读取。'
+        : '- Some memories for the current entities were not injected; call memory_read when needed.'
     )
   }
   return lines.join('\n')
