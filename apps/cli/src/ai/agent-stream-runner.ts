@@ -86,7 +86,6 @@ export function createCliRunAgentStream(
     crossChatAnalysisService?: CrossChatAnalysisService
     sessionAdapter?: SessionRuntimeAdapter
     memoryService?: AIMemoryService
-    getAllowProactiveMemory?: () => boolean
   } = {}
 ): (params: AgentStreamRequest, onEvent: (chunk: AgentStreamChunk) => void, abortSignal: AbortSignal) => Promise<void> {
   const aiDataDir = getAiDir(dbManager)
@@ -161,7 +160,6 @@ export function createCliRunAgentStream(
         maxToolResultTokens: resolveCrossChatToolResultTokenBudget(contextWindow),
         memoryService: options.memoryService,
         aiChatId,
-        allowProactiveMemory: options.getAllowProactiveMemory?.() ?? true,
       })
       await runCrossChatAgent({
         userMessage,

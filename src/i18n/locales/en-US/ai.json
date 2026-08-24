@@ -288,10 +288,6 @@
       "entities": "Contacts and groups",
       "count": "{count} items",
       "empty": "No memories yet. You can ask AI to remember something in a conversation.",
-      "proactive": {
-        "title": "Allow proactive AI memory",
-        "description": "Let AI save long-term preferences, personal context, and relationship insights. Explicit requests to remember still work when this is off."
-      },
       "source": {
         "user": "User confirmed",
         "ai": "AI generated"

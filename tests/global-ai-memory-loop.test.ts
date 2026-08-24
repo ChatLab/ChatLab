@@ -59,7 +59,6 @@ it('recalls a durable preference in a new global AI conversation before querying
     analysisService,
     memoryService,
     aiChatId,
-    allowProactiveMemory: true,
     preprocessMessagesBySession: (_sessionId, messages) => messages,
     preprocessSummariesBySession: (_sessionId, summaries) => summaries,
     preprocessModelLabel: (value) => value,

@@ -95,9 +95,6 @@ async function memoryWriteHandler(
   await assertResolvableEntityScope(scope, context)
   const content = requireString(params.content, 'content')
   const sourceType = parseSourceType(params.source_type)
-  if (sourceType === 'ai' && !context.allowProactiveMemory) {
-    throw new Error('Proactive AI memory is disabled; only explicit user memory writes are allowed')
-  }
 
   const id = optionalString(params.id)
   let entry: AIMemoryEntry

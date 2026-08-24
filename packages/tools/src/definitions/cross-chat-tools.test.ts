@@ -499,7 +499,6 @@ function createContext(overrides: Partial<CrossChatAnalysisToolService> = {}): C
     analysisService: service,
     memoryService: {} as CrossChatToolExecutionContext['memoryService'],
     aiChatId: 'global-chat-test',
-    allowProactiveMemory: true,
     preprocessMessagesBySession: (_sessionId, messages) =>
       messages.map((message) => ({ ...message, senderName: 'U1', content: '[redacted]' })),
     preprocessSummariesBySession: (_sessionId, summaries) => summaries,

@@ -288,10 +288,6 @@
       "entities": "联系人和群聊",
       "count": "{count} 条",
       "empty": "暂无记忆，你可以在对话中让 AI 记住。",
-      "proactive": {
-        "title": "允许 AI 主动记忆",
-        "description": "允许 AI 保存有长期价值的偏好、个人背景和关系结论；关闭后仍会保存你明确要求记住的内容。"
-      },
       "source": {
         "user": "用户确认",
         "ai": "AI 形成"

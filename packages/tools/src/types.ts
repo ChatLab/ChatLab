@@ -433,7 +433,6 @@ export interface CrossChatToolExecutionContext {
   analysisService: CrossChatAnalysisToolService
   memoryService: AIMemoryToolService
   aiChatId: string
-  allowProactiveMemory: boolean
   preprocessMessagesBySession: (
     sessionId: string,
     messages: CrossChatMessageSource[]

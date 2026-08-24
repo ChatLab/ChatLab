@@ -288,10 +288,6 @@
       "entities": "聯絡人和群聊",
       "count": "{count} 條",
       "empty": "暫無記憶，你可以在對話中讓 AI 記住。",
-      "proactive": {
-        "title": "允許 AI 主動記憶",
-        "description": "允許 AI 儲存有長期價值的偏好、個人背景與關係結論；關閉後仍會儲存你明確要求記住的內容。"
-      },
       "source": {
         "user": "使用者確認",
         "ai": "AI 形成"
