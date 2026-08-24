@@ -13,6 +13,7 @@ import type {
   SemanticIndexRuntime,
   CrossChatAnalysisService,
   SessionRuntimeAdapter,
+  AIMemoryService,
 } from '@openchatlab/node-runtime'
 import type { AgentStreamRequest } from '@openchatlab/http-routes'
 import { getDefaultGeneralAssistantId, type ChartAutoMode } from '@openchatlab/shared-types'
@@ -77,6 +78,8 @@ export function createElectronRunAgentStream(
   crossChatOptions?: {
     analysisService: CrossChatAnalysisService
     sessionAdapter: SessionRuntimeAdapter
+    memoryService: AIMemoryService
+    getAllowProactiveMemory: () => boolean
   }
 ): (
   params: AgentStreamRequest,
@@ -150,6 +153,9 @@ export function createElectronRunAgentStream(
         locale,
         preprocessConfig: params.preprocessConfig,
         maxToolResultTokens: resolveCrossChatToolResultTokenBudget(resolvedContextWindow),
+        memoryService: crossChatOptions.memoryService,
+        aiChatId,
+        allowProactiveMemory: crossChatOptions.getAllowProactiveMemory(),
       })
       await runCrossChatAgent({
         userMessage,
@@ -161,6 +167,7 @@ export function createElectronRunAgentStream(
         apiKey: activeAIConfig.apiKey,
         tools,
         aiChatManager: getAIChatManager(),
+        memoryService: crossChatOptions.memoryService,
         onEvent,
         abortSignal,
         thinkingLevel: thinkingLevel as import('@openchatlab/core').ThinkingLevel | undefined,

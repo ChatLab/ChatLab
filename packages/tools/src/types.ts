@@ -7,6 +7,9 @@
 import type { ChartPayload, DatabaseAdapter, EvidenceTimeRangeMs } from '@openchatlab/core'
 import type {
   AIEntityRef,
+  AIMemoryEntry,
+  AIMemoryScope,
+  AIMemorySourceType,
   CrossChatContactLookupResult,
   CrossChatContactSessionsRequest,
   CrossChatContactSessionsResult,
@@ -393,6 +396,29 @@ export interface CrossChatAnalysisToolService {
   getOverview(request: CrossChatOverviewRequest, options?: CrossChatOperationOptions): Promise<CrossChatOverviewResult>
 }
 
+export interface AIMemoryToolService {
+  list(scope?: AIMemoryScope): AIMemoryEntry[]
+  get(id: string): AIMemoryEntry | null
+  create(
+    input: AIMemoryScope & {
+      content: string
+      sourceType: AIMemorySourceType
+      sourceAIChatId?: string | null
+      sourceMessageId?: string | null
+    }
+  ): AIMemoryEntry
+  update(
+    id: string,
+    input: {
+      content: string
+      sourceType: AIMemorySourceType
+      sourceAIChatId?: string | null
+      sourceMessageId?: string | null
+    }
+  ): AIMemoryEntry
+  forget(id: string): boolean
+}
+
 export interface CrossChatToolExecutionContext {
   locale?: string
   abortSignal?: AbortSignal
@@ -401,6 +427,9 @@ export interface CrossChatToolExecutionContext {
   /** 平台注入的统一 tokenizer；未注入时 handler 使用 CJK-aware 轻量估算。 */
   countTokens?: (text: string) => number
   analysisService: CrossChatAnalysisToolService
+  memoryService: AIMemoryToolService
+  aiChatId: string
+  allowProactiveMemory: boolean
   preprocessMessagesBySession: (
     sessionId: string,
     messages: CrossChatMessageSource[]

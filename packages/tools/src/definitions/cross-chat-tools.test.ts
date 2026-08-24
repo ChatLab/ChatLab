@@ -497,6 +497,9 @@ function createContext(overrides: Partial<CrossChatAnalysisToolService> = {}): C
   return {
     locale: 'zh-CN',
     analysisService: service,
+    memoryService: {} as CrossChatToolExecutionContext['memoryService'],
+    aiChatId: 'global-chat-test',
+    allowProactiveMemory: true,
     preprocessMessagesBySession: (_sessionId, messages) =>
       messages.map((message) => ({ ...message, senderName: 'U1', content: '[redacted]' })),
     preprocessSummariesBySession: (_sessionId, summaries) => summaries,
@@ -505,7 +508,7 @@ function createContext(overrides: Partial<CrossChatAnalysisToolService> = {}): C
 }
 
 describe('cross-chat agent registry', () => {
-  it('contains only the ten dedicated tools and is isolated from session and MCP registries', () => {
+  it('contains only the thirteen dedicated tools and is isolated from session and MCP registries', () => {
     const names = CROSS_CHAT_AGENT_TOOL_REGISTRY.map((tool) => tool.name)
     assert.deepEqual(names, [
       'resolve_chat_entities',
@@ -518,6 +521,9 @@ describe('cross-chat agent registry', () => {
       'get_global_activity_summary',
       'inspect_contact_sessions',
       'inspect_shared_interactions',
+      'memory_read',
+      'memory_write',
+      'memory_forget',
     ])
     for (const name of names) {
       assert.equal(
@@ -608,7 +614,7 @@ describe('cross-chat agent registry', () => {
     assert.equal(typeof captured?.endTs, 'number')
     assert.equal(captured?.maxSessions, undefined)
     assert.equal(captured?.maxWallTimeMs, undefined)
-    assert.deepEqual(result.data?.appliedRange, {
+    assert.deepEqual((result.data as CrossChatOverviewResult).appliedRange, {
       startTs: captured?.startTs ?? null,
       endTs: captured?.endTs ?? null,
       dataEarliestMessageTs: 100,
@@ -710,7 +716,7 @@ describe('cross-chat agent registry', () => {
     assert.equal(captured?.mode, 'total_activity')
     assert.equal(captured?.recentDays, 30)
     assert.equal(captured?.limit, 8)
-    await assert.rejects(() => tool.handler({ mode: 'unknown' }, context), /mode must be/)
+    await assert.rejects(async () => tool.handler({ mode: 'unknown' }, context), /mode must be/)
   })
 
   it('preprocesses model-visible names in rankings and overview while retaining local details', async () => {
@@ -867,7 +873,8 @@ describe('cross-chat agent registry', () => {
     assert.equal(content.selection.hasEarlierMessages, true)
     assert.equal(content.messages[0].content, '[redacted]')
     assert.equal(content.summaries[0].summary, 'Recent topic summary')
-    assert.equal(result.data?.crossChatEvidence.sources[0].snippet, '[redacted]')
+    const details = result.data as { crossChatEvidence: { sources: Array<{ snippet: string }> } }
+    assert.equal(details.crossChatEvidence.sources[0]?.snippet, '[redacted]')
   })
 
   it('uses only privacy-processed summaries in recent session tool content', async () => {
@@ -923,9 +930,14 @@ describe('cross-chat agent registry', () => {
     assert.equal(content.source.sessionName, 'Session1')
     assert.equal(content.messages[0].sessionName, 'Session1')
     assert.equal(result.content.includes('Session A'), false)
-    assert.equal(result.data?.source.sessionName, 'Session A')
-    assert.equal(result.data?.messages[0].sessionName, 'Session session-a')
-    assert.equal(result.data?.crossChatEvidence.sources[0].sessionName, 'Session session-a')
+    const details = result.data as {
+      source: { sessionName: string }
+      messages: Array<{ sessionName: string }>
+      crossChatEvidence: { sources: Array<{ sessionName: string }> }
+    }
+    assert.equal(details.source.sessionName, 'Session A')
+    assert.equal(details.messages[0]?.sessionName, 'Session session-a')
+    assert.equal(details.crossChatEvidence.sources[0]?.sessionName, 'Session session-a')
   })
 
   it('keeps latest private-chat recaps outside the default thirty-day window', () => {

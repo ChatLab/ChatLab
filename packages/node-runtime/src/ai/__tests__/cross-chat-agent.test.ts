@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import type { Api as PiApi, Model as PiModel } from '@earendil-works/pi-ai'
+import type { AIMemoryEntry } from '@openchatlab/shared-types'
 import type { AIChatManager } from '../chats'
+import { buildGlobalMemoryPrompt, type AIMemoryService } from '../memory'
 import type { AgentStreamChunk } from '../agent/event-handler'
 import {
   buildCrossChatSystemPrompt,
@@ -30,6 +32,9 @@ describe('cross-chat agent prompt', () => {
       'search_messages_globally',
       'get_cross_chat_message_context',
       'get_cross_chat_overview',
+      'memory_read',
+      'memory_write',
+      'memory_forget',
     ]) {
       assert.match(prompt, new RegExp(tool))
     }
@@ -74,7 +79,7 @@ describe('cross-chat agent prompt', () => {
     assert.doesNotMatch(prompt, /可以使用.*execute_sql/)
   })
 
-  it('keeps the English prompt on the same ten-tool investigation contract', () => {
+  it('keeps the English prompt on the same thirteen-tool investigation contract', () => {
     const prompt = buildCrossChatSystemPrompt('en-US', new Date('2026-08-23T12:00:00Z'))
     for (const tool of [
       'resolve_chat_entities',
@@ -87,6 +92,9 @@ describe('cross-chat agent prompt', () => {
       'search_messages_globally',
       'get_cross_chat_message_context',
       'get_cross_chat_overview',
+      'memory_read',
+      'memory_write',
+      'memory_forget',
     ]) {
       assert.match(prompt, new RegExp(tool))
     }
@@ -116,6 +124,32 @@ describe('cross-chat agent prompt', () => {
     assert.match(prompt, /Do not pass message-count, session-count, or execution-time budgets/)
     assert.doesNotMatch(prompt, /four tools/)
   })
+
+  it('injects ordered global memories within the fixed count and content budgets', () => {
+    const entries: AIMemoryEntry[] = Array.from({ length: 22 }, (_, index) => ({
+      id: `memory-${String(index).padStart(2, '0')}`,
+      scopeType: 'global',
+      scopeId: null,
+      content: index === 0 ? '最近默认表示 90 天' : `偏好-${index}-${'x'.repeat(205)}`,
+      sourceType: index === 1 ? 'ai' : 'user',
+      sourceAIChatId: null,
+      sourceMessageId: null,
+      createdAt: 100 - index,
+      updatedAt: 100 - index,
+    }))
+
+    const first = buildGlobalMemoryPrompt(entries, 'zh-CN')
+    const second = buildGlobalMemoryPrompt(entries, 'zh-CN')
+    assert.equal(first, second)
+    assert.match(first, /memory-00.*最近默认表示 90 天/)
+    assert.match(first, /memory-01.*source=ai/)
+    assert.match(first, /部分全局记忆未注入.*memory_read/)
+    assert.doesNotMatch(first, /memory-20/)
+
+    const injected = buildCrossChatSystemPrompt('zh-CN', new Date('2026-08-23T12:00:00Z'), first)
+    assert.match(injected, /最近默认表示 90 天/)
+    assert.match(injected, /ai.*重新查询.*聊天证据/)
+  })
 })
 
 describe('cross-chat agent lifecycle', () => {
@@ -136,6 +170,7 @@ describe('cross-chat agent lifecycle', () => {
       api: 'openai-completions',
       provider: 'test',
     } as unknown as PiModel<PiApi>
+    const memoryService = { list: () => [] } as unknown as AIMemoryService
 
     await runCrossChatAgent({
       userMessage: '分析一下',
@@ -144,6 +179,7 @@ describe('cross-chat agent lifecycle', () => {
       apiKey: 'test-key',
       tools: [],
       aiChatManager,
+      memoryService,
       abortSignal: controller.signal,
       onEvent: (event) => events.push(event),
     })
@@ -172,6 +208,7 @@ describe('cross-chat agent lifecycle', () => {
       api: 'openai-completions',
       provider: 'test',
     } as unknown as PiModel<PiApi>
+    const memoryService = { list: () => [] } as unknown as AIMemoryService
 
     await runCrossChatAgent({
       userMessage: '你觉得这个方案怎么样？',
@@ -181,6 +218,7 @@ describe('cross-chat agent lifecycle', () => {
       apiKey: 'test-key',
       tools: [],
       aiChatManager,
+      memoryService,
       abortSignal: controller.signal,
       onEvent: (event) => events.push(event),
       logger: {

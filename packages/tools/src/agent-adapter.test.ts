@@ -47,7 +47,7 @@ function globalActivitySummary(): CrossChatGlobalActivitySummaryResult {
   }
 }
 
-test('the shared Desktop and CLI Web adapter exposes and executes all ten cross-chat tools', async () => {
+test('the shared Desktop and CLI Web adapter exposes and executes all thirteen cross-chat tools', async () => {
   const requests: CrossChatGlobalActivitySummaryRequest[] = []
   const analysisService = {
     getGlobalActivitySummary(request: CrossChatGlobalActivitySummaryRequest) {
@@ -58,13 +58,16 @@ test('the shared Desktop and CLI Web adapter exposes and executes all ten cross-
   const tools = createCrossChatAgentToolAdapters({
     locale: 'zh-CN',
     analysisService,
+    memoryService: {} as Parameters<typeof createCrossChatAgentToolAdapters>[0]['memoryService'],
+    aiChatId: 'global-chat-test',
+    allowProactiveMemory: true,
     maxToolResultTokens: 16_000,
     preprocessMessagesBySession: async (_sessionId, messages) => messages,
     preprocessSummariesBySession: async (_sessionId, summaries) => summaries,
     preprocessModelLabel: (value) => value,
   })
 
-  assert.equal(tools.length, 10)
+  assert.equal(tools.length, 13)
   const summaryTool = tools.find((tool) => tool.name === 'get_global_activity_summary')
   assert.ok(summaryTool)
   assert.deepEqual(Object.keys(summaryTool.parameters.properties), ['mode', 'year'])

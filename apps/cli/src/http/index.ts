@@ -27,6 +27,7 @@ import {
   createGlobalInsightService,
   createDatabaseManagerAdapter,
   PreferencesManager,
+  AIMemoryService,
 } from '@openchatlab/node-runtime'
 import type { SemanticIndexRuntime } from '@openchatlab/node-runtime'
 import { createServer } from './server'
@@ -44,6 +45,7 @@ import { resolveCliLocalEmbeddingRuntimeConfig } from '../semantic-index/local-r
 let server: FastifyInstance | null = null
 let dbManager: DatabaseManager | null = null
 let aiChatManager: AIChatManager | null = null
+let aiMemoryService: AIMemoryService | null = null
 
 export interface HttpServerOptions {
   port?: number
@@ -165,6 +167,7 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
 
   const aiDataDir = pathProvider.getAiDataDir()
   aiChatManager = new AIChatManager(aiDataDir, { nativeBinding })
+  aiMemoryService = new AIMemoryService(aiDataDir, { nativeBinding })
 
   const assistantManager = getAssistantManager(aiDataDir)
   const skillManagerCore = getSkillManagerCore(aiDataDir)
@@ -228,6 +231,8 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
         semanticIndexService,
         crossChatAnalysisService,
         sessionAdapter,
+        memoryService: aiMemoryService,
+        getAllowProactiveMemory: () => preferencesManager.load().aiGlobalSettings.allowProactiveMemory,
       }),
     },
   })
@@ -269,6 +274,10 @@ export async function stopHttpServer(): Promise<void> {
     if (aiChatManager) {
       aiChatManager.close()
       aiChatManager = null
+    }
+    if (aiMemoryService) {
+      aiMemoryService.close()
+      aiMemoryService = null
     }
     if (dbManager) {
       dbManager.closeAll()

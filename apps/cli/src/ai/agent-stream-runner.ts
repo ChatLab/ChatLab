@@ -11,6 +11,7 @@ import type {
   SemanticIndexRuntime,
   CrossChatAnalysisService,
   SessionRuntimeAdapter,
+  AIMemoryService,
 } from '@openchatlab/node-runtime'
 import {
   CHART_CAPABILITY_CORE_TOOLS,
@@ -84,6 +85,8 @@ export function createCliRunAgentStream(
     semanticIndexService?: SemanticIndexRuntime
     crossChatAnalysisService?: CrossChatAnalysisService
     sessionAdapter?: SessionRuntimeAdapter
+    memoryService?: AIMemoryService
+    getAllowProactiveMemory?: () => boolean
   } = {}
 ): (params: AgentStreamRequest, onEvent: (chunk: AgentStreamChunk) => void, abortSignal: AbortSignal) => Promise<void> {
   const aiDataDir = getAiDir(dbManager)
@@ -144,7 +147,7 @@ export function createCliRunAgentStream(
         onEvent({ type: 'done', isFinished: true })
         return
       }
-      if (!options.crossChatAnalysisService || !options.sessionAdapter) {
+      if (!options.crossChatAnalysisService || !options.sessionAdapter || !options.memoryService) {
         onEvent({ type: 'error', error: { name: 'RuntimeError', message: 'Cross-chat analysis is unavailable' } })
         onEvent({ type: 'done', isFinished: true })
         return
@@ -155,6 +158,9 @@ export function createCliRunAgentStream(
         locale,
         preprocessConfig: params.preprocessConfig,
         maxToolResultTokens: resolveCrossChatToolResultTokenBudget(contextWindow),
+        memoryService: options.memoryService,
+        aiChatId,
+        allowProactiveMemory: options.getAllowProactiveMemory?.() ?? true,
       })
       await runCrossChatAgent({
         userMessage,
@@ -166,6 +172,7 @@ export function createCliRunAgentStream(
         apiKey: llmConfig.apiKey,
         tools,
         aiChatManager,
+        memoryService: options.memoryService,
         onEvent,
         abortSignal,
         thinkingLevel: thinkingLevel as import('@openchatlab/core').ThinkingLevel | undefined,
