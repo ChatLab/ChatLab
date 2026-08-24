@@ -42,6 +42,7 @@ import {
   resolveChatEntitiesTool,
   searchMessagesGloballyTool,
 } from './definitions/cross-chat-tools'
+import { memoryForgetTool, memoryReadTool, memoryWriteTool } from './definitions/memory-tools'
 import { SQL_TOOL_DEFS, createAllSqlToolDefinitions } from './sql'
 
 /**
@@ -99,6 +100,9 @@ export const CROSS_CHAT_AGENT_TOOL_REGISTRY = [
   getGlobalActivitySummaryTool,
   inspectContactSessionsTool,
   inspectSharedInteractionsTool,
+  memoryReadTool,
+  memoryWriteTool,
+  memoryForgetTool,
 ]
 
 /** 语义检索工具名（runner 动态过滤用） */

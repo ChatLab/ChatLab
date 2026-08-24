@@ -10,6 +10,7 @@ interface AIGlobalSettings {
   sqlExportFormat: 'csv' | 'json'
   enableAutoSkill: boolean
   chartAutoMode: ChartAutoMode
+  allowProactiveMemory: boolean
   searchContextBefore: number
   searchContextAfter: number
 }
@@ -29,6 +30,7 @@ export const usePromptStore = defineStore(
       sqlExportFormat: 'csv',
       enableAutoSkill: true,
       chartAutoMode: 'suggest',
+      allowProactiveMemory: true,
       searchContextBefore: 2,
       searchContextAfter: 2,
     })

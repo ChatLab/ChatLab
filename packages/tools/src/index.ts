@@ -52,6 +52,7 @@ export {
   resolveChatEntitiesTool,
   searchMessagesGloballyTool,
 } from './definitions/cross-chat-tools'
+export { memoryForgetTool, memoryReadTool, memoryWriteTool } from './definitions/memory-tools'
 
 // === SQL Tools ===
 export { SQL_TOOL_DEFS, createSqlToolDefinition, createAllSqlToolDefinitions } from './sql'
@@ -65,6 +66,7 @@ export type {
   ToolDefinition,
   ToolExecutionContext,
   CrossChatAnalysisToolService,
+  AIMemoryToolService,
   CrossChatToolExecutionContext,
   ToolProgress,
   ToolResult,

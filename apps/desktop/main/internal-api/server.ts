@@ -29,6 +29,7 @@ import {
   createCrossChatAnalysisService,
   createGlobalInsightService,
   PreferencesManager,
+  AIMemoryService,
 } from '@openchatlab/node-runtime'
 import type { StreamImportDeps, SemanticIndexRuntime } from '@openchatlab/node-runtime'
 import { getLoadablePath as getSqliteVecLoadablePath } from 'sqlite-vec'
@@ -66,6 +67,7 @@ let endpoint: InternalEndpoint | null = null
 let dbManager: DatabaseManager | null = null
 let mergeCache: MergeSessionCache | null = null
 let semanticIndexService: SemanticIndexRuntime | null = null
+let aiMemoryService: AIMemoryService | null = null
 
 const JSON_BODY_LIMIT = 50 * 1024 * 1024 // 50 MB
 
@@ -87,6 +89,7 @@ export async function startInternalServer(
   let newServer: FastifyInstance | null = null
   let newDbManager: DatabaseManager | null = null
   let newSemanticIndexService: SemanticIndexRuntime | null = null
+  let newAIMemoryService: AIMemoryService | null = null
 
   try {
     const token = `int_${randomBytes(32).toString('hex')}`
@@ -117,6 +120,7 @@ export async function startInternalServer(
     })
 
     const aiDataDir = pathProvider.getAiDataDir()
+    newAIMemoryService = new AIMemoryService(aiDataDir, { nativeBinding })
     const llmRuntimeStores = getDesktopLlmRuntimeStores(aiDataDir)
     const { llmConfigStore, customProviderStore, customModelStore } = llmRuntimeStores
     appLogger.info('ai-config', 'Shared LLM configuration store initialized', { aiDataDir })
@@ -223,6 +227,8 @@ export async function startInternalServer(
       runAgentStream: createElectronRunAgentStream(llmConfigStore, newSemanticIndexService ?? undefined, {
         analysisService: crossChatAnalysisService,
         sessionAdapter,
+        memoryService: newAIMemoryService,
+        getAllowProactiveMemory: () => preferencesManager.load().aiGlobalSettings.allowProactiveMemory,
       }),
       executeAiTool: createExecuteElectronAiTool(newSemanticIndexService ?? undefined),
     }
@@ -256,6 +262,7 @@ export async function startInternalServer(
     dbManager = newDbManager
     mergeCache = newMergeCache
     semanticIndexService = newSemanticIndexService
+    aiMemoryService = newAIMemoryService
     endpoint = { baseUrl: `http://127.0.0.1:${port}`, token }
     console.log(`[InternalAPI] Server started on port ${port}`)
 
@@ -276,10 +283,16 @@ export async function startInternalServer(
     } catch {
       /* best-effort */
     }
+    try {
+      newAIMemoryService?.close()
+    } catch {
+      /* best-effort */
+    }
     server = null
     dbManager = null
     mergeCache = null
     semanticIndexService = null
+    aiMemoryService = null
     endpoint = null
     throw err
   }
@@ -321,11 +334,17 @@ export async function stopInternalServer(): Promise<void> {
     } catch {
       /* best-effort */
     }
+    try {
+      aiMemoryService?.close()
+    } catch {
+      /* best-effort */
+    }
     server = null
     endpoint = null
     dbManager = null
     mergeCache = null
     semanticIndexService = null
+    aiMemoryService = null
     console.log('[InternalAPI] Server stopped')
   }
 }

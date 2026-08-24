@@ -191,7 +191,7 @@ export type {
   SkillDef,
   SkillSummary,
 } from './ai'
-export { AI_MEMORY_CONTENT_MAX_CHARS, AIMemoryService } from './ai'
+export { AI_MEMORY_CONTENT_MAX_CHARS, AIMemoryService, buildGlobalMemoryPrompt } from './ai'
 export type { AIMemoryServiceOptions, CreateAIMemoryInput, UpdateAIMemoryInput } from './ai'
 export {
   parseAssistantFile,

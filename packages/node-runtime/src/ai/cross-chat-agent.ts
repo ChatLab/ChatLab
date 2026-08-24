@@ -6,6 +6,7 @@ import { DEFAULT_CONTEXT_COMPRESSION_CONFIG, checkAndCompress, createCompression
 import { createAiTranslate } from './i18n'
 import { initTokenizer } from './tokenizer'
 import type { AIChatManager } from './chats'
+import { buildGlobalMemoryPrompt, type AIMemoryService } from './memory'
 import { AgentEventHandler, type AgentStreamChunk } from './agent/event-handler'
 import { appendEntityRefsForModel } from './agent/history'
 import { DEFAULT_MAX_TOOL_ROUNDS } from './agent/constants'
@@ -30,6 +31,7 @@ export interface RunCrossChatAgentOptions {
   apiKey: string
   tools: AgentTool[]
   aiChatManager: AIChatManager
+  memoryService: Pick<AIMemoryService, 'list'>
   onEvent: (event: AgentStreamChunk) => void
   abortSignal?: AbortSignal
   thinkingLevel?: ThinkingLevel
@@ -55,6 +57,7 @@ export async function runCrossChatAgent(options: RunCrossChatAgentOptions): Prom
     apiKey,
     tools,
     aiChatManager,
+    memoryService,
     onEvent,
     abortSignal,
     thinkingLevel,
@@ -66,7 +69,8 @@ export async function runCrossChatAgent(options: RunCrossChatAgentOptions): Prom
     entityRefCount: entityRefs?.length ?? 0,
     toolCount: tools.length,
   })
-  const systemPrompt = buildCrossChatSystemPrompt(locale)
+  const globalMemoryPrompt = buildGlobalMemoryPrompt(memoryService.list({ scopeType: 'global', scopeId: null }), locale)
+  const systemPrompt = buildCrossChatSystemPrompt(locale, new Date(), globalMemoryPrompt)
   const handler = new AgentEventHandler({ onChunk: onEvent, context: {}, systemPrompt })
   let cachedMessages: PiMessage[] = []
 
@@ -201,7 +205,7 @@ export async function runCrossChatAgent(options: RunCrossChatAgentOptions): Prom
   }
 }
 
-export function buildCrossChatSystemPrompt(locale = 'zh-CN', now = new Date()): string {
+export function buildCrossChatSystemPrompt(locale = 'zh-CN', now = new Date(), globalMemoryPrompt = ''): string {
   const dateLocale = locale.startsWith('zh') ? 'zh-CN' : 'en-US'
   const currentDate = now.toLocaleDateString(dateLocale, {
     year: 'numeric',
@@ -231,7 +235,7 @@ export function buildCrossChatSystemPrompt(locale = 'zh-CN', now = new Date()): 
 - 用户把自己作为事件主体（例如“我最近跟多少人聊过我买房”）时，第一次搜索必须传 sender=owner，把本人发言作为检索种子；不要先搜索所有人的同类话题。搜索工具会自动附带周边消息以识别真正参与对话的人；只有需要更深原文时才继续使用 get_cross_chat_message_context，上下文不限制为本人发言。
 
 工具与结论规则：
-- 你只有 resolve_chat_entities、read_recent_session、rank_private_contacts、rank_group_sessions、get_global_activity_summary、inspect_contact_sessions、inspect_shared_interactions、search_messages_globally、get_cross_chat_message_context、get_cross_chat_overview 十个工具。不要声称可以使用单会话 SQL、语义索引、技能、图表或热力图。
+- 你只有 resolve_chat_entities、read_recent_session、rank_private_contacts、rank_group_sessions、get_global_activity_summary、inspect_contact_sessions、inspect_shared_interactions、search_messages_globally、get_cross_chat_message_context、get_cross_chat_overview、memory_read、memory_write、memory_forget 十三个工具。不要声称可以使用单会话 SQL、语义索引、技能、图表或热力图。
 - read_recent_session 是单个已解析会话的轻量近期回顾：它内部读取最新一小段原文和最多 5 个已有段落摘要，模型不能指定消息预算。不要仅因为 selection.hasEarlierMessages=true 就自动扩大搜索；先回答用户当前的普通近期回顾，只有用户要求具体时间、关键词、更早内容或深挖时再使用 search_messages_globally。
 - inspect_contact_sessions 返回的是已导入会话中的本人发言和成员表结构事实，不返回聊天正文，也不能证明现实世界中的全部群聊。roster_only 只说明导入成员表记录过此人；存在 nextCursor 或 coverage 不完整时不能表述成全量结果。
 - inspect_shared_interactions 的群名称、成员结构、共同活跃和相邻发言只是调查导航信号，不能直接证明同事、同学、亲属、朋友或亲密关系。优先对 direct_reply 和 proximity 锚点调用 get_cross_chat_message_context 读取原文；回复目标可能由 relatedMessageId 指向较远消息，必要时分别展开两个消息 ID。
@@ -245,7 +249,15 @@ export function buildCrossChatSystemPrompt(locale = 'zh-CN', now = new Date()): 
 - 涉及单个联系人的限时搜索返回 0 条时，不要只说“什么都没有”。必须从 resolve_chat_entities 返回的私聊 session 元数据中说明最近一条已导入私聊的具体时间，以及它是否落在查询窗口之外；没有私聊 session 或没有可用时间时也要明确说明。之后再询问用户是否扩大范围。
 - sender=owner 时还要检查 coverage.ownerResolution；存在未设置或无法解析“我”的会话时，必须说明对应覆盖缺口，禁止通过昵称猜测本人。
 - 引用证据时说明来源会话；不要泄露工具未返回的信息，也不要编造联系人、群聊或消息。
-- 如果问题不需要聊天数据，直接回答；如果现有十个工具不足，坦诚说明当前能力边界。
+- 如果问题不需要聊天数据，直接回答；如果现有十三个工具不足，坦诚说明当前能力边界。
+
+长期记忆规则：
+- 只保存跨 AI 对话仍有长期价值的用户偏好、身份背景、明确纠正，或已有聊天证据支持且会影响后续调查方向的稳定结论。不要保存本轮临时要求、普通统计、聊天原文、工具过程、普通回答或未经证据支持的猜测。
+- 联系人和群聊记忆必须先取得稳定 contactKey 或 group sessionId。对具体实体展开实质分析前先调用 memory_read；写入前也先读取同一作用域，已有相同含义时不要重复创建。
+- 用户明确提供、要求记住或纠正的内容使用 source_type=user；你根据聊天数据形成的结论使用 source_type=ai，并写清必要的观察时间和不确定性。
+- source_type=ai 的记忆只是调查线索，后续使用时必须重新查询当前聊天数据和原始聊天证据，不能把旧结论当作当前事实。
+- 用户纠正旧内容时按 memory ID 调用 memory_write 精确更新；确认失效或用户要求忘记时调用 memory_forget。没有真正长期价值时不要调用 memory_write。
+${globalMemoryPrompt ? `\n当前已注入的全局用户偏好：\n${globalMemoryPrompt}` : ''}
 
 你可以使用工具。如果需要你没有的信息，请调用提供的函数。`
   }
@@ -270,7 +282,7 @@ Data and scope rules:
 - When the user is the subject of the event, such as "who did I discuss my home purchase with", the first search must pass sender=owner and treat the owner's messages as discovery seeds. Search automatically includes surrounding messages to identify actual participants; call get_cross_chat_message_context only when deeper source text is needed. Surrounding context is not owner-only.
 
 Tool and conclusion rules:
-- You only have resolve_chat_entities, read_recent_session, rank_private_contacts, rank_group_sessions, get_global_activity_summary, inspect_contact_sessions, inspect_shared_interactions, search_messages_globally, get_cross_chat_message_context, and get_cross_chat_overview. Do not claim access to session SQL, semantic search, skills, charts, or heatmaps.
+- You only have resolve_chat_entities, read_recent_session, rank_private_contacts, rank_group_sessions, get_global_activity_summary, inspect_contact_sessions, inspect_shared_interactions, search_messages_globally, get_cross_chat_message_context, get_cross_chat_overview, memory_read, memory_write, and memory_forget. Do not claim access to session SQL, semantic search, skills, charts, or heatmaps.
 - read_recent_session is the lightweight recent-recap path for one resolved session. It internally reads a small newest message slice and up to five existing segment summaries; the model cannot set message budgets. Do not expand merely because selection.hasEarlierMessages is true. Answer the ordinary recent recap first, then use search_messages_globally only for explicit dates, keywords, earlier content, or deeper investigation.
 - inspect_contact_sessions returns the contact's own activity and imported member-roster facts, not message text or every real-world chat. roster_only only means that the imported member table records the person. Never describe a paged or incomplete result as exhaustive.
 - Group names, member structure, co-active days, and proximity from inspect_shared_interactions are investigation signals, not proof of colleague, classmate, family, friend, or intimate relationships. Expand direct_reply and proximity anchors with get_cross_chat_message_context; a distant reply target may require separately opening relatedMessageId.
@@ -284,7 +296,15 @@ Tool and conclusion rules:
 - When a time-bounded search about one contact returns zero messages, do not merely say that nothing was found. From the direct private session metadata returned by resolve_chat_entities, state the latest imported private-chat timestamp as an exact date and whether it falls outside the requested window. Explicitly say when no private session or timestamp is available, then ask before widening the range.
 - For sender=owner, inspect coverage.ownerResolution and disclose sessions where the owner is missing or unresolved. Never guess the owner from display names.
 - Name the source session when citing evidence. Never invent people, sessions, or messages.
-- Answer directly when no chat data is needed. If the ten tools are insufficient, explain the current limitation honestly.
+- Answer directly when no chat data is needed. If the thirteen tools are insufficient, explain the current limitation honestly.
+
+Long-term memory rules:
+- Save only preferences, identity/background facts, explicit corrections, or evidence-backed stable conclusions that remain useful across AI conversations. Never save temporary instructions, ordinary statistics, transcripts, tool traces, ordinary answers, or unsupported guesses.
+- Obtain a stable contactKey or group sessionId before reading or writing entity memory. Call memory_read before substantive entity analysis and before writing that scope; do not create a duplicate with the same meaning.
+- Use source_type=user only for facts the user explicitly provides, asks to remember, or corrects. Use source_type=ai for conclusions derived from chat data, including the observation period and uncertainty.
+- Treat source_type=ai memory only as an investigation lead. Re-query current chat data and original chat evidence before using it as a fact.
+- Update a corrected memory by stable memory ID with memory_write. Call memory_forget when the user asks to forget it or confirms it is invalid. Do not call memory_write when nothing has genuine long-term value.
+${globalMemoryPrompt ? `\nInjected global user preferences:\n${globalMemoryPrompt}` : ''}
 
 You have access to tools. If you need information you don't have, use the provided functions.`
 }

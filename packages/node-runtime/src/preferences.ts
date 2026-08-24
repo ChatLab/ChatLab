@@ -49,6 +49,7 @@ const DEFAULTS: Preferences = {
     sqlExportFormat: 'csv',
     enableAutoSkill: true,
     chartAutoMode: 'suggest',
+    allowProactiveMemory: true,
     searchContextBefore: 2,
     searchContextAfter: 2,
   },

@@ -8,6 +8,27 @@ import { appLogger } from '../logging/app-logger'
 export const AI_MEMORY_CONTENT_MAX_CHARS = 2_000
 const AI_MEMORY_SCHEMA_VERSION = 1
 
+export function buildGlobalMemoryPrompt(entries: AIMemoryEntry[], locale = 'zh-CN'): string {
+  const selected: AIMemoryEntry[] = []
+  let contentChars = 0
+  for (const entry of entries) {
+    if (selected.length >= 20 || contentChars + entry.content.length > 4_000) break
+    selected.push(entry)
+    contentChars += entry.content.length
+  }
+  if (selected.length === 0) return ''
+
+  const lines = selected.map((entry) => `- [id=${entry.id}; source=${entry.sourceType}] ${entry.content}`)
+  if (selected.length < entries.length) {
+    lines.push(
+      locale.startsWith('zh')
+        ? '- 部分全局记忆未注入；需要时调用 memory_read 读取。'
+        : '- Some global memories were not injected; call memory_read when needed.'
+    )
+  }
+  return lines.join('\n')
+}
+
 export interface CreateAIMemoryInput extends AIMemoryScope {
   content: string
   sourceType: AIMemorySourceType

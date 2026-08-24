@@ -1,5 +1,6 @@
 import type {
   AgentTool,
+  AIMemoryService,
   CrossChatAnalysisService,
   PreprocessConfig,
   SessionRuntimeAdapter,
@@ -18,10 +19,16 @@ export function createCliCrossChatTools(options: {
   locale?: string
   preprocessConfig?: Record<string, unknown>
   maxToolResultTokens: number
+  memoryService: AIMemoryService
+  aiChatId: string
+  allowProactiveMemory: boolean
 }): AgentTool<any, any>[] {
   const context: Omit<CrossChatToolExecutionContext, 'abortSignal' | 'reportProgress'> = {
     locale: options.locale,
     analysisService: options.analysisService,
+    memoryService: options.memoryService,
+    aiChatId: options.aiChatId,
+    allowProactiveMemory: options.allowProactiveMemory,
     maxToolResultTokens: options.maxToolResultTokens,
     countTokens,
     preprocessMessagesBySession: (sessionId, messages) =>
