@@ -20,6 +20,10 @@ import type {
   ToolCatalogEntry,
   ToolExecuteResult,
   DesensitizeRule,
+  AIMemoryEntry,
+  AIMemoryScope,
+  CreateUserAIMemoryInput,
+  ClearAIMemoriesInput,
 } from './types'
 import { get, post, put, del, fetchWithAuth } from '../utils/http'
 
@@ -57,6 +61,30 @@ export class FetchAIAdapter implements AIAdapter {
 
   async deleteAIChat(aiChatId: string): Promise<boolean> {
     return del<boolean>(`/ai/chats/${aiChatId}`)
+  }
+
+  // ===== 长期记忆 =====
+  async getAIMemories(scope?: AIMemoryScope): Promise<AIMemoryEntry[]> {
+    if (!scope) return get<AIMemoryEntry[]>('/ai/memories')
+    const params = new URLSearchParams({ scopeType: scope.scopeType })
+    if (scope.scopeId) params.set('scopeId', scope.scopeId)
+    return get<AIMemoryEntry[]>(`/ai/memories?${params.toString()}`)
+  }
+
+  async createAIMemory(input: CreateUserAIMemoryInput): Promise<AIMemoryEntry> {
+    return post<AIMemoryEntry>('/ai/memories', input)
+  }
+
+  async updateAIMemory(id: string, content: string): Promise<AIMemoryEntry> {
+    return put<AIMemoryEntry>(`/ai/memories/${id}`, { content })
+  }
+
+  async deleteAIMemory(id: string): Promise<{ success: boolean }> {
+    return del<{ success: boolean }>(`/ai/memories/${id}`)
+  }
+
+  async clearAIMemories(input: ClearAIMemoriesInput): Promise<{ success: boolean; cleared: number }> {
+    return post<{ success: boolean; cleared: number }>('/ai/memories/clear', input)
   }
 
   // ===== 消息 =====

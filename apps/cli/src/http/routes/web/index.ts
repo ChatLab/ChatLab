@@ -24,6 +24,7 @@ import type { PathProvider } from '@openchatlab/core'
 import type {
   DatabaseManager,
   AIChatManager,
+  AIMemoryService,
   AssistantManager,
   SkillManagerCore,
   LLMConfigStore,
@@ -59,6 +60,7 @@ import { getServerAiLogger } from '../../../ai/logger'
 export interface AiContextOptions {
   aiDataDir: string
   aiChatManager: AIChatManager
+  aiMemoryService: AIMemoryService
   assistantManager: AssistantManager
   skillManagerCore: SkillManagerCore
   llmConfigStore: LLMConfigStore
@@ -177,6 +179,7 @@ export function registerWebRoutes(
       ...(ai && {
         aiDataDir: ai.aiDataDir,
         aiChatManager: ai.aiChatManager,
+        aiMemoryService: ai.aiMemoryService,
         assistantManager: ai.assistantManager,
         skillManagerCore: ai.skillManagerCore,
         llmConfigStore: ai.llmConfigStore,

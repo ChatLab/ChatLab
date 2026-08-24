@@ -221,6 +221,7 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
     aiContext: {
       aiDataDir,
       aiChatManager,
+      aiMemoryService,
       assistantManager,
       skillManagerCore,
       llmConfigStore,

@@ -193,6 +193,7 @@ export async function startInternalServer(
       streamImport: electronStreamImport,
       aiDataDir,
       aiChatManager: getAIChatManager(),
+      aiMemoryService: newAIMemoryService,
       assistantManager: getAssistantManager(),
       skillManagerCore: getSkillManager(),
       llmConfigStore,
