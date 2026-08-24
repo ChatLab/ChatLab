@@ -10,6 +10,7 @@ import ChatMessage from '@/components/AIChat/chat/ChatMessage.vue'
 import AIThinkingIndicator from '@/components/AIChat/chat/AIThinkingIndicator.vue'
 import ChatStatusBar from '@/components/AIChat/chat/ChatStatusBar.vue'
 import AIChatInput from '@/components/AIChat/input/AIChatInput.vue'
+import AIMemoryManagerModal from '@/components/AIChat/memory/AIMemoryManagerModal.vue'
 import { useChatScroll } from '@/components/AIChat/composables/useChatScroll'
 import { useProgressiveChatHistory } from '@/components/AIChat/composables/useProgressiveChatHistory'
 import { groupMessagesToQAPairs } from '@/components/AIChat/utils/chatMessages'
@@ -43,6 +44,7 @@ function isGlobalPageActive(): boolean {
   return !isUnmounted && route.name === 'global-ai'
 }
 const estimatedContextTokens = ref(0)
+const showMemoryManager = ref(false)
 
 const pairs = computed(() => groupMessagesToQAPairs(messages.value))
 const { messagesContainer, showScrollToBottom, handleScrollToBottom, scrollToBottom } = useChatScroll(
@@ -238,6 +240,15 @@ onUnmounted(() => {
       size="compact"
     >
       <template #actions>
+        <button
+          type="button"
+          class="flex items-center gap-1 rounded-md px-1.5 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+          :aria-expanded="showMemoryManager"
+          @click="showMemoryManager = true"
+        >
+          <UIcon name="i-lucide-brain" class="h-3.5 w-3.5" />
+          <span>{{ t('ai.global.memory.button') }}</span>
+        </button>
         <ChatHeaderActions
           :current-ai-chat-id="currentAIChatId"
           :current-messages="messages"
@@ -372,5 +383,7 @@ onUnmounted(() => {
         </div>
       </section>
     </div>
+
+    <AIMemoryManagerModal v-model:open="showMemoryManager" />
   </div>
 </template>
