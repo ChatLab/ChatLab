@@ -41,7 +41,8 @@ describe('cross-chat agent prompt', () => {
     assert.match(prompt, /不构成永久锁定范围/)
     assert.match(prompt, /本轮最新选择/)
     assert.match(prompt, /不得复用历史消息中的旧实体/)
-    assert.match(prompt, /都必须按本轮稳定 ID 重新调用 memory_read/)
+    assert.match(prompt, /当前稳定 ID.*自动注入/)
+    assert.match(prompt, /需要更多.*memory_read/)
     assert.match(prompt, /交集、并集/)
     assert.match(prompt, /不要仅因为消息中出现了 @联系人就机械调用/)
     assert.match(prompt, /roster_only/)
@@ -104,7 +105,8 @@ describe('cross-chat agent prompt', () => {
     assert.match(prompt, /strict intersection containing every participant/)
     assert.match(prompt, /latest selection for this turn/)
     assert.match(prompt, /never stale entities from earlier messages/)
-    assert.match(prompt, /must call memory_read again with the current stable IDs/)
+    assert.match(prompt, /current stable IDs.*automatically injected/)
+    assert.match(prompt, /need more.*memory_read/i)
     assert.match(prompt, /private-chat frequency ranking/)
     assert.match(prompt, /never substitute keyword hits/i)
     assert.match(prompt, /coverage\.complete=true/)
@@ -156,6 +158,18 @@ describe('cross-chat agent prompt', () => {
     assert.match(injected, /最近默认表示 90 天/)
     assert.match(injected, /ai.*重新查询.*聊天证据/)
   })
+
+  it('keeps current entity memories in a separate prompt section', () => {
+    const prompt = buildCrossChatSystemPrompt(
+      'zh-CN',
+      new Date('2026-08-23T12:00:00Z'),
+      '- 全局偏好',
+      '- [scope=contact] 当前联系人背景'
+    )
+
+    assert.match(prompt, /当前已注入的全局用户偏好：\n- 全局偏好/)
+    assert.match(prompt, /当前已注入的联系人和群聊记忆：\n- \[scope=contact\] 当前联系人背景/)
+  })
 })
 
 describe('cross-chat agent lifecycle', () => {
@@ -176,10 +190,17 @@ describe('cross-chat agent lifecycle', () => {
       api: 'openai-completions',
       provider: 'test',
     } as unknown as PiModel<PiApi>
-    const memoryService = { list: () => [] } as unknown as AIMemoryService
+    const memoryScopes: Array<{ scopeType: string; scopeId: string | null }> = []
+    const memoryService = {
+      list: (scope: { scopeType: string; scopeId: string | null }) => {
+        memoryScopes.push(scope)
+        return []
+      },
+    } as unknown as AIMemoryService
 
     await runCrossChatAgent({
       userMessage: '分析一下',
+      entityRefs: [{ type: 'contact', contactKey: 'contact-a', displayName: '联系人 A' }],
       aiChatId: 'global-chat-1',
       piModel,
       apiKey: 'test-key',
@@ -191,6 +212,10 @@ describe('cross-chat agent lifecycle', () => {
     })
 
     assert.equal(compressionReads, 0)
+    assert.deepEqual(memoryScopes, [
+      { scopeType: 'global', scopeId: null },
+      { scopeType: 'contact', scopeId: 'contact-a' },
+    ])
     assert.deepEqual(
       events.filter((event) => event.type === 'status').map((event) => event.status?.phase),
       ['aborted']

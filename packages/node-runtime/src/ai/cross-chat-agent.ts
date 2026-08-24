@@ -6,7 +6,7 @@ import { DEFAULT_CONTEXT_COMPRESSION_CONFIG, checkAndCompress, createCompression
 import { createAiTranslate } from './i18n'
 import { initTokenizer } from './tokenizer'
 import type { AIChatManager } from './chats'
-import { buildGlobalMemoryPrompt, type AIMemoryService } from './memory'
+import { buildEntityMemoryPrompt, buildGlobalMemoryPrompt, type AIMemoryService } from './memory'
 import { AgentEventHandler, type AgentStreamChunk } from './agent/event-handler'
 import { appendEntityRefsForModel } from './agent/history'
 import { DEFAULT_MAX_TOOL_ROUNDS } from './agent/constants'
@@ -70,7 +70,8 @@ export async function runCrossChatAgent(options: RunCrossChatAgentOptions): Prom
     toolCount: tools.length,
   })
   const globalMemoryPrompt = buildGlobalMemoryPrompt(memoryService.list({ scopeType: 'global', scopeId: null }), locale)
-  const systemPrompt = buildCrossChatSystemPrompt(locale, new Date(), globalMemoryPrompt)
+  const entityMemoryPrompt = buildEntityMemoryPrompt(entityRefs, (scope) => memoryService.list(scope), locale)
+  const systemPrompt = buildCrossChatSystemPrompt(locale, new Date(), globalMemoryPrompt, entityMemoryPrompt)
   const handler = new AgentEventHandler({ onChunk: onEvent, context: {}, systemPrompt })
   let cachedMessages: PiMessage[] = []
 
@@ -205,7 +206,12 @@ export async function runCrossChatAgent(options: RunCrossChatAgentOptions): Prom
   }
 }
 
-export function buildCrossChatSystemPrompt(locale = 'zh-CN', now = new Date(), globalMemoryPrompt = ''): string {
+export function buildCrossChatSystemPrompt(
+  locale = 'zh-CN',
+  now = new Date(),
+  globalMemoryPrompt = '',
+  entityMemoryPrompt = ''
+): string {
   const dateLocale = locale.startsWith('zh') ? 'zh-CN' : 'en-US'
   const currentDate = now.toLocaleDateString(dateLocale, {
     year: 'numeric',
@@ -254,12 +260,13 @@ export function buildCrossChatSystemPrompt(locale = 'zh-CN', now = new Date(), g
 
 长期记忆规则：
 - 只保存跨 AI 对话仍有长期价值的用户偏好、身份背景、明确纠正，或已有聊天证据支持且会影响后续调查方向的稳定结论。不要保存本轮临时要求、普通统计、聊天原文、工具过程、普通回答或未经证据支持的猜测。
-- 本轮存在 <chatlab_entity_refs> 时，任何针对“当前对象/所选实体”的记忆读取都必须按本轮稳定 ID 重新调用 memory_read；即使历史中回答过相同问题，也不得直接复用旧实体的记忆或旧答案。
-- 联系人和群聊记忆必须先取得稳定 contactKey 或 group sessionId。对具体实体展开实质分析前先调用 memory_read；写入前也先读取同一作用域，已有相同含义时不要重复创建。
+- 本轮选择的联系人和群聊记忆已按当前稳定 ID 自动注入；优先使用这些记忆，不得复用历史消息中旧实体的记忆。当前实体没有已注入记忆、需要更多记忆或实体由文本临时解析得到时，再调用 memory_read。
+- 联系人和群聊记忆必须使用稳定 contactKey 或 group sessionId。写入前先调用 memory_read 读取同一作用域，已有相同含义时不要重复创建。
 - 用户明确提供、要求记住或纠正的内容使用 source_type=user；你根据聊天数据形成的结论使用 source_type=ai，并写清必要的观察时间和不确定性。
 - source_type=ai 的记忆只是调查线索，后续使用时必须重新查询当前聊天数据和原始聊天证据，不能把旧结论当作当前事实。
 - 用户纠正旧内容时按 memory ID 调用 memory_write 精确更新；确认失效或用户要求忘记时调用 memory_forget。没有真正长期价值时不要调用 memory_write。
 ${globalMemoryPrompt ? `\n当前已注入的全局用户偏好：\n${globalMemoryPrompt}` : ''}
+${entityMemoryPrompt ? `\n当前已注入的联系人和群聊记忆：\n${entityMemoryPrompt}` : ''}
 
 你可以使用工具。如果需要你没有的信息，请调用提供的函数。`
   }
@@ -303,12 +310,13 @@ Tool and conclusion rules:
 
 Long-term memory rules:
 - Save only preferences, identity/background facts, explicit corrections, or evidence-backed stable conclusions that remain useful across AI conversations. Never save temporary instructions, ordinary statistics, transcripts, tool traces, ordinary answers, or unsupported guesses.
-- When the current turn includes <chatlab_entity_refs>, every memory question about "the current selection" must call memory_read again with the current stable IDs. Never reuse an earlier entity's memory or answer merely because the same question appeared in history.
-- Obtain a stable contactKey or group sessionId before reading or writing entity memory. Call memory_read before substantive entity analysis and before writing that scope; do not create a duplicate with the same meaning.
+- Memories keyed by the current stable IDs are automatically injected for the selected contacts and groups. Prefer those memories and never reuse memories for stale entities from history. If the current entity has no injected memory, you need more entries, or the entity was resolved from plain text during this turn, call memory_read.
+- Entity memory must use a stable contactKey or group sessionId. Call memory_read for the same scope before writing, and do not create a duplicate with the same meaning.
 - Use source_type=user only for facts the user explicitly provides, asks to remember, or corrects. Use source_type=ai for conclusions derived from chat data, including the observation period and uncertainty.
 - Treat source_type=ai memory only as an investigation lead. Re-query current chat data and original chat evidence before using it as a fact.
 - Update a corrected memory by stable memory ID with memory_write. Call memory_forget when the user asks to forget it or confirms it is invalid. Do not call memory_write when nothing has genuine long-term value.
 ${globalMemoryPrompt ? `\nInjected global user preferences:\n${globalMemoryPrompt}` : ''}
+${entityMemoryPrompt ? `\nInjected memories for the current contacts and groups:\n${entityMemoryPrompt}` : ''}
 
 You have access to tools. If you need information you don't have, use the provided functions.`
 }

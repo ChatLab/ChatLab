@@ -3,7 +3,8 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, it } from 'node:test'
-import { AI_MEMORY_CONTENT_MAX_CHARS, AIMemoryService } from '../memory'
+import type { AIMemoryEntry, AIMemoryScope } from '@openchatlab/shared-types'
+import { AI_MEMORY_CONTENT_MAX_CHARS, AIMemoryService, buildEntityMemoryPrompt } from '../memory'
 
 const sqliteNativeBinding = process.env.CHATLAB_TEST_SQLITE_NATIVE_BINDING
 
@@ -212,5 +213,106 @@ describe('AIMemoryService', () => {
     } finally {
       cleanup(dir)
     }
+  })
+})
+
+describe('entity memory prompt', () => {
+  it('injects only current contacts and groups, shares the budget fairly, and ignores private sessions', () => {
+    const contactEntries: AIMemoryEntry[] = Array.from({ length: 20 }, (_, index) => ({
+      id: `contact-memory-${index}`,
+      scopeType: 'contact',
+      scopeId: 'contact-a',
+      content: `联系人记忆 ${index}`,
+      sourceType: index === 0 ? 'ai' : 'user',
+      sourceAIChatId: null,
+      sourceMessageId: null,
+      createdAt: 100 - index,
+      updatedAt: 100 - index,
+    }))
+    const groupEntry: AIMemoryEntry = {
+      id: 'group-memory',
+      scopeType: 'group',
+      scopeId: 'group-a',
+      content: '群聊长期背景',
+      sourceType: 'user',
+      sourceAIChatId: null,
+      sourceMessageId: null,
+      createdAt: 100,
+      updatedAt: 100,
+    }
+    const requestedScopes: AIMemoryScope[] = []
+    const loadEntries = (scope: AIMemoryScope): AIMemoryEntry[] => {
+      requestedScopes.push(scope)
+      if (scope.scopeType === 'contact' && scope.scopeId === 'contact-a') return contactEntries
+      if (scope.scopeType === 'group' && scope.scopeId === 'group-a') return [groupEntry]
+      return []
+    }
+
+    const prompt = buildEntityMemoryPrompt(
+      [
+        { type: 'contact', contactKey: 'contact-a', displayName: '小红' },
+        { type: 'contact', contactKey: 'contact-a', displayName: '重复选择' },
+        { type: 'session', sessionId: 'private-a', displayName: '私聊', sessionType: 'private' },
+        { type: 'session', sessionId: 'group-a', displayName: '项目群', sessionType: 'group' },
+      ],
+      loadEntries,
+      'zh-CN'
+    )
+
+    assert.deepEqual(requestedScopes, [
+      { scopeType: 'contact', scopeId: 'contact-a' },
+      { scopeType: 'group', scopeId: 'group-a' },
+    ])
+    assert.match(prompt, /contact-a.*小红.*contact-memory-0.*source=ai/)
+    assert.match(prompt, /group-a.*项目群.*group-memory.*群聊长期背景/)
+    assert.match(prompt, /部分当前实体记忆未注入.*memory_read/)
+    assert.doesNotMatch(prompt, /private-a/)
+  })
+
+  it('rebuilds the prompt from the latest entity refs without retaining the previous contact', () => {
+    const entries = new Map<string, AIMemoryEntry[]>([
+      [
+        'contact:contact-a',
+        [
+          {
+            id: 'memory-a',
+            scopeType: 'contact',
+            scopeId: 'contact-a',
+            content: '只属于联系人 A',
+            sourceType: 'user',
+            sourceAIChatId: null,
+            sourceMessageId: null,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        ],
+      ],
+      [
+        'contact:contact-b',
+        [
+          {
+            id: 'memory-b',
+            scopeType: 'contact',
+            scopeId: 'contact-b',
+            content: '只属于联系人 B',
+            sourceType: 'user',
+            sourceAIChatId: null,
+            sourceMessageId: null,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        ],
+      ],
+    ])
+    const loadEntries = (scope: AIMemoryScope) => entries.get(`${scope.scopeType}:${scope.scopeId}`) ?? []
+
+    const prompt = buildEntityMemoryPrompt(
+      [{ type: 'contact', contactKey: 'contact-b', displayName: '联系人 B' }],
+      loadEntries,
+      'zh-CN'
+    )
+
+    assert.match(prompt, /只属于联系人 B/)
+    assert.doesNotMatch(prompt, /只属于联系人 A/)
   })
 })
