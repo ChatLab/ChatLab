@@ -57,6 +57,8 @@
     "scoreHelp": "綜合分用於聯絡人排序。分數越高，代表互動訊號越強。",
     "lastInteraction": "最近互動",
     "sources": "來源會話",
+    "memories": "記憶",
+    "memoryLoadFailed": "載入記憶失敗",
     "sourceType": {
       "private": "私聊",
       "group": "群聊"
