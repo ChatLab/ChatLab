@@ -179,6 +179,17 @@ async function assertResolvableEntityScope(
 ): Promise<void> {
   if (scope.scopeType === 'global') return
 
+  if (context.entityRefs?.length) {
+    const matchesCurrentSelection = context.entityRefs.some((ref) =>
+      scope.scopeType === 'contact'
+        ? ref.type === 'contact' && ref.contactKey === scope.scopeId
+        : ref.type === 'session' && ref.sessionType === ChatType.GROUP && ref.sessionId === scope.scopeId
+    )
+    if (!matchesCurrentSelection) {
+      throw new Error('scope_id must match an entity explicitly selected for the current turn')
+    }
+  }
+
   const ref: AIEntityRef =
     scope.scopeType === 'contact'
       ? { type: 'contact', contactKey: scope.scopeId!, displayName: scope.scopeId! }

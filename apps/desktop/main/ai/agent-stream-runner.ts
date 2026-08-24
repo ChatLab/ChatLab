@@ -151,6 +151,7 @@ export function createElectronRunAgentStream(
         analysisService: crossChatOptions.analysisService,
         sessionAdapter: crossChatOptions.sessionAdapter,
         locale,
+        entityRefs,
         preprocessConfig: params.preprocessConfig,
         maxToolResultTokens: resolveCrossChatToolResultTokenBudget(resolvedContextWindow),
         memoryService: crossChatOptions.memoryService,

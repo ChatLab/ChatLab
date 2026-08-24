@@ -156,6 +156,7 @@ export function createCliRunAgentStream(
         analysisService: options.crossChatAnalysisService,
         sessionAdapter: options.sessionAdapter,
         locale,
+        entityRefs,
         preprocessConfig: params.preprocessConfig,
         maxToolResultTokens: resolveCrossChatToolResultTokenBudget(contextWindow),
         memoryService: options.memoryService,

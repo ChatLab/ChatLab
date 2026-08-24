@@ -96,12 +96,15 @@ function entityResolution(refs: AIEntityRef[]): CrossChatEntityResolution {
   }
 }
 
-function createContext(options: { allowProactiveMemory?: boolean } = {}): CrossChatToolExecutionContext {
+function createContext(
+  options: { allowProactiveMemory?: boolean; entityRefs?: AIEntityRef[] } = {}
+): CrossChatToolExecutionContext {
   const analysisService = {
     resolveEntities: async (refs: AIEntityRef[]) => entityResolution(refs),
   } as unknown as CrossChatAnalysisToolService
   return {
     locale: 'zh-CN',
+    entityRefs: options.entityRefs,
     analysisService,
     memoryService: new FakeMemoryService(),
     aiChatId: 'global-chat-1',
@@ -206,6 +209,28 @@ describe('global memory tools', () => {
         ),
       /stable group/i
     )
+  })
+
+  it('does not reuse a stale entity scope when the current turn selects another entity', async () => {
+    const context = createContext({
+      entityRefs: [{ type: 'contact', contactKey: 'contact-1', displayName: 'Current contact' }],
+    })
+
+    await assert.rejects(
+      async () => memoryReadTool.handler({ scope_type: 'contact', scope_id: 'contact-2' }, context),
+      /current turn/i
+    )
+    await assert.rejects(
+      async () =>
+        memoryWriteTool.handler(
+          { scope_type: 'group', scope_id: 'group-1', content: 'stale group', source_type: 'user' },
+          context
+        ),
+      /current turn/i
+    )
+
+    const current = await memoryReadTool.handler({ scope_type: 'contact', scope_id: 'contact-1' }, context)
+    assert.deepEqual((current.data as { entries: AIMemoryEntry[] }).entries, [])
   })
 
   it('returns bounded reads with AI verification guidance and forgets by stable id', async () => {

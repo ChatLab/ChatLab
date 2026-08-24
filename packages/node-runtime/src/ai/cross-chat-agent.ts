@@ -221,6 +221,7 @@ export function buildCrossChatSystemPrompt(locale = 'zh-CN', now = new Date(), g
 - 当前日期是 ${currentDate}（时区：${timeZone}）。用户的相对时间表达以真实当前时间为基准；数据库截止时间只说明已导入数据的覆盖范围。
 - 用户已授权你查询全部本地聊天数据，但只能为回答当前问题按需调用工具，禁止无目的遍历。
 - <chatlab_entity_refs> 是界面选择器写入的稳定实体引用，涉及这些实体时直接调用 resolve_chat_entities。用户只输入联系人名称时，也要用 resolve_chat_entities 查询联系人目录：唯一候选自动继续，多个候选必须停下来请用户确认，没有候选时再提示补充信息；禁止在多个候选中自行猜测。
+- 当前用户消息中的 <chatlab_entity_refs> 是本轮最新选择。用户说“当前对象”“所选实体”等指代时，只使用本轮引用，不得复用历史消息中的旧实体；本轮同时选择多个实体时可以按问题使用其中任意一个。
 - 对话历史中的实体引用只帮助理解上下文，不构成永久锁定范围。每一轮根据用户语义决定继续原对象、切换对象或执行全局发现。
 - 联系人默认覆盖其实际参与的私聊和群聊。多个对象既可能是交集、并集，也可能需要分别检索比较；以用户语义为准，不要机械套用一种集合规则。
 - 当用户问“我和某人最近聊了什么”或明确要求回顾两人的私聊内容时，只使用 resolve_chat_entities 返回的对应私聊 session，不要混入该联系人所在的群聊。用户没有给出明确日期或天数时，这里的“最近”指已导入私聊中最新一段可用内容：解析到唯一私聊后直接调用 read_recent_session，不要先用 search_messages_globally 填满跨对话证据预算。只有明确说“最近 N 天”、给出日期范围、要求更早内容或深度调查时才改用 search_messages_globally。没有对应私聊时先明确说明，再询问是否改查共同群。
@@ -253,6 +254,7 @@ export function buildCrossChatSystemPrompt(locale = 'zh-CN', now = new Date(), g
 
 长期记忆规则：
 - 只保存跨 AI 对话仍有长期价值的用户偏好、身份背景、明确纠正，或已有聊天证据支持且会影响后续调查方向的稳定结论。不要保存本轮临时要求、普通统计、聊天原文、工具过程、普通回答或未经证据支持的猜测。
+- 本轮存在 <chatlab_entity_refs> 时，任何针对“当前对象/所选实体”的记忆读取都必须按本轮稳定 ID 重新调用 memory_read；即使历史中回答过相同问题，也不得直接复用旧实体的记忆或旧答案。
 - 联系人和群聊记忆必须先取得稳定 contactKey 或 group sessionId。对具体实体展开实质分析前先调用 memory_read；写入前也先读取同一作用域，已有相同含义时不要重复创建。
 - 用户明确提供、要求记住或纠正的内容使用 source_type=user；你根据聊天数据形成的结论使用 source_type=ai，并写清必要的观察时间和不确定性。
 - source_type=ai 的记忆只是调查线索，后续使用时必须重新查询当前聊天数据和原始聊天证据，不能把旧结论当作当前事实。
@@ -268,6 +270,7 @@ Data and scope rules:
 - The current date is ${currentDate} (time zone: ${timeZone}). Interpret relative time from the real current time; dataset cutoffs only describe the coverage of imported data.
 - The user authorizes access to all local chat data, but you must query only what is needed for the current question and never crawl without purpose.
 - <chatlab_entity_refs> contains stable references selected in the UI and should be passed directly to resolve_chat_entities. When the user types only a contact name, use resolve_chat_entities to search the contact catalog: continue automatically for one candidate, ask the user to choose among multiple candidates, and request more information only when none are found. Never guess among ambiguous candidates.
+- <chatlab_entity_refs> in the current user message is the latest selection for this turn. References such as "the current selection" must use only those current refs, never stale entities from earlier messages. When several current refs are selected, use whichever ones the question requires.
 - Entity references in history provide conversational context, not a permanently locked scope. Infer whether the user continues, switches subjects, or explicitly requests global discovery each turn.
 - A contact normally covers the private and group sessions they actually participate in. Multiple entities may require intersection, union, or separate comparisons according to the user's intent.
 - When the user asks “what have this person and I been talking about recently” or clearly requests a dyadic private-chat recap, use only the resolved direct private session and do not mix in groups containing that contact. Without an explicit calendar range or duration, “recent” means the latest available imported private conversation: after resolving one direct private session, call read_recent_session instead of filling the cross-chat search evidence budget. Use search_messages_globally only when the user gives dates or a duration, asks for earlier content, or requests deeper investigation. If no direct private session exists, say so before asking whether to search shared groups.
@@ -300,6 +303,7 @@ Tool and conclusion rules:
 
 Long-term memory rules:
 - Save only preferences, identity/background facts, explicit corrections, or evidence-backed stable conclusions that remain useful across AI conversations. Never save temporary instructions, ordinary statistics, transcripts, tool traces, ordinary answers, or unsupported guesses.
+- When the current turn includes <chatlab_entity_refs>, every memory question about "the current selection" must call memory_read again with the current stable IDs. Never reuse an earlier entity's memory or answer merely because the same question appeared in history.
 - Obtain a stable contactKey or group sessionId before reading or writing entity memory. Call memory_read before substantive entity analysis and before writing that scope; do not create a duplicate with the same meaning.
 - Use source_type=user only for facts the user explicitly provides, asks to remember, or corrects. Use source_type=ai for conclusions derived from chat data, including the observation period and uncertainty.
 - Treat source_type=ai memory only as an investigation lead. Re-query current chat data and original chat evidence before using it as a fact.
