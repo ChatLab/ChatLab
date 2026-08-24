@@ -136,6 +136,24 @@ export type AIEntityRef =
       sessionType: 'private' | 'group'
     }
 
+export type AIMemoryScopeType = 'global' | 'contact' | 'group'
+export type AIMemorySourceType = 'user' | 'ai'
+
+export interface AIMemoryScope {
+  scopeType: AIMemoryScopeType
+  scopeId: string | null
+}
+
+export interface AIMemoryEntry extends AIMemoryScope {
+  id: string
+  content: string
+  sourceType: AIMemorySourceType
+  sourceAIChatId: string | null
+  sourceMessageId: string | null
+  createdAt: number
+  updatedAt: number
+}
+
 export {
   CHATLAB_FORMAT_VERSION,
   CHATLAB_SUPPORTED_FORMAT_VERSIONS,

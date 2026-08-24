@@ -47,6 +47,8 @@ export type {
   TokenUsageData,
   AIChatManagerLogger,
 } from './chats'
+export { AI_MEMORY_CONTENT_MAX_CHARS, AIMemoryService } from './memory'
+export type { AIMemoryServiceOptions, CreateAIMemoryInput, UpdateAIMemoryInput } from './memory'
 
 // Tokenizer
 export { countTokens, countMessagesTokens, initTokenizer } from './tokenizer'
