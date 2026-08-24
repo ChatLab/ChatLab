@@ -9,6 +9,7 @@ import { registerAiChatTopicRoutes } from './ai-chat-topics'
 import { registerAiLlmStreamRoutes } from './ai-llm-stream'
 import { registerAiLlmRoutes } from './ai-llm'
 import { registerAiLogRoutes } from './ai-logs'
+import { registerAiMemoryRoutes } from './ai-memories'
 import { registerSemanticIndexRoutes } from './ai-semantic-index'
 import { registerAiSkillRoutes } from './ai-skills'
 import { registerAiSummaryRoutes } from './ai-summaries'
@@ -26,6 +27,7 @@ export interface AiRouteOptions {
 const REQUIRED_AI_DEPENDENCIES = [
   'aiDataDir',
   'aiChatManager',
+  'aiMemoryService',
   'assistantManager',
   'skillManagerCore',
   'llmConfigStore',
@@ -52,6 +54,7 @@ export function registerAiRoutes(server: FastifyInstance, ctx: AiRoutesContext, 
   registerAiAgentStreamRoutes(server, ctx)
   registerAiToolRoutes(server, ctx)
   registerAiChatRoutes(server, ctx)
+  registerAiMemoryRoutes(server, ctx)
   registerAiChatTopicRoutes(server, ctx)
   registerAiSummaryRoutes(server, ctx)
   registerAiLogRoutes(server, ctx)

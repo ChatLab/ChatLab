@@ -4,6 +4,7 @@ import Fastify from 'fastify'
 import type { PathProvider } from '@openchatlab/core'
 import type {
   AIChatManager,
+  AIMemoryService,
   AssistantManager,
   CustomModelStore,
   CustomProviderStore,
@@ -28,6 +29,7 @@ function completeContext(): AiRoutesContext {
     ...baseContext(),
     aiDataDir: '/tmp/chatlab-ai-route-test',
     aiChatManager: {} as AIChatManager,
+    aiMemoryService: {} as AIMemoryService,
     assistantManager: {} as AssistantManager,
     skillManagerCore: {} as SkillManagerCore,
     llmConfigStore: {} as LLMConfigStore,
@@ -42,6 +44,7 @@ test('registerAiRoutes identifies each missing required dependency', () => {
   const requiredDependencies = [
     'aiDataDir',
     'aiChatManager',
+    'aiMemoryService',
     'assistantManager',
     'skillManagerCore',
     'llmConfigStore',
@@ -71,6 +74,9 @@ test('registerAiRoutes keeps static and graceful fallback routes without AI mana
 
   const assistants = await app.inject({ method: 'GET', url: '/_web/ai/assistants' })
   assert.equal(assistants.statusCode, 404)
+
+  const memories = await app.inject({ method: 'GET', url: '/_web/ai/memories' })
+  assert.equal(memories.statusCode, 404)
 
   const semanticStatus = await app.inject({ method: 'GET', url: '/_web/ai/semantic-index/status' })
   assert.equal(semanticStatus.statusCode, 200)

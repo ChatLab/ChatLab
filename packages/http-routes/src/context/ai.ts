@@ -2,6 +2,7 @@ import type { AuthProfile } from '@openchatlab/config'
 import type {
   AgentStreamChunk,
   AIChatManager,
+  AIMemoryService,
   AssistantManager,
   CustomModelStore,
   CustomProviderStore,
@@ -60,6 +61,7 @@ export interface AgentStreamRequest {
 export interface AiRouteContext {
   aiDataDir?: string
   aiChatManager?: AIChatManager
+  aiMemoryService?: AIMemoryService
   assistantManager?: AssistantManager
   skillManagerCore?: SkillManagerCore
   llmConfigStore?: LLMConfigStore
