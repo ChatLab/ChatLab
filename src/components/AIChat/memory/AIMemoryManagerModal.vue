@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import type { AIMemoryEntry } from '@/services/ai/types'
 import { useAIService, useDataService } from '@/services'
 import { useToast } from '@/composables/useToast'
-import { usePromptStore } from '@/stores/prompt'
 import { useSessionStore } from '@/stores/session'
 
 type MemoryView = 'preferences' | 'self' | 'entities'
@@ -17,9 +15,7 @@ const { t, locale } = useI18n()
 const toast = useToast()
 const aiService = useAIService()
 const dataService = useDataService()
-const promptStore = usePromptStore()
 const sessionStore = useSessionStore()
-const { aiGlobalSettings } = storeToRefs(promptStore)
 
 const activeView = ref<MemoryView>('preferences')
 const entries = ref<AIMemoryEntry[]>([])
@@ -43,11 +39,6 @@ const visibleEntries = computed(() =>
         : entry.scopeType === 'contact' || entry.scopeType === 'group'
   )
 )
-const proactiveMemory = computed({
-  get: () => aiGlobalSettings.value.allowProactiveMemory ?? true,
-  set: (value: boolean) => promptStore.updateAIGlobalSettings({ allowProactiveMemory: value }),
-})
-
 function close(): void {
   emit('update:open', false)
 }
@@ -206,16 +197,6 @@ watch(
         </header>
 
         <div class="flex min-h-0 flex-1 flex-col px-5 py-4">
-          <div class="mb-4 flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3 dark:bg-gray-900/60">
-            <div class="min-w-0 pr-4">
-              <p class="text-sm text-gray-900 dark:text-gray-100">{{ t('ai.global.memory.proactive.title') }}</p>
-              <p class="mt-0.5 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                {{ t('ai.global.memory.proactive.description') }}
-              </p>
-            </div>
-            <USwitch v-model="proactiveMemory" />
-          </div>
-
           <div class="mb-3 flex items-center justify-between gap-3">
             <UTabs v-model="activeView" :items="viewItems" :content="false" size="sm" class="min-w-max" />
             <span class="text-xs text-gray-400">

@@ -295,7 +295,6 @@ export interface AIGlobalSettings {
   sqlExportFormat: 'csv' | 'json'
   enableAutoSkill: boolean
   chartAutoMode: ChartAutoMode
-  allowProactiveMemory: boolean
   searchContextBefore: number
   searchContextAfter: number
 }

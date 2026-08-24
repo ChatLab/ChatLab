@@ -101,7 +101,7 @@ function entityResolution(refs: AIEntityRef[]): CrossChatEntityResolution {
 }
 
 function createContext(
-  options: { allowProactiveMemory?: boolean; entityRefs?: AIEntityRef[]; resolvedEntityRefs?: AIEntityRef[] } = {}
+  options: { entityRefs?: AIEntityRef[]; resolvedEntityRefs?: AIEntityRef[] } = {}
 ): CrossChatToolExecutionContext {
   const analysisService = {
     resolveEntities: async (refs: AIEntityRef[]) => entityResolution(refs),
@@ -113,7 +113,6 @@ function createContext(
     analysisService,
     memoryService: new FakeMemoryService(),
     aiChatId: 'global-chat-1',
-    allowProactiveMemory: options.allowProactiveMemory ?? true,
     preprocessMessagesBySession: (_sessionId, messages) => messages,
     preprocessSummariesBySession: (_sessionId, summaries) => summaries,
     preprocessModelLabel: (value) => value,
@@ -185,19 +184,13 @@ describe('global memory tools', () => {
     )
   })
 
-  it('blocks proactive AI writes when disabled but keeps explicit user writes available', async () => {
-    const context = createContext({ allowProactiveMemory: false })
-    await assert.rejects(
-      async () =>
-        memoryWriteTool.handler({ scope_type: 'global', content: 'AI inference', source_type: 'ai' }, context),
-      /disabled/i
-    )
-
+  it('writes durable AI-derived memories', async () => {
+    const context = createContext()
     const result = await memoryWriteTool.handler(
-      { scope_type: 'global', content: '用户明确要求记住', source_type: 'user' },
+      { scope_type: 'global', content: 'AI 根据聊天证据形成的稳定结论', source_type: 'ai' },
       context
     )
-    assert.equal((result.data as AIMemoryEntry).sourceType, 'user')
+    assert.equal((result.data as AIMemoryEntry).sourceType, 'ai')
   })
 
   it('reads and writes self memory on demand without an entity id', async () => {

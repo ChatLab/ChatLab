@@ -229,7 +229,6 @@ export async function startInternalServer(
         analysisService: crossChatAnalysisService,
         sessionAdapter,
         memoryService: newAIMemoryService,
-        getAllowProactiveMemory: () => preferencesManager.load().aiGlobalSettings.allowProactiveMemory,
       }),
       executeAiTool: createExecuteElectronAiTool(newSemanticIndexService ?? undefined),
     }

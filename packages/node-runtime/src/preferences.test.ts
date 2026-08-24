@@ -195,7 +195,7 @@ test('loads thinkingLevels as empty object when field is absent in legacy prefer
     // Write a legacy preferences.json that has no thinkingLevels field
     writeFileSync(
       join(systemDir, 'preferences.json'),
-      JSON.stringify({ aiGlobalSettings: { maxMessagesPerRequest: 500 } })
+      JSON.stringify({ aiGlobalSettings: { maxMessagesPerRequest: 500, allowProactiveMemory: false } })
     )
 
     const loaded = new PreferencesManager(systemDir).load()
@@ -204,7 +204,7 @@ test('loads thinkingLevels as empty object when field is absent in legacy prefer
     // Existing fields must survive the migration
     assert.equal(loaded.aiGlobalSettings.maxMessagesPerRequest, 500)
     assert.equal(loaded.aiGlobalSettings.chartAutoMode, 'suggest')
-    assert.equal(loaded.aiGlobalSettings.allowProactiveMemory, true)
+    assert.equal('allowProactiveMemory' in loaded.aiGlobalSettings, false)
   } finally {
     rmSync(systemDir, { recursive: true, force: true })
   }

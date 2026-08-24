@@ -233,7 +233,6 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
         crossChatAnalysisService,
         sessionAdapter,
         memoryService: aiMemoryService,
-        getAllowProactiveMemory: () => preferencesManager.load().aiGlobalSettings.allowProactiveMemory,
       }),
     },
   })

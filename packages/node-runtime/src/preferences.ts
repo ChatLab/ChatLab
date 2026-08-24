@@ -49,7 +49,6 @@ const DEFAULTS: Preferences = {
     sqlExportFormat: 'csv',
     enableAutoSkill: true,
     chartAutoMode: 'suggest',
-    allowProactiveMemory: true,
     searchContextBefore: 2,
     searchContextAfter: 2,
   },
@@ -152,10 +151,10 @@ export class PreferencesManager {
 
   private normalizeAiGlobalSettings(partial: Partial<AIGlobalSettings> | undefined): AIGlobalSettings {
     const normalized = { ...(partial ?? {}) } as Record<string, unknown>
-    // Context compression became an automatic runtime capability. Ignore the
-    // legacy user preference so a previously disabled value cannot survive
-    // after the setting is removed.
+    // Ignore removed settings so legacy values cannot survive normalization
+    // and accidentally re-enable obsolete behavior after a later save.
     delete normalized.contextCompression
+    delete normalized.allowProactiveMemory
     return { ...DEFAULTS.aiGlobalSettings, ...(normalized as Partial<AIGlobalSettings>) }
   }
 

@@ -79,7 +79,6 @@ export function createElectronRunAgentStream(
     analysisService: CrossChatAnalysisService
     sessionAdapter: SessionRuntimeAdapter
     memoryService: AIMemoryService
-    getAllowProactiveMemory: () => boolean
   }
 ): (
   params: AgentStreamRequest,
@@ -156,7 +155,6 @@ export function createElectronRunAgentStream(
         maxToolResultTokens: resolveCrossChatToolResultTokenBudget(resolvedContextWindow),
         memoryService: crossChatOptions.memoryService,
         aiChatId,
-        allowProactiveMemory: crossChatOptions.getAllowProactiveMemory(),
       })
       await runCrossChatAgent({
         userMessage,
