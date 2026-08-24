@@ -279,6 +279,37 @@
     "input": {
       "placeholder": "输入问题，输入 {'@'} 选择联系人或群聊..."
     },
+    "memory": {
+      "button": "记忆",
+      "title": "长期记忆",
+      "description": "管理 AI 在不同对话间持续使用的偏好和关系背景。",
+      "preferences": "偏好",
+      "entities": "联系人和群聊",
+      "count": "{count} 条",
+      "empty": "暂无记忆，你可以在对话中让 AI 记住。",
+      "proactive": {
+        "title": "允许 AI 主动记忆",
+        "description": "允许 AI 保存有长期价值的偏好和关系结论；关闭后仍会保存你明确要求记住的内容。"
+      },
+      "source": {
+        "user": "用户确认",
+        "ai": "AI 形成"
+      },
+      "clearCurrent": "清空当前分类",
+      "clearAll": "清空全部",
+      "confirmDelete": "确定删除这条记忆吗？",
+      "confirmClearView": "确定清空当前分类中的全部记忆吗？",
+      "confirmClearAll": "确定清空全部长期记忆吗？此操作无法撤销。",
+      "toast": {
+        "loadFailed": "加载记忆失败",
+        "saved": "记忆已更新",
+        "saveFailed": "更新记忆失败",
+        "deleted": "记忆已删除",
+        "deleteFailed": "删除记忆失败",
+        "cleared": "记忆已清空",
+        "clearFailed": "清空记忆失败"
+      }
+    },
     "entityPicker": {
       "title": "选择联系人或群聊",
       "add": "选择对象",

@@ -279,6 +279,37 @@
     "input": {
       "placeholder": "輸入問題，輸入 {'@'} 選擇聯絡人或群聊..."
     },
+    "memory": {
+      "button": "記憶",
+      "title": "長期記憶",
+      "description": "管理 AI 在不同對話間持續使用的偏好與關係背景。",
+      "preferences": "偏好",
+      "entities": "聯絡人和群聊",
+      "count": "{count} 條",
+      "empty": "暫無記憶，你可以在對話中讓 AI 記住。",
+      "proactive": {
+        "title": "允許 AI 主動記憶",
+        "description": "允許 AI 儲存有長期價值的偏好與關係結論；關閉後仍會儲存你明確要求記住的內容。"
+      },
+      "source": {
+        "user": "使用者確認",
+        "ai": "AI 形成"
+      },
+      "clearCurrent": "清空目前分類",
+      "clearAll": "清空全部",
+      "confirmDelete": "確定刪除這條記憶嗎？",
+      "confirmClearView": "確定清空目前分類中的全部記憶嗎？",
+      "confirmClearAll": "確定清空全部長期記憶嗎？此操作無法復原。",
+      "toast": {
+        "loadFailed": "載入記憶失敗",
+        "saved": "記憶已更新",
+        "saveFailed": "更新記憶失敗",
+        "deleted": "記憶已刪除",
+        "deleteFailed": "刪除記憶失敗",
+        "cleared": "記憶已清空",
+        "clearFailed": "清空記憶失敗"
+      }
+    },
     "entityPicker": {
       "title": "選擇聯絡人或群聊",
       "add": "選擇對象",
