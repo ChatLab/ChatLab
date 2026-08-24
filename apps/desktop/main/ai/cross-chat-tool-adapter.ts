@@ -5,6 +5,7 @@ import type {
   PreprocessConfig,
   SessionRuntimeAdapter,
 } from '@openchatlab/node-runtime'
+import type { AIEntityRef } from '@openchatlab/shared-types'
 import {
   countTokens,
   preprocessCrossChatLabel,
@@ -17,6 +18,7 @@ export function createElectronCrossChatTools(options: {
   analysisService: CrossChatAnalysisService
   sessionAdapter: SessionRuntimeAdapter
   locale?: string
+  entityRefs?: AIEntityRef[]
   preprocessConfig?: Record<string, unknown>
   maxToolResultTokens: number
   memoryService: AIMemoryService
@@ -25,6 +27,7 @@ export function createElectronCrossChatTools(options: {
 }): AgentTool<any, any>[] {
   const context: Omit<CrossChatToolExecutionContext, 'abortSignal' | 'reportProgress'> = {
     locale: options.locale,
+    entityRefs: options.entityRefs,
     analysisService: options.analysisService,
     memoryService: options.memoryService,
     aiChatId: options.aiChatId,

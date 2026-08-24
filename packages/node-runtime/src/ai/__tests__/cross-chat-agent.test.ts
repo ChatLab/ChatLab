@@ -39,6 +39,9 @@ describe('cross-chat agent prompt', () => {
       assert.match(prompt, new RegExp(tool))
     }
     assert.match(prompt, /不构成永久锁定范围/)
+    assert.match(prompt, /本轮最新选择/)
+    assert.match(prompt, /不得复用历史消息中的旧实体/)
+    assert.match(prompt, /都必须按本轮稳定 ID 重新调用 memory_read/)
     assert.match(prompt, /交集、并集/)
     assert.match(prompt, /不要仅因为消息中出现了 @联系人就机械调用/)
     assert.match(prompt, /roster_only/)
@@ -99,6 +102,9 @@ describe('cross-chat agent prompt', () => {
       assert.match(prompt, new RegExp(tool))
     }
     assert.match(prompt, /strict intersection containing every participant/)
+    assert.match(prompt, /latest selection for this turn/)
+    assert.match(prompt, /never stale entities from earlier messages/)
+    assert.match(prompt, /must call memory_read again with the current stable IDs/)
     assert.match(prompt, /private-chat frequency ranking/)
     assert.match(prompt, /never substitute keyword hits/i)
     assert.match(prompt, /coverage\.complete=true/)

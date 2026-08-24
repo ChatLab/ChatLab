@@ -421,6 +421,8 @@ export interface AIMemoryToolService {
 
 export interface CrossChatToolExecutionContext {
   locale?: string
+  /** Stable entities explicitly selected for the current user turn. */
+  entityRefs?: AIEntityRef[]
   abortSignal?: AbortSignal
   reportProgress?: (progress: ToolProgress) => void
   maxToolResultTokens?: number
