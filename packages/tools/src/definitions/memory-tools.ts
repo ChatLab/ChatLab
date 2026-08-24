@@ -131,6 +131,12 @@ async function memoryForgetHandler(
   context: CrossChatToolExecutionContext
 ): Promise<ToolResult> {
   const id = requireString(params.id, 'id')
+  const current = context.memoryService.get(id)
+  if (!current) {
+    const data = { id, deleted: false }
+    return { content: JSON.stringify(data), data }
+  }
+  await assertResolvableEntityScope(current, context, true)
   const data = { id, deleted: context.memoryService.forget(id) }
   return { content: JSON.stringify(data), data }
 }
@@ -175,19 +181,15 @@ function optionalString(value: unknown): string | null {
 
 async function assertResolvableEntityScope(
   scope: AIMemoryScope,
-  context: CrossChatToolExecutionContext
+  context: CrossChatToolExecutionContext,
+  requireCurrentTurnEntity = false
 ): Promise<void> {
   if (scope.scopeType === 'global' || scope.scopeType === 'self') return
 
-  if (context.entityRefs?.length) {
-    const matchesCurrentSelection = context.entityRefs.some((ref) =>
-      scope.scopeType === 'contact'
-        ? ref.type === 'contact' && ref.contactKey === scope.scopeId
-        : ref.type === 'session' && ref.sessionType === ChatType.GROUP && ref.sessionId === scope.scopeId
-    )
-    if (!matchesCurrentSelection) {
-      throw new Error('scope_id must match an entity explicitly selected for the current turn')
-    }
+  const currentTurnRefs = [...(context.entityRefs ?? []), ...(context.resolvedEntityRefs ?? [])]
+  const matchesCurrentTurn = currentTurnRefs.some((ref) => matchesMemoryScope(ref, scope))
+  if ((requireCurrentTurnEntity || currentTurnRefs.length > 0) && !matchesCurrentTurn) {
+    throw new Error('scope_id must match an entity selected or resolved for the current turn')
   }
 
   const ref: AIEntityRef =
@@ -211,4 +213,10 @@ async function assertResolvableEntityScope(
       item.ref.sessionId === scope.scopeId && item.status === 'resolved' && item.session?.sessionType === ChatType.GROUP
   )
   if (!resolved) throw new Error('scope_id must be a resolvable stable group ID')
+}
+
+function matchesMemoryScope(ref: AIEntityRef, scope: AIMemoryScope): boolean {
+  return scope.scopeType === 'contact'
+    ? ref.type === 'contact' && ref.contactKey === scope.scopeId
+    : ref.type === 'session' && ref.sessionType === ChatType.GROUP && ref.sessionId === scope.scopeId
 }

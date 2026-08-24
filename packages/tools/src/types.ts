@@ -423,6 +423,8 @@ export interface CrossChatToolExecutionContext {
   locale?: string
   /** Stable entities explicitly selected for the current user turn. */
   entityRefs?: AIEntityRef[]
+  /** Stable entities successfully resolved by tools during the current Agent run. */
+  resolvedEntityRefs?: AIEntityRef[]
   abortSignal?: AbortSignal
   reportProgress?: (progress: ToolProgress) => void
   maxToolResultTokens?: number

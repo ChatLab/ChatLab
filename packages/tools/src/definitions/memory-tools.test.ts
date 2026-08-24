@@ -4,6 +4,7 @@ import type { AIMemoryEntry, AIMemoryScope, AIEntityRef, CrossChatEntityResoluti
 import { ChatType } from '@openchatlab/shared-types'
 import { AGENT_TOOL_REGISTRY, CROSS_CHAT_AGENT_TOOL_REGISTRY, MCP_TOOL_REGISTRY } from '../registry'
 import type { AIMemoryToolService, CrossChatAnalysisToolService, CrossChatToolExecutionContext } from '../types'
+import { resolveChatEntitiesTool } from './cross-chat-tools'
 import { memoryForgetTool, memoryReadTool, memoryWriteTool } from './memory-tools'
 
 class FakeMemoryService implements AIMemoryToolService {
@@ -54,7 +55,10 @@ function entityResolution(refs: AIEntityRef[]): CrossChatEntityResolution {
     .filter((ref): ref is Extract<AIEntityRef, { type: 'contact' }> => ref.type === 'contact')
     .map((ref) => ({
       ref,
-      status: ref.contactKey === 'contact-1' ? ('resolved' as const) : ('unresolved' as const),
+      status:
+        ref.contactKey === 'contact-1' || ref.contactKey === 'contact-2'
+          ? ('resolved' as const)
+          : ('unresolved' as const),
       cacheStatus: 'fresh' as const,
       sessions: [],
       unresolvedSessionIds: [],
@@ -97,7 +101,7 @@ function entityResolution(refs: AIEntityRef[]): CrossChatEntityResolution {
 }
 
 function createContext(
-  options: { allowProactiveMemory?: boolean; entityRefs?: AIEntityRef[] } = {}
+  options: { allowProactiveMemory?: boolean; entityRefs?: AIEntityRef[]; resolvedEntityRefs?: AIEntityRef[] } = {}
 ): CrossChatToolExecutionContext {
   const analysisService = {
     resolveEntities: async (refs: AIEntityRef[]) => entityResolution(refs),
@@ -105,6 +109,7 @@ function createContext(
   return {
     locale: 'zh-CN',
     entityRefs: options.entityRefs,
+    resolvedEntityRefs: options.resolvedEntityRefs,
     analysisService,
     memoryService: new FakeMemoryService(),
     aiChatId: 'global-chat-1',
@@ -261,6 +266,64 @@ describe('global memory tools', () => {
 
     const current = await memoryReadTool.handler({ scope_type: 'contact', scope_id: 'contact-1' }, context)
     assert.deepEqual((current.data as { entries: AIMemoryEntry[] }).entries, [])
+  })
+
+  it('allows a newly resolved entity in the same turn without reusing the stale selection', async () => {
+    const resolvedEntityRefs: AIEntityRef[] = []
+    const context = createContext({
+      entityRefs: [{ type: 'contact', contactKey: 'contact-1', displayName: 'Previous selection' }],
+      resolvedEntityRefs,
+    })
+
+    await assert.rejects(
+      async () => memoryReadTool.handler({ scope_type: 'contact', scope_id: 'contact-2' }, context),
+      /current turn/i
+    )
+
+    await resolveChatEntitiesTool.handler(
+      {
+        entities: [{ type: 'contact', contactKey: 'contact-2', displayName: 'New contact' }],
+      },
+      context
+    )
+
+    assert.deepEqual(resolvedEntityRefs, [{ type: 'contact', contactKey: 'contact-2', displayName: 'New contact' }])
+    const written = await memoryWriteTool.handler(
+      {
+        scope_type: 'contact',
+        scope_id: 'contact-2',
+        content: '本轮新解析出的联系人记忆',
+        source_type: 'user',
+      },
+      context
+    )
+    assert.equal((written.data as AIMemoryEntry).scopeId, 'contact-2')
+  })
+
+  it('refuses to forget entity memory outside the current turn scope', async () => {
+    const context = createContext({
+      entityRefs: [{ type: 'contact', contactKey: 'contact-2', displayName: 'Current contact' }],
+    })
+    const memoryService = context.memoryService as FakeMemoryService
+    const stale = memoryService.create({
+      scopeType: 'contact',
+      scopeId: 'contact-1',
+      content: 'Stale contact memory',
+      sourceType: 'user',
+    })
+    const current = memoryService.create({
+      scopeType: 'contact',
+      scopeId: 'contact-2',
+      content: 'Current contact memory',
+      sourceType: 'user',
+    })
+
+    await assert.rejects(async () => memoryForgetTool.handler({ id: stale.id }, context), /current turn/i)
+    assert.ok(memoryService.get(stale.id))
+
+    const forgotten = await memoryForgetTool.handler({ id: current.id }, context)
+    assert.deepEqual(forgotten.data, { id: current.id, deleted: true })
+    assert.equal(memoryService.get(current.id), null)
   })
 
   it('returns bounded reads with AI verification guidance and forgets by stable id', async () => {
