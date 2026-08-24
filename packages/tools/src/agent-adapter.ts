@@ -70,6 +70,10 @@ export async function executeToolForAgent<TContext>(
 export function createCrossChatAgentToolAdapters(
   context: Omit<CrossChatToolExecutionContext, 'abortSignal' | 'reportProgress'>
 ) {
+  const runContext = {
+    ...context,
+    resolvedEntityRefs: context.resolvedEntityRefs ?? [],
+  }
   return CROSS_CHAT_AGENT_TOOL_REGISTRY.map((tool) => ({
     name: tool.name,
     label: tool.name,
@@ -83,7 +87,7 @@ export function createCrossChatAgentToolAdapters(
       onUpdate?: (update: { content: []; details: { progress: ToolProgress } }) => void
     ) =>
       executeToolForAgent(tool, params, {
-        ...context,
+        ...runContext,
         abortSignal: signal,
         reportProgress: (progress) => onUpdate?.({ content: [], details: { progress } }),
       }),

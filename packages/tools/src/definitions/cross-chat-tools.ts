@@ -260,6 +260,7 @@ async function resolveHandler(
   const resolution = await context.analysisService.resolveEntities(dedupeEntityRefs(refs), {
     signal: context.abortSignal,
   })
+  trackResolvedEntityRefs(context.resolvedEntityRefs, resolution)
   const data = { ...resolution, contactLookups }
   const modelData = limitEntityResolutionToBudget(
     resolution,
@@ -803,10 +804,33 @@ function parseEntityInputs(value: unknown): ParsedEntityInput[] {
 function dedupeEntityRefs(refs: AIEntityRef[]): AIEntityRef[] {
   const byKey = new Map<string, AIEntityRef>()
   for (const ref of refs) {
-    const key = ref.type === 'contact' ? `contact:${ref.contactKey}` : `session:${ref.sessionId}`
-    byKey.set(key, ref)
+    byKey.set(entityRefKey(ref), ref)
   }
   return [...byKey.values()]
+}
+
+function trackResolvedEntityRefs(
+  currentRunRefs: AIEntityRef[] | undefined,
+  resolution: CrossChatEntityResolution
+): void {
+  if (!currentRunRefs) return
+  const resolvedRefs: AIEntityRef[] = [
+    ...resolution.contacts
+      .filter((item) => item.status === 'resolved' || item.status === 'partial')
+      .map((item) => item.ref),
+    ...resolution.sessions.filter((item) => item.status === 'resolved').map((item) => item.ref),
+  ]
+  const existingKeys = new Set(currentRunRefs.map(entityRefKey))
+  for (const ref of resolvedRefs) {
+    const key = entityRefKey(ref)
+    if (existingKeys.has(key)) continue
+    currentRunRefs.push(ref)
+    existingKeys.add(key)
+  }
+}
+
+function entityRefKey(ref: AIEntityRef): string {
+  return ref.type === 'contact' ? `contact:${ref.contactKey}` : `session:${ref.sessionId}`
 }
 
 function parseScopes(value: unknown): CrossChatSearchScope[] {
