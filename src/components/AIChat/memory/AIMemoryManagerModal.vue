@@ -8,7 +8,7 @@ import { useToast } from '@/composables/useToast'
 import { usePromptStore } from '@/stores/prompt'
 import { useSessionStore } from '@/stores/session'
 
-type MemoryView = 'preferences' | 'entities'
+type MemoryView = 'preferences' | 'self' | 'entities'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
@@ -31,11 +31,16 @@ const editingContent = ref('')
 
 const viewItems = computed(() => [
   { label: t('ai.global.memory.preferences'), value: 'preferences' },
+  { label: t('ai.global.memory.self'), value: 'self' },
   { label: t('ai.global.memory.entities'), value: 'entities' },
 ])
 const visibleEntries = computed(() =>
   entries.value.filter((entry) =>
-    activeView.value === 'preferences' ? entry.scopeType === 'global' : entry.scopeType !== 'global'
+    activeView.value === 'preferences'
+      ? entry.scopeType === 'global'
+      : activeView.value === 'self'
+        ? entry.scopeType === 'self'
+        : entry.scopeType === 'contact' || entry.scopeType === 'group'
   )
 )
 const proactiveMemory = computed({
@@ -137,10 +142,13 @@ async function clearCurrentView(): Promise<void> {
   if (currentEntries.length === 0 || !confirm(t('ai.global.memory.confirmClearView'))) return
   loading.value = true
   try {
-    if (activeView.value === 'preferences') {
-      await aiService.clearAIMemories({ scopeType: 'global', scopeId: null })
-    } else {
+    if (activeView.value === 'entities') {
       await Promise.all(currentEntries.map((entry) => aiService.deleteAIMemory(entry.id)))
+    } else {
+      await aiService.clearAIMemories({
+        scopeType: activeView.value === 'preferences' ? 'global' : 'self',
+        scopeId: null,
+      })
     }
     await loadMemories()
     toast.success(t('ai.global.memory.toast.cleared'))
@@ -232,7 +240,10 @@ watch(
                 :key="entry.id"
                 class="rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-800"
               >
-                <div v-if="entry.scopeType !== 'global'" class="mb-2 flex items-center gap-1.5 text-xs text-gray-500">
+                <div
+                  v-if="entry.scopeType === 'contact' || entry.scopeType === 'group'"
+                  class="mb-2 flex items-center gap-1.5 text-xs text-gray-500"
+                >
                   <UIcon
                     :name="entry.scopeType === 'contact' ? 'i-lucide-user-round' : 'i-lucide-users-round'"
                     class="h-3.5 w-3.5"

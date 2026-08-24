@@ -12,7 +12,7 @@ import type {
 import { appLogger } from '../logging/app-logger'
 
 export const AI_MEMORY_CONTENT_MAX_CHARS = 2_000
-const AI_MEMORY_SCHEMA_VERSION = 1
+const AI_MEMORY_SCHEMA_VERSION = 2
 const AI_MEMORY_PROMPT_MAX_ENTRIES = 20
 const AI_MEMORY_PROMPT_MAX_CONTENT_CHARS = 4_000
 
@@ -179,7 +179,7 @@ export class AIMemoryService {
     }
 
     const normalized = normalizeScope(scope)
-    if (normalized.scopeType === 'global') {
+    if (normalized.scopeType === 'global' || normalized.scopeType === 'self') {
       return db
         .prepare(
           `SELECT id,
@@ -192,10 +192,10 @@ export class AIMemoryService {
                   created_at AS createdAt,
                   updated_at AS updatedAt
              FROM ai_memory
-            WHERE scope_type = 'global' AND scope_id IS NULL
+            WHERE scope_type = ? AND scope_id IS NULL
             ORDER BY updated_at DESC, id ASC`
         )
-        .all() as AIMemoryEntry[]
+        .all(normalized.scopeType) as AIMemoryEntry[]
     }
 
     return db
@@ -304,8 +304,9 @@ export class AIMemoryService {
       if (!scope) return db.prepare('DELETE FROM ai_memory').run().changes
 
       const normalized = normalizeScope(scope)
-      if (normalized.scopeType === 'global') {
-        return db.prepare("DELETE FROM ai_memory WHERE scope_type = 'global' AND scope_id IS NULL").run().changes
+      if (normalized.scopeType === 'global' || normalized.scopeType === 'self') {
+        return db.prepare('DELETE FROM ai_memory WHERE scope_type = ? AND scope_id IS NULL').run(normalized.scopeType)
+          .changes
       }
       return db
         .prepare('DELETE FROM ai_memory WHERE scope_type = ? AND scope_id = ?')
@@ -333,26 +334,7 @@ export class AIMemoryService {
       : new Database(this.dbPath)
     db.pragma('journal_mode = WAL')
     db.pragma('busy_timeout = 5000')
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS ai_memory (
-        id TEXT PRIMARY KEY,
-        scope_type TEXT NOT NULL CHECK (scope_type IN ('global', 'contact', 'group')),
-        scope_id TEXT,
-        content TEXT NOT NULL,
-        source_type TEXT NOT NULL CHECK (source_type IN ('user', 'ai')),
-        source_ai_chat_id TEXT,
-        source_message_id TEXT,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL,
-        CHECK (
-          (scope_type = 'global' AND scope_id IS NULL) OR
-          (scope_type IN ('contact', 'group') AND scope_id IS NOT NULL)
-        )
-      );
-      CREATE INDEX IF NOT EXISTS idx_ai_memory_scope_updated
-        ON ai_memory(scope_type, scope_id, updated_at DESC, id ASC);
-    `)
-    db.pragma(`user_version = ${AI_MEMORY_SCHEMA_VERSION}`)
+    migrateMemorySchema(db)
     this.db = db
     appLogger.info('ai-memory', 'AI memory database initialized', { schemaVersion: AI_MEMORY_SCHEMA_VERSION })
     return db
@@ -376,13 +358,13 @@ export class AIMemoryService {
 
 function normalizeScope(scope: AIMemoryScope): AIMemoryScope {
   const scopeType = scope.scopeType
-  if (scopeType !== 'global' && scopeType !== 'contact' && scopeType !== 'group') {
+  if (scopeType !== 'global' && scopeType !== 'self' && scopeType !== 'contact' && scopeType !== 'group') {
     throw new Error(`Unsupported AI memory scope type: ${String(scopeType)}`)
   }
 
   const scopeId = normalizeOptionalId(scope.scopeId)
-  if (scopeType === 'global') {
-    if (scopeId !== null) throw new Error('Global AI memory scopeId must be null')
+  if (scopeType === 'global' || scopeType === 'self') {
+    if (scopeId !== null) throw new Error(`${scopeType} AI memory scopeId must be null`)
     return { scopeType, scopeId: null }
   }
   if (!scopeId) throw new Error(`${scopeType} AI memory scopeId is required`)
@@ -408,4 +390,61 @@ function normalizeOptionalId(value: string | null | undefined): string | null {
   if (typeof value !== 'string') return null
   const normalized = value.trim()
   return normalized || null
+}
+
+function migrateMemorySchema(db: Database.Database): void {
+  const version = db.pragma('user_version', { simple: true }) as number
+  if (version > AI_MEMORY_SCHEMA_VERSION) {
+    throw new Error(`Unsupported AI memory schema version: ${version}`)
+  }
+  if (version === AI_MEMORY_SCHEMA_VERSION) return
+
+  const migrate = db.transaction(() => {
+    if (version === 1) {
+      db.exec('ALTER TABLE ai_memory RENAME TO ai_memory_v1')
+    }
+
+    db.exec(`
+      CREATE TABLE ai_memory (
+        id TEXT PRIMARY KEY,
+        scope_type TEXT NOT NULL CHECK (scope_type IN ('global', 'self', 'contact', 'group')),
+        scope_id TEXT,
+        content TEXT NOT NULL,
+        source_type TEXT NOT NULL CHECK (source_type IN ('user', 'ai')),
+        source_ai_chat_id TEXT,
+        source_message_id TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        CHECK (
+          (scope_type IN ('global', 'self') AND scope_id IS NULL) OR
+          (scope_type IN ('contact', 'group') AND scope_id IS NOT NULL)
+        )
+      );
+    `)
+
+    if (version === 1) {
+      db.exec(`
+        INSERT INTO ai_memory (
+          id, scope_type, scope_id, content, source_type,
+          source_ai_chat_id, source_message_id, created_at, updated_at
+        )
+        SELECT id, scope_type, scope_id, content, source_type,
+               source_ai_chat_id, source_message_id, created_at, updated_at
+          FROM ai_memory_v1;
+        DROP TABLE ai_memory_v1;
+      `)
+    }
+
+    db.exec(`
+      CREATE INDEX idx_ai_memory_scope_updated
+        ON ai_memory(scope_type, scope_id, updated_at DESC, id ASC);
+    `)
+    db.pragma(`user_version = ${AI_MEMORY_SCHEMA_VERSION}`)
+  })
+
+  migrate()
+  appLogger.info('ai-memory', 'AI memory database schema migrated', {
+    fromVersion: version,
+    toVersion: AI_MEMORY_SCHEMA_VERSION,
+  })
 }

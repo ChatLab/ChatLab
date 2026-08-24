@@ -282,14 +282,15 @@
     "memory": {
       "button": "Memory",
       "title": "Long-term memory",
-      "description": "Manage preferences and relationship context that AI can use across conversations.",
+      "description": "Manage preferences, personal context, and relationship memories that AI can use across conversations.",
       "preferences": "Preferences",
+      "self": "About me",
       "entities": "Contacts and groups",
       "count": "{count} items",
       "empty": "No memories yet. You can ask AI to remember something in a conversation.",
       "proactive": {
         "title": "Allow proactive AI memory",
-        "description": "Let AI save long-term preferences and relationship insights. Explicit requests to remember still work when this is off."
+        "description": "Let AI save long-term preferences, personal context, and relationship insights. Explicit requests to remember still work when this is off."
       },
       "source": {
         "user": "User confirmed",

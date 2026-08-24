@@ -57,8 +57,6 @@
     "scoreHelp": "総合スコアは連絡先の並び順に使われます。スコアが高いほど、やり取りのシグナルが強いことを示します。",
     "lastInteraction": "最終インタラクション",
     "sources": "元チャット",
-    "memories": "メモリ",
-    "memoryLoadFailed": "メモリを読み込めませんでした",
     "sourceType": {
       "private": "個人",
       "group": "グループ"

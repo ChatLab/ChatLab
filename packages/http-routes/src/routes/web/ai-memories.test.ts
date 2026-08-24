@@ -48,6 +48,18 @@ describe('AI memory routes', () => {
       assert.equal(globalResponse.json().content, '最近默认按 90 天')
       assert.equal(globalResponse.json().sourceType, 'user')
 
+      const selfResponse = await fixture.app.inject({
+        method: 'POST',
+        url: '/_web/ai/memories',
+        payload: {
+          scopeType: 'self',
+          scopeId: null,
+          content: '用户目前在上海工作',
+        },
+      })
+      assert.equal(selfResponse.statusCode, 200)
+      assert.equal(selfResponse.json().scopeType, 'self')
+
       await fixture.app.inject({
         method: 'POST',
         url: '/_web/ai/memories',
@@ -61,7 +73,16 @@ describe('AI memory routes', () => {
 
       const all = await fixture.app.inject({ method: 'GET', url: '/_web/ai/memories' })
       assert.equal(all.statusCode, 200)
-      assert.equal(all.json().length, 3)
+      assert.equal(all.json().length, 4)
+
+      const self = await fixture.app.inject({
+        method: 'GET',
+        url: '/_web/ai/memories?scopeType=self',
+      })
+      assert.deepEqual(
+        self.json().map((entry: { content: string }) => entry.content),
+        ['用户目前在上海工作']
+      )
 
       const filtered = await fixture.app.inject({
         method: 'GET',

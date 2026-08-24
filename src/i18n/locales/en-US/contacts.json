@@ -57,8 +57,6 @@
     "scoreHelp": "The score is used to sort contacts. A higher score means stronger interaction signals.",
     "lastInteraction": "Last interaction",
     "sources": "Source chats",
-    "memories": "Memory",
-    "memoryLoadFailed": "Failed to load memory",
     "sourceType": {
       "private": "Private",
       "group": "Group"
