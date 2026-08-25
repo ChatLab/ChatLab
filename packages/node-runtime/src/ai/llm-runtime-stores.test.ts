@@ -133,10 +133,11 @@ test('createLlmRuntimeStores shares configs and catalogs without persisting API 
   const persisted = storage.readJson<{ configs: Array<Record<string, unknown>> }>('llm-config')
   const persistedSecondConfig = persisted?.configs.find((config) => config.id === 'second-config')
   assert.equal(persistedSecondConfig?.apiKey, '')
-  assert.equal(persistedSecondConfig?.authProfile, 'second-openai')
+  const secondProfile = String(persistedSecondConfig?.authProfile)
+  assert.equal(profiles.get(secondProfile)?.key, 'new-secret')
 
   assert.equal(secondRuntime.llmConfigStore.deleteConfig('second-config').success, true)
-  assert.deepEqual(deletedProfiles, ['second-openai'])
+  assert.deepEqual(deletedProfiles, [secondProfile])
   assert.equal(firstRuntime.llmConfigStore.getConfigById('second-config'), null)
 })
 

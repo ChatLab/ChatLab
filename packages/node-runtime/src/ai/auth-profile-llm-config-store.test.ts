@@ -17,6 +17,7 @@ test('createAuthProfileLlmConfigStore shares auth-profile creation, resolution, 
   const profiles = new Map<string, string>()
   const deleted: string[] = []
   const store = createAuthProfileLlmConfigStore(storage, {
+    loadAuthProfiles: () => ({ version: 1, profiles: {} }),
     resolveApiKey: (_provider, profileName) => (profileName ? profiles.get(profileName) : undefined),
     writeAuthProfile: (name, profile) => profiles.set(name, profile.type === 'api_key' ? profile.key : ''),
     deleteAuthProfile: (name) => {
@@ -33,12 +34,44 @@ test('createAuthProfileLlmConfigStore shares auth-profile creation, resolution, 
   })
 
   assert.equal(added.success, true)
-  assert.equal(profiles.get('team-openai'), 'secret-key')
   const persisted = storage.data.get('llm-config') as { configs: Array<Record<string, unknown>> }
+  const profileName = String(persisted.configs[0].authProfile)
+  assert.equal(profiles.get(profileName), 'secret-key')
   assert.equal(persisted.configs[0].apiKey, '')
-  assert.equal(persisted.configs[0].authProfile, 'team-openai')
   assert.equal(store.getAllConfigs()[0].apiKey, 'secret-key')
 
   assert.equal(store.deleteConfig(added.config!.id).success, true)
-  assert.deepEqual(deleted, ['team-openai'])
+  assert.deepEqual(deleted, [profileName])
+})
+
+test('createAuthProfileLlmConfigStore keeps API keys isolated when config names collide', () => {
+  const storage = createMemoryStorage()
+  const profiles = new Map<string, { type: 'api_key'; provider: string; key: string }>()
+  const ids = ['config-a', 'config-b']
+  const store = createAuthProfileLlmConfigStore(storage, {
+    generateId: () => ids.shift()!,
+    loadAuthProfiles: () => ({ version: 1, profiles: Object.fromEntries(profiles) }),
+    resolveApiKey: (_provider, profileName) => (profileName ? profiles.get(profileName)?.key : undefined),
+    writeAuthProfile: (name, profile) => profiles.set(name, profile),
+  })
+
+  const first = store.addConfig({
+    name: 'Same Name',
+    provider: 'openai-compatible',
+    apiKey: 'KEY_A',
+    model: 'model-a',
+  })
+  const second = store.addConfig({
+    name: 'Same Name',
+    provider: 'openai-compatible',
+    apiKey: 'KEY_B',
+    model: 'model-b',
+  })
+
+  assert.equal(first.success, true)
+  assert.equal(second.success, true)
+  assert.deepEqual(
+    store.getAllConfigs().map((config) => config.apiKey),
+    ['KEY_A', 'KEY_B']
+  )
 })

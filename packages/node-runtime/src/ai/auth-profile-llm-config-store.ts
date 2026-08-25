@@ -31,6 +31,10 @@ function getNamedAuthProfile(config: Pick<AIServiceConfig, 'name' | 'provider'>)
   return config.name?.toLowerCase().replace(/\s+/g, '-') || config.provider
 }
 
+function getConfigAuthProfile(config: AIServiceConfig): string {
+  return `${getNamedAuthProfile(config)}-${config.id}`
+}
+
 function restoreLegacyAuthProfileReferences(configs: AIServiceConfig[], authProfiles: AuthProfilesData): void {
   const usedProfiles = new Set(configs.map(getAuthProfile).filter((name): name is string => Boolean(name)))
 
@@ -71,7 +75,7 @@ export function createAuthProfileLlmConfigStore(
     },
     resolveApiKey: resolvedDeps.resolveApiKey,
     onApiKeyCreated: (config, apiKey) => {
-      const profileName = getNamedAuthProfile(config)
+      const profileName = getConfigAuthProfile(config)
       resolvedDeps.writeAuthProfile(profileName, { type: 'api_key', provider: config.provider, key: apiKey })
       return profileName
     },
