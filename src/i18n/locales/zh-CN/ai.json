@@ -66,8 +66,7 @@
       },
       "edit": {
         "tooltip": "编辑并重新生成",
-        "submit": "发送",
-        "overwriteSubsequent": "覆盖后续所有对话"
+        "submit": "发送"
       },
       "fork": {
         "tooltip": "从此处复刻对话"

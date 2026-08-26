@@ -700,38 +700,37 @@ export class AIChatManager {
     }))()
   }
 
-  /** 原子替换当前问答轮，避免新回复插入失败后留下已修改问题或已删除旧回复。 */
-  replaceMessageRound(
+  /** Atomically replaces the latest user/assistant round on the active path. */
+  replaceLatestMessageRound(
     aiChatId: string,
     input: {
       userMessageId: string
       userContent: string
-      oldAssistantMessageId?: string
       assistantMessage: { content: string; contentBlocks?: ContentBlock[]; tokenUsage?: TokenUsageData }
     }
   ): AIMessage {
     const db = this.getDb()
     return db.transaction(() => {
-      const userMessage = this.getMessageRow(input.userMessageId)
-      if (!userMessage || userMessage.aiChatId !== aiChatId || userMessage.role !== 'user') {
-        throw new Error('User message not found in AI chat')
+      const activePath = this.getActivePathRows(aiChatId)
+      const latestUserIndex = activePath.findLastIndex((message) => message.role === 'user')
+      const userMessage = activePath[latestUserIndex]
+      if (!userMessage || userMessage.id !== input.userMessageId) {
+        throw new Error('Only the latest user message can be edited')
       }
 
-      if (input.oldAssistantMessageId) {
-        const oldAssistantMessage = this.getMessageRow(input.oldAssistantMessageId)
-        if (
-          !oldAssistantMessage ||
-          oldAssistantMessage.aiChatId !== aiChatId ||
-          oldAssistantMessage.role !== 'assistant' ||
-          oldAssistantMessage.parentId !== input.userMessageId
-        ) {
-          throw new Error('Assistant message not found after user message')
-        }
+      const followingMessages = activePath.slice(latestUserIndex + 1)
+      if (
+        followingMessages.length > 1 ||
+        (followingMessages.length === 1 &&
+          (followingMessages[0]?.role !== 'assistant' || followingMessages[0].parentId !== input.userMessageId))
+      ) {
+        throw new Error('Latest user message is not a replaceable round')
       }
 
+      const oldAssistantMessage = followingMessages[0]
       this.updateMessageContent(input.userMessageId, input.userContent)
-      if (input.oldAssistantMessageId) {
-        this.deleteAndRelinkMessage(aiChatId, input.oldAssistantMessageId)
+      if (oldAssistantMessage) {
+        this.deleteAndRelinkMessage(aiChatId, oldAssistantMessage.id)
       }
 
       return this.insertMessageAfter(

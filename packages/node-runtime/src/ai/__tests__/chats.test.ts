@@ -482,7 +482,7 @@ describe('AIChatManager message persistence and editing', () => {
     }
   })
 
-  it('replaces an edited message round atomically', () => {
+  it('replaces only the latest message round atomically', () => {
     const dir = createTempDir()
     try {
       const manager = createManager(dir)
@@ -490,21 +490,29 @@ describe('AIChatManager message persistence and editing', () => {
       const firstTurn = manager.addMessagePair(chat.id, { content: 'question' }, { content: 'old answer' })
       const secondTurn = manager.addMessagePair(chat.id, { content: 'follow up' }, { content: 'follow answer' })
 
-      const replacement = manager.replaceMessageRound(chat.id, {
-        userMessageId: firstTurn.userMessage.id,
-        userContent: 'edited question',
-        oldAssistantMessageId: firstTurn.assistantMessage.id,
+      assert.throws(
+        () =>
+          manager.replaceLatestMessageRound(chat.id, {
+            userMessageId: firstTurn.userMessage.id,
+            userContent: 'must not edit history',
+            assistantMessage: { content: 'must not persist' },
+          }),
+        /Only the latest user message can be edited/
+      )
+
+      const replacement = manager.replaceLatestMessageRound(chat.id, {
+        userMessageId: secondTurn.userMessage.id,
+        userContent: 'edited follow up',
         assistantMessage: { content: 'new answer' },
       })
 
       const replacedMessages = manager.getMessages(chat.id)
       assert.deepEqual(
         replacedMessages.map((message) => message.content),
-        ['edited question', 'new answer', 'follow up', 'follow answer']
+        ['question', 'old answer', 'edited follow up', 'new answer']
       )
-      assert.equal(replacement.parentId, firstTurn.userMessage.id)
-      assert.equal(replacedMessages[2]?.parentId, replacement.id)
-      assert.equal(manager.getAIChat(chat.id)?.activeMessageId, secondTurn.assistantMessage.id)
+      assert.equal(replacement.parentId, secondTurn.userMessage.id)
+      assert.equal(manager.getAIChat(chat.id)?.activeMessageId, replacement.id)
 
       const messagesBeforeFailure = manager.getMessages(chat.id)
       manager.executeAiSQL(`
@@ -518,16 +526,15 @@ describe('AIChatManager message persistence and editing', () => {
 
       assert.throws(
         () =>
-          manager.replaceMessageRound(chat.id, {
-            userMessageId: firstTurn.userMessage.id,
+          manager.replaceLatestMessageRound(chat.id, {
+            userMessageId: secondTurn.userMessage.id,
             userContent: 'must roll back',
-            oldAssistantMessageId: replacement.id,
             assistantMessage: { content: 'must not persist' },
           }),
         /injected replacement failure/
       )
       assert.deepEqual(manager.getMessages(chat.id), messagesBeforeFailure)
-      assert.equal(manager.getAIChat(chat.id)?.activeMessageId, secondTurn.assistantMessage.id)
+      assert.equal(manager.getAIChat(chat.id)?.activeMessageId, replacement.id)
       manager.close()
     } finally {
       cleanup(dir)

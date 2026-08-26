@@ -56,7 +56,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  edit: [payload: { messageId: string; content: string; overwriteSubsequent?: boolean }]
+  edit: [payload: { messageId: string; content: string }]
   fork: [messageId: string]
 }>()
 
@@ -82,7 +82,6 @@ const editContent = ref(props.content)
 const editTextareaRef = ref<HTMLTextAreaElement | null>(null)
 const canEdit = computed(() => isUser.value && props.editable && !props.isStreaming && !!props.messageId)
 const canFork = computed(() => !isUser.value && !isSummary.value && !props.isStreaming && !!props.messageId)
-const overwriteSubsequent = ref(false)
 
 // 创建 markdown-it 实例
 const md = new MarkdownIt({
@@ -176,7 +175,6 @@ async function startEditing() {
 function cancelEditing() {
   isEditing.value = false
   editContent.value = props.content
-  overwriteSubsequent.value = false
 }
 
 function submitEditing() {
@@ -187,8 +185,7 @@ function submitEditing() {
     return
   }
   isEditing.value = false
-  emit('edit', { messageId: props.messageId, content, overwriteSubsequent: overwriteSubsequent.value })
-  overwriteSubsequent.value = false
+  emit('edit', { messageId: props.messageId, content })
 }
 
 function getDisplayText(text: string): string {
@@ -833,15 +830,7 @@ async function handleCopyMarkdown() {
             @keydown.ctrl.enter.prevent="submitEditing"
             @keydown.meta.enter.prevent="submitEditing"
           />
-          <div class="mt-2 flex items-center justify-between">
-            <label class="flex cursor-pointer items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-              <input
-                v-model="overwriteSubsequent"
-                type="checkbox"
-                class="h-3.5 w-3.5 rounded border-gray-300 text-primary-500 focus:ring-primary-500 dark:border-gray-600"
-              />
-              {{ t('ai.chat.message.edit.overwriteSubsequent') }}
-            </label>
+          <div class="mt-2 flex justify-end">
             <div class="flex gap-2">
               <UButton size="xs" variant="ghost" color="gray" @click="cancelEditing">
                 {{ t('common.cancel') }}

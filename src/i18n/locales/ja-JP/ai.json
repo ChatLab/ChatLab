@@ -66,8 +66,7 @@
       },
       "edit": {
         "tooltip": "編集して再生成",
-        "submit": "送信",
-        "overwriteSubsequent": "以降のすべての会話を上書き"
+        "submit": "送信"
       },
       "fork": {
         "tooltip": "ここから会話をフォーク"

@@ -66,8 +66,7 @@
       },
       "edit": {
         "tooltip": "Edit and regenerate",
-        "submit": "Send",
-        "overwriteSubsequent": "Overwrite all subsequent messages"
+        "submit": "Send"
       },
       "fork": {
         "tooltip": "Fork conversation from here"

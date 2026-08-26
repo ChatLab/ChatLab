@@ -66,8 +66,7 @@
       },
       "edit": {
         "tooltip": "編輯並重新生成",
-        "submit": "送出",
-        "overwriteSubsequent": "覆蓋後續所有對話"
+        "submit": "送出"
       },
       "fork": {
         "tooltip": "從此處複製對話"

@@ -204,6 +204,17 @@ const assistantBackupName = computed(() => {
 
 // QA 对
 const qaPairs = computed(() => groupMessagesToQAPairs(messages.value))
+const latestEditableUserMessageId = computed(() => {
+  const lastUserIndex = messages.value.findLastIndex((message) => message.role === 'user')
+  if (lastUserIndex < 0) return null
+
+  const followingMessages = messages.value.slice(lastUserIndex + 1)
+  if (followingMessages.length === 0) return messages.value[lastUserIndex]?.id ?? null
+  if (followingMessages.length === 1 && followingMessages[0]?.role === 'assistant') {
+    return messages.value[lastUserIndex]?.id ?? null
+  }
+  return null
+})
 const progressiveHistory = useProgressiveChatHistory(qaPairs, currentAIChatId, chatScroll.messagesContainer)
 const { visiblePairs, hasOlderPairs, loadOlderPairs } = progressiveHistory
 
@@ -372,10 +383,8 @@ async function handleSend(payload: {
   conversationListRef.value?.refresh()
 }
 
-async function handleEditMessage(payload: { messageId: string; content: string; overwriteSubsequent?: boolean }) {
-  const result = await editMessageAndRegenerate(payload.messageId, payload.content, {
-    overwriteSubsequent: payload.overwriteSubsequent,
-  })
+async function handleEditMessage(payload: { messageId: string; content: string }) {
+  const result = await editMessageAndRegenerate(payload.messageId, payload.content)
   if (!result.success) {
     if (result.reason === 'busy') {
       showRunningTaskToast()
@@ -584,7 +593,7 @@ watch(
                     :timestamp="pair.user.timestamp"
                     :is-streaming="pair.user.isStreaming"
                     :content-blocks="pair.user.contentBlocks"
-                    :editable="!isAIThinking"
+                    :editable="!isAIThinking && pair.user.id === latestEditableUserMessageId"
                     @edit="handleEditMessage"
                   />
                   <!-- AI 回复 -->

@@ -10,7 +10,8 @@ test('uses atomic persistence operations for new and edited turns', async (t) =>
   let singleMessageWrites = 0
   let messageRoundReplacements = 0
   let legacyEditWrites = 0
-  let replacementInput: Parameters<AIAdapter['replaceMessageRound']>[1] | undefined
+  let agentRuns = 0
+  const replacementInputs: Array<Parameters<AIAdapter['replaceLatestMessageRound']>[1]> = []
   const persistenceError = new Error('injected persistence failure')
   const aiService = {
     createAIChat: async (sessionId: string, title: string, assistantId: string) => ({
@@ -22,9 +23,31 @@ test('uses atomic persistence operations for new and edited turns', async (t) =>
       createdAt: 1,
       updatedAt: 1,
     }),
-    addMessagePair: async () => {
+    addMessagePair: async (
+      aiChatId: string,
+      userMessage: { content: string },
+      assistantMessage: { content: string }
+    ) => {
       messagePairWrites++
-      throw persistenceError
+      if (userMessage.content === 'atomic question') throw persistenceError
+      return {
+        userMessage: {
+          id: 'compressed-user',
+          aiChatId,
+          role: 'user' as const,
+          content: userMessage.content,
+          timestamp: 3,
+          parentId: 'summary-1',
+        },
+        assistantMessage: {
+          id: 'compressed-assistant',
+          aiChatId,
+          role: 'assistant' as const,
+          content: assistantMessage.content,
+          timestamp: 4,
+          parentId: 'compressed-user',
+        },
+      }
     },
     addMessage: async (aiChatId: string, role: 'user' | 'assistant', content: string) => {
       singleMessageWrites++
@@ -41,13 +64,29 @@ test('uses atomic persistence operations for new and edited turns', async (t) =>
       updatedAt: 1,
     }),
     getMessages: async (aiChatId: string) => [
-      { id: 'edit-user', aiChatId, role: 'user' as const, content: 'original question', timestamp: 1 },
+      { id: 'historical-user', aiChatId, role: 'user' as const, content: 'historical question', timestamp: 1 },
+      {
+        id: 'historical-assistant',
+        aiChatId,
+        role: 'assistant' as const,
+        content: 'historical answer',
+        timestamp: 2,
+        parentId: 'historical-user',
+      },
+      {
+        id: 'edit-user',
+        aiChatId,
+        role: 'user' as const,
+        content: 'original question',
+        timestamp: 3,
+        parentId: 'historical-assistant',
+      },
       {
         id: 'edit-assistant',
         aiChatId,
         role: 'assistant' as const,
         content: 'original answer',
-        timestamp: 2,
+        timestamp: 4,
         parentId: 'edit-user',
       },
     ],
@@ -58,9 +97,12 @@ test('uses atomic persistence operations for new and edited turns', async (t) =>
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
     }),
-    replaceMessageRound: async (aiChatId: string, input: Parameters<AIAdapter['replaceMessageRound']>[1]) => {
+    replaceLatestMessageRound: async (
+      aiChatId: string,
+      input: Parameters<AIAdapter['replaceLatestMessageRound']>[1]
+    ) => {
       messageRoundReplacements++
-      replacementInput = input
+      replacementInputs.push(input)
       return {
         id: 'replacement-assistant',
         aiChatId,
@@ -130,7 +172,19 @@ test('uses atomic persistence operations for new and edited turns', async (t) =>
     t.mock.module('@/services/ai-stream/service', {
       namedExports: {
         useAgentStreamService: () => ({
-          runStream: (_params: unknown, onChunk?: (chunk: AgentStreamChunk) => void) => {
+          runStream: (params: unknown, onChunk?: (chunk: AgentStreamChunk) => void) => {
+            agentRuns++
+            if ((params as { userMessage?: string }).userMessage === 'compressed question') {
+              onChunk?.({
+                type: 'compression_done',
+                compressionResult: {
+                  summaryContent: 'compressed context',
+                  tokensBefore: 100,
+                  tokensAfter: 20,
+                  timestamp: 2,
+                },
+              })
+            }
             onChunk?.({ type: 'content', content: 'model answer' })
             onChunk?.({ type: 'done', isFinished: true })
             return {
@@ -172,16 +226,58 @@ test('uses atomic persistence operations for new and edited turns', async (t) =>
   })
   assert.equal(await store.loadAIChat(editChatKey, 'chat-edit'), true)
 
+  const historicalEditResult = await store.editMessageAndRegenerate(
+    editChatKey,
+    'historical-user',
+    'must not edit history'
+  )
+  assert.deepEqual(historicalEditResult, { success: false, reason: 'error' })
+  assert.equal(agentRuns, 1)
+  assert.equal(messageRoundReplacements, 0)
+
   const editResult = await store.editMessageAndRegenerate(editChatKey, 'edit-user', 'edited question')
 
   assert.deepEqual(editResult, { success: true })
   assert.equal(messageRoundReplacements, 1)
   assert.equal(legacyEditWrites, 0)
-  assert.ok(replacementInput)
-  assert.equal(replacementInput.userMessageId, 'edit-user')
-  assert.equal(replacementInput.userContent, 'edited question')
-  assert.equal(replacementInput.oldAssistantMessageId, 'edit-assistant')
-  assert.equal(replacementInput.assistantMessage.content, 'model answer')
-  assert.equal(replacementInput.assistantMessage.contentBlocks?.length, 1)
-  assert.equal(replacementInput.assistantMessage.contentBlocks?.[0]?.type, 'text')
+  const editInput = replacementInputs[0]
+  assert.ok(editInput)
+  assert.equal(editInput.userMessageId, 'edit-user')
+  assert.equal(editInput.userContent, 'edited question')
+  assert.equal(editInput.assistantMessage.content, 'model answer')
+  assert.equal(editInput.assistantMessage.contentBlocks?.length, 1)
+  assert.equal(editInput.assistantMessage.contentBlocks?.[0]?.type, 'text')
+
+  const { chatKey: compressionChatKey, state: compressionState } = store.ensureSessionState({
+    sessionId: 'session-3',
+    sessionName: 'Compressed session',
+    chatType: 'private',
+    locale: 'zh-CN',
+  })
+  store.selectAssistantForSession(compressionChatKey, 'general_cn')
+
+  const compressedResult = await store.sendMessage(compressionChatKey, 'compressed question')
+
+  assert.deepEqual(compressedResult, { success: true })
+  assert.deepEqual(
+    compressionState.messages.map((message) => message.role),
+    ['summary', 'user', 'assistant']
+  )
+  assert.equal(compressionState.messages[1]?.id, 'compressed-user')
+  assert.equal(compressionState.messages[2]?.id, 'compressed-assistant')
+
+  const compressedEditResult = await store.editMessageAndRegenerate(
+    compressionChatKey,
+    'compressed-user',
+    'edited compressed question'
+  )
+
+  assert.deepEqual(compressedEditResult, { success: true })
+  assert.equal(messageRoundReplacements, 2)
+  assert.equal(replacementInputs[1]?.userMessageId, 'compressed-user')
+  assert.equal(replacementInputs[1]?.userContent, 'edited compressed question')
+  assert.deepEqual(
+    compressionState.messages.map((message) => message.role),
+    ['summary', 'user', 'assistant']
+  )
 })
