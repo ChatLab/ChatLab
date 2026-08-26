@@ -138,6 +138,7 @@ export type AIEntityRef =
 
 export type AIMemoryScopeType = 'global' | 'self' | 'contact' | 'group'
 export type AIMemorySourceType = 'user' | 'ai'
+export type AIMemorySourceStatus = 'none' | 'conversation' | 'message' | 'unavailable'
 
 export interface AIMemoryScope {
   scopeType: AIMemoryScopeType
@@ -152,6 +153,23 @@ export interface AIMemoryEntry extends AIMemoryScope {
   sourceMessageId: string | null
   createdAt: number
   updatedAt: number
+}
+
+export interface AIMemoryManagementEntry extends AIMemoryEntry {
+  sourceStatus: AIMemorySourceStatus
+}
+
+export interface LinkAIMemorySourcesInput {
+  provenanceToken: string
+  aiChatId: string
+  userMessageId: string
+  assistantMessageId: string
+  memoryIds: string[]
+}
+
+export interface LinkAIMemorySourcesResult {
+  linkedMemoryIds: string[]
+  skippedMemoryIds: string[]
 }
 
 export {

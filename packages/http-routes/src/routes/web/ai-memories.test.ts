@@ -4,23 +4,29 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, it } from 'node:test'
 import Fastify from 'fastify'
-import { AIMemoryService } from '@openchatlab/node-runtime'
+import { AIChatManager, AIMemoryService } from '@openchatlab/node-runtime'
 import { registerAiMemoryRoutes } from './ai-memories'
+import { MemoryProvenanceCoordinator } from './memory-provenance-coordinator'
 
 const sqliteNativeBinding = process.env.CHATLAB_TEST_SQLITE_NATIVE_BINDING
 
 function createFixture() {
   const dir = mkdtempSync(join(tmpdir(), 'chatlab-ai-memory-routes-'))
   const service = new AIMemoryService(dir, { nativeBinding: sqliteNativeBinding })
+  const aiChatManager = new AIChatManager(dir, { nativeBinding: sqliteNativeBinding })
+  const memoryProvenanceCoordinator = new MemoryProvenanceCoordinator()
   const app = Fastify()
-  registerAiMemoryRoutes(app, { aiMemoryService: service })
+  registerAiMemoryRoutes(app, { aiMemoryService: service, aiChatManager }, memoryProvenanceCoordinator)
 
   return {
     app,
     service,
+    aiChatManager,
+    memoryProvenanceCoordinator,
     async close() {
       await app.close()
       service.close()
+      aiChatManager.close()
       try {
         rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 })
       } catch {
@@ -194,6 +200,147 @@ describe('AI memory routes', () => {
       assert.equal(explicit.statusCode, 200)
       assert.deepEqual(explicit.json(), { success: true, cleared: 2 })
       assert.deepEqual(fixture.service.list(), [])
+    } finally {
+      await fixture.close()
+    }
+  })
+
+  it('links only memories and persisted message roles owned by the requested global conversation', async () => {
+    const fixture = createFixture()
+    try {
+      const chat = fixture.aiChatManager.createGlobalAIChat('source', 'general_cn')
+      const otherChat = fixture.aiChatManager.createGlobalAIChat('other', 'general_cn')
+      const userMessage = fixture.aiChatManager.addMessage(chat.id, 'user', '请记住')
+      const assistantMessage = fixture.aiChatManager.addMessage(chat.id, 'assistant', '已经记住')
+      const memory = fixture.service.create({
+        scopeType: 'global',
+        scopeId: null,
+        content: '先给结论',
+        sourceType: 'user',
+        sourceAIChatId: chat.id,
+      })
+      const provenanceToken = 'test-turn'
+      fixture.memoryProvenanceCoordinator.begin(provenanceToken, chat.id, userMessage.parentId ?? null)
+      fixture.memoryProvenanceCoordinator.record(provenanceToken, memory.id)
+      fixture.memoryProvenanceCoordinator.complete(provenanceToken)
+
+      const linked = await fixture.app.inject({
+        method: 'POST',
+        url: '/_web/ai/memories/link-sources',
+        payload: {
+          provenanceToken,
+          aiChatId: chat.id,
+          userMessageId: userMessage.id,
+          assistantMessageId: assistantMessage.id,
+          memoryIds: [memory.id],
+        },
+      })
+      assert.equal(linked.statusCode, 200)
+      assert.deepEqual(linked.json(), { linkedMemoryIds: [memory.id], skippedMemoryIds: [] })
+
+      const listed = await fixture.app.inject({ method: 'GET', url: '/_web/ai/memories' })
+      assert.equal(listed.json()[0].sourceStatus, 'message')
+      assert.equal(listed.json()[0].sourceMessageId, userMessage.id)
+
+      const forged = await fixture.app.inject({
+        method: 'POST',
+        url: '/_web/ai/memories/link-sources',
+        payload: {
+          provenanceToken,
+          aiChatId: otherChat.id,
+          userMessageId: userMessage.id,
+          assistantMessageId: assistantMessage.id,
+          memoryIds: [memory.id],
+        },
+      })
+      assert.equal(forged.statusCode, 400)
+      assert.equal(fixture.service.get(memory.id)?.sourceMessageId, userMessage.id)
+    } finally {
+      await fixture.close()
+    }
+  })
+
+  it('binds source backfill to one completed agent turn and its exact memory change set', async () => {
+    const fixture = createFixture()
+    try {
+      const chat = fixture.aiChatManager.createGlobalAIChat('source', 'general_cn')
+      const previousUser = fixture.aiChatManager.addMessage(chat.id, 'user', 'previous')
+      const previousAssistant = fixture.aiChatManager.addMessage(chat.id, 'assistant', 'previous answer')
+      const memory = fixture.service.create({
+        scopeType: 'global',
+        scopeId: null,
+        content: 'changed this turn',
+        sourceType: 'user',
+        sourceAIChatId: chat.id,
+      })
+      const untrackedMemory = fixture.service.create({
+        scopeType: 'global',
+        scopeId: null,
+        content: 'not changed this turn',
+        sourceType: 'user',
+        sourceAIChatId: chat.id,
+      })
+      const provenanceToken = 'bound-turn'
+      fixture.memoryProvenanceCoordinator.begin(provenanceToken, chat.id, previousAssistant.id)
+      fixture.memoryProvenanceCoordinator.record(provenanceToken, memory.id)
+      fixture.memoryProvenanceCoordinator.complete(provenanceToken)
+
+      const currentUser = fixture.aiChatManager.addMessage(chat.id, 'user', 'current')
+      const currentAssistant = fixture.aiChatManager.addMessage(chat.id, 'assistant', 'current answer')
+      const wrongChangeSet = await fixture.app.inject({
+        method: 'POST',
+        url: '/_web/ai/memories/link-sources',
+        payload: {
+          provenanceToken,
+          aiChatId: chat.id,
+          userMessageId: currentUser.id,
+          assistantMessageId: currentAssistant.id,
+          memoryIds: [memory.id, untrackedMemory.id],
+        },
+      })
+      assert.equal(wrongChangeSet.statusCode, 400)
+      assert.equal(fixture.service.get(memory.id)?.sourceMessageId, null)
+
+      const oldMessages = await fixture.app.inject({
+        method: 'POST',
+        url: '/_web/ai/memories/link-sources',
+        payload: {
+          provenanceToken,
+          aiChatId: chat.id,
+          userMessageId: previousUser.id,
+          assistantMessageId: previousAssistant.id,
+          memoryIds: [memory.id],
+        },
+      })
+      assert.equal(oldMessages.statusCode, 400)
+      assert.equal(fixture.service.get(memory.id)?.sourceMessageId, null)
+
+      const linked = await fixture.app.inject({
+        method: 'POST',
+        url: '/_web/ai/memories/link-sources',
+        payload: {
+          provenanceToken,
+          aiChatId: chat.id,
+          userMessageId: currentUser.id,
+          assistantMessageId: currentAssistant.id,
+          memoryIds: [memory.id],
+        },
+      })
+      assert.equal(linked.statusCode, 200)
+      assert.equal(fixture.service.get(memory.id)?.sourceMessageId, currentUser.id)
+
+      const replay = await fixture.app.inject({
+        method: 'POST',
+        url: '/_web/ai/memories/link-sources',
+        payload: {
+          provenanceToken,
+          aiChatId: chat.id,
+          userMessageId: currentUser.id,
+          assistantMessageId: currentAssistant.id,
+          memoryIds: [memory.id],
+        },
+      })
+      assert.equal(replay.statusCode, 400)
     } finally {
       await fixture.close()
     }

@@ -44,6 +44,7 @@ const props = defineProps<{
   contentBlocks?: ContentBlock[]
   /** 是否显示截屏按钮（仅 AI 回复） */
   showCaptureButton?: boolean
+  highlighted?: boolean
   editable?: boolean
   /** Live tool status for the streaming process header. */
   activeTool?: {
@@ -786,7 +787,12 @@ async function handleCopyMarkdown() {
 <template>
   <div
     class="flex items-start gap-3"
-    :class="[isUser && !isEditing ? 'flex-row-reverse' : '', isSummary ? 'justify-center' : '']"
+    :class="[
+      isUser && !isEditing ? 'flex-row-reverse' : '',
+      isSummary ? 'justify-center' : '',
+      highlighted ? 'rounded-xl ring-2 ring-primary-400/70 ring-offset-4 dark:ring-offset-gray-950' : '',
+    ]"
+    :data-ai-message-id="messageId"
   >
     <!-- 消息内容 -->
     <div

@@ -438,6 +438,8 @@ export interface CrossChatToolExecutionContext {
   analysisService: CrossChatAnalysisToolService
   memoryService: AIMemoryToolService
   aiChatId: string
+  /** Reports a successful memory create/update without exposing it to the model context. */
+  reportMemoryChange?: (memoryId: string) => void
   preprocessMessagesBySession: (
     sessionId: string,
     messages: CrossChatMessageSource[]

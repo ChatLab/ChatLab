@@ -116,7 +116,11 @@ function entityResolution(refs: AIEntityRef[]): CrossChatEntityResolution {
 }
 
 function createContext(
-  options: { entityRefs?: AIEntityRef[]; resolvedEntityRefs?: AIEntityRef[] } = {}
+  options: {
+    entityRefs?: AIEntityRef[]
+    resolvedEntityRefs?: AIEntityRef[]
+    reportMemoryChange?: (memoryId: string) => void
+  } = {}
 ): CrossChatToolExecutionContext {
   const analysisService = {
     resolveEntities: async (refs: AIEntityRef[]) => entityResolution(refs),
@@ -128,6 +132,7 @@ function createContext(
     analysisService,
     memoryService: new FakeMemoryService(),
     aiChatId: 'global-chat-1',
+    reportMemoryChange: options.reportMemoryChange,
     preprocessMessagesBySession: (_sessionId, messages) => messages,
     preprocessSummariesBySession: (_sessionId, summaries) => summaries,
     preprocessModelLabel: (value) => value,
@@ -157,7 +162,8 @@ describe('global memory tool registry', () => {
 
 describe('global memory tools', () => {
   it('writes user memory with runtime-owned source metadata and updates only the same scope', async () => {
-    const context = createContext()
+    const changedMemoryIds: string[] = []
+    const context = createContext({ reportMemoryChange: (memoryId) => changedMemoryIds.push(memoryId) })
     const created = await memoryWriteTool.handler(
       {
         scope_type: 'contact',
@@ -182,6 +188,7 @@ describe('global memory tools', () => {
       context
     )
     assert.equal((updated.data as AIMemoryEntry).content, '用户纠正为高中同学')
+    assert.deepEqual(changedMemoryIds, [createdEntry.id, createdEntry.id])
 
     await assert.rejects(
       async () =>

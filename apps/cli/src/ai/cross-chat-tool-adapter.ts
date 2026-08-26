@@ -23,6 +23,7 @@ export function createCliCrossChatTools(options: {
   maxToolResultTokens: number
   memoryService: AIMemoryService
   aiChatId: string
+  reportMemoryChange?: (memoryId: string) => void
 }): AgentTool<any, any>[] {
   const context: Omit<CrossChatToolExecutionContext, 'abortSignal' | 'reportProgress'> = {
     locale: options.locale,
@@ -30,6 +31,7 @@ export function createCliCrossChatTools(options: {
     analysisService: options.analysisService,
     memoryService: options.memoryService,
     aiChatId: options.aiChatId,
+    reportMemoryChange: options.reportMemoryChange,
     maxToolResultTokens: options.maxToolResultTokens,
     countTokens,
     preprocessMessagesBySession: (sessionId, messages) =>

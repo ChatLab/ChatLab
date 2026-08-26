@@ -38,6 +38,7 @@ export interface AgentStreamChunk {
     | 'tool_start'
     | 'tool_update'
     | 'tool_result'
+    | 'memory_change'
     | 'status'
     | 'compression_done'
     | 'route'
@@ -56,6 +57,8 @@ export interface AgentStreamChunk {
   toolProgress?: ToolProgress
   toolResult?: unknown
   toolIsError?: boolean
+  memoryId?: string
+  provenanceToken?: string
   error?: unknown
   isFinished?: boolean
   usage?: TokenUsage

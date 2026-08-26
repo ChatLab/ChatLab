@@ -67,11 +67,15 @@
   background-color: var(--color-gray-600);
 }
 
-/* 标题栏安全区域高度 - 页面顶部 padding 需要避开此区域
+/* 页面顶部偏移：CLI Web 用作视觉留白，Electron 同时用于避开标题栏
  * macOS: 红绿灯在左侧由 Sidebar 处理，右侧内容区无遮挡，使用较小值
  * Windows: 跟随 Window Controls Overlay 提供的系统高度
  * Linux: 自定义窗口控制按钮固定占据 32px 高度 */
 :root {
+  --titlebar-area-height: 1rem;
+}
+
+.platform-electron {
   --titlebar-area-height: 1rem; /* 16px - macOS */
 }
 

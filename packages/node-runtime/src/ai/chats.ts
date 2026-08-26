@@ -811,6 +811,11 @@ export class AIChatManager {
     return this.getActivePathRows(aiChatId).map((row) => this.parseMessageRow(row))
   }
 
+  getMessage(messageId: string): AIMessage | null {
+    const row = this.getMessageRow(messageId)
+    return row ? this.parseMessageRow(row) : null
+  }
+
   deleteMessage(messageId: string): boolean {
     const db = this.getDb()
     const result = db.prepare('DELETE FROM ai_message WHERE id = ?').run(messageId)

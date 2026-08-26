@@ -366,11 +366,14 @@ onMounted(async () => {
   // 同步原生 modal 在异步锁屏就绪前保持底层文档 inert；chunk 加载失败时不会自动放行。
   syncBootstrapMask(bootstrapDialogRef.value)
   window.addEventListener('keydown', handleGlobalKeydown)
-  const platform = navigator.platform.toLowerCase()
-  if (platform.includes('win')) {
-    document.documentElement.classList.add('platform-windows')
-  } else if (platform.includes('linux')) {
-    document.documentElement.classList.add('platform-linux')
+  if (IS_ELECTRON) {
+    document.documentElement.classList.add('platform-electron')
+    const platform = navigator.platform.toLowerCase()
+    if (platform.includes('win')) {
+      document.documentElement.classList.add('platform-windows')
+    } else if (platform.includes('linux')) {
+      document.documentElement.classList.add('platform-linux')
+    }
   }
 
   if (IS_ELECTRON) {
@@ -417,7 +420,7 @@ onUnmounted(() => {
     </template>
     <template v-else>
       <!-- 自定义标题栏 - 拖拽区域 + 窗口控制按钮 -->
-      <TitleBar />
+      <TitleBar v-if="IS_ELECTRON" />
       <div class="relative flex h-screen w-full overflow-hidden bg-page-bg dark:bg-page-dark">
         <!-- 运行时就绪后先在启动屏下挂载真实界面，利用动画时间完成布局和页面预热。 -->
         <div

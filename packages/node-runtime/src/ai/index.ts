@@ -49,6 +49,7 @@ export type {
 } from './chats'
 export { AI_MEMORY_CONTENT_MAX_CHARS, AIMemoryService, buildGlobalMemoryPrompt } from './memory'
 export type { AIMemoryServiceOptions, CreateAIMemoryInput, UpdateAIMemoryInput } from './memory'
+export { linkAIMemorySources, listAIMemoriesWithSourceStatus, resolveAIMemorySourceStatus } from './memory-provenance'
 
 // Tokenizer
 export { countTokens, countMessagesTokens, initTokenizer } from './tokenizer'

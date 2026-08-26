@@ -319,6 +319,7 @@ export {
   runCrossChatAgent,
 } from './ai'
 export type { CrossChatAgentLogger, RunCrossChatAgentOptions } from './ai'
+export { linkAIMemorySources, listAIMemoriesWithSourceStatus, resolveAIMemorySourceStatus } from './ai'
 export type {
   AnalysisPlanIntent,
   AnalysisPlanner,
