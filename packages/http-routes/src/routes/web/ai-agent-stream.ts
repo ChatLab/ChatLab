@@ -21,8 +21,7 @@ export function registerAiAgentStreamRoutes(
     const requestId = `req_${randomUUID()}`
     const abortController = new AbortController()
     activeAgentAborts.set(requestId, abortController)
-    const expectedParentMessageId = ctx.aiChatManager?.getAIChat(request.body.aiChatId)?.activeMessageId ?? null
-    memoryProvenanceCoordinator?.begin(requestId, request.body.aiChatId, expectedParentMessageId)
+    memoryProvenanceCoordinator?.begin(requestId, request.body.aiChatId)
 
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -71,7 +70,8 @@ export function registerAiAgentStreamRoutes(
       const msg = error instanceof Error ? error.message : String(error)
       safeSendSSE('error', { type: 'error', error: { name: 'ServerError', message: msg } })
     } finally {
-      memoryProvenanceCoordinator?.complete(requestId)
+      const expectedParentMessageId = ctx.aiChatManager?.getAIChat(request.body.aiChatId)?.activeMessageId ?? null
+      memoryProvenanceCoordinator?.complete(requestId, expectedParentMessageId)
       releaseInteractiveWork()
       if (!emittedDone) safeSendSSE('done', { type: 'done', isFinished: true })
       activeAgentAborts.delete(requestId)

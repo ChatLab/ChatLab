@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { describe, it } from 'node:test'
 import Fastify from 'fastify'
 import { AIChatManager, AIMemoryService } from '@openchatlab/node-runtime'
+import { registerAiAgentStreamRoutes } from './ai-agent-stream'
 import { registerAiMemoryRoutes } from './ai-memories'
 import { MemoryProvenanceCoordinator } from './memory-provenance-coordinator'
 
@@ -220,9 +221,9 @@ describe('AI memory routes', () => {
         sourceAIChatId: chat.id,
       })
       const provenanceToken = 'test-turn'
-      fixture.memoryProvenanceCoordinator.begin(provenanceToken, chat.id, userMessage.parentId ?? null)
+      fixture.memoryProvenanceCoordinator.begin(provenanceToken, chat.id)
       fixture.memoryProvenanceCoordinator.record(provenanceToken, memory.id)
-      fixture.memoryProvenanceCoordinator.complete(provenanceToken)
+      fixture.memoryProvenanceCoordinator.complete(provenanceToken, userMessage.parentId ?? null)
 
       const linked = await fixture.app.inject({
         method: 'POST',
@@ -281,9 +282,9 @@ describe('AI memory routes', () => {
         sourceAIChatId: chat.id,
       })
       const provenanceToken = 'bound-turn'
-      fixture.memoryProvenanceCoordinator.begin(provenanceToken, chat.id, previousAssistant.id)
+      fixture.memoryProvenanceCoordinator.begin(provenanceToken, chat.id)
       fixture.memoryProvenanceCoordinator.record(provenanceToken, memory.id)
-      fixture.memoryProvenanceCoordinator.complete(provenanceToken)
+      fixture.memoryProvenanceCoordinator.complete(provenanceToken, previousAssistant.id)
 
       const currentUser = fixture.aiChatManager.addMessage(chat.id, 'user', 'current')
       const currentAssistant = fixture.aiChatManager.addMessage(chat.id, 'assistant', 'current answer')
@@ -341,6 +342,73 @@ describe('AI memory routes', () => {
         },
       })
       assert.equal(replay.statusCode, 400)
+    } finally {
+      await fixture.close()
+    }
+  })
+
+  it('links a memory to the current turn after automatic compression changes the active parent', async () => {
+    const fixture = createFixture()
+    try {
+      const chat = fixture.aiChatManager.createGlobalAIChat('source', 'general_cn')
+      fixture.aiChatManager.addMessage(chat.id, 'user', 'previous')
+      fixture.aiChatManager.addMessage(chat.id, 'assistant', 'previous answer')
+      let memoryId = ''
+      let summaryMessageId = ''
+
+      registerAiAgentStreamRoutes(
+        fixture.app,
+        {
+          aiChatManager: fixture.aiChatManager,
+          runAgentStream: async (_request, onEvent) => {
+            const summary = fixture.aiChatManager.addSummaryMessage(chat.id, 'compressed history', {
+              bufferBoundaryTimestamp: Date.now(),
+              compressedMessageCount: 2,
+            })
+            summaryMessageId = summary.id
+            const memory = fixture.service.create({
+              scopeType: 'global',
+              scopeId: null,
+              content: 'changed after compression',
+              sourceType: 'ai',
+              sourceAIChatId: chat.id,
+            })
+            memoryId = memory.id
+            onEvent({ type: 'memory_change', memoryId })
+            onEvent({ type: 'done', isFinished: true })
+          },
+        },
+        fixture.memoryProvenanceCoordinator
+      )
+
+      const streamResponse = await fixture.app.inject({
+        method: 'POST',
+        url: '/_web/ai/agent/stream',
+        payload: { aiChatId: chat.id },
+      })
+      assert.equal(streamResponse.statusCode, 200)
+      const provenanceToken = String(streamResponse.headers['x-request-id'])
+
+      const { userMessage, assistantMessage } = fixture.aiChatManager.addMessagePair(
+        chat.id,
+        { content: 'current question' },
+        { content: 'current answer' }
+      )
+      assert.equal(userMessage.parentId, summaryMessageId)
+
+      const linked = await fixture.app.inject({
+        method: 'POST',
+        url: '/_web/ai/memories/link-sources',
+        payload: {
+          provenanceToken,
+          aiChatId: chat.id,
+          userMessageId: userMessage.id,
+          assistantMessageId: assistantMessage.id,
+          memoryIds: [memoryId],
+        },
+      })
+      assert.equal(linked.statusCode, 200)
+      assert.equal(fixture.service.get(memoryId)?.sourceMessageId, assistantMessage.id)
     } finally {
       await fixture.close()
     }
