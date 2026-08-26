@@ -9,30 +9,84 @@ import type {
   AIMemoryScopeType,
   AIMemorySourceType,
 } from '@openchatlab/shared-types'
+import type { SupportedLocale } from '@openchatlab/core'
 import { appLogger } from '../logging/app-logger'
+import { segment } from '../nlp/segmenter'
 
 export const AI_MEMORY_CONTENT_MAX_CHARS = 2_000
 const AI_MEMORY_SCHEMA_VERSION = 2
 const AI_MEMORY_PROMPT_MAX_ENTRIES = 20
 const AI_MEMORY_PROMPT_MAX_CONTENT_CHARS = 4_000
+const AI_MEMORY_PROMPT_BASE_USER_ENTRIES = 5
 
-export function buildGlobalMemoryPrompt(entries: AIMemoryEntry[], locale = 'zh-CN'): string {
+export type AIMemoryRetrievalMode = 'relevance' | 'recent_fallback'
+
+export interface AIMemorySearchResult {
+  entries: AIMemoryEntry[]
+  retrievalMode: AIMemoryRetrievalMode
+  matchedCount: number
+}
+
+interface RankMemoryEntriesOptions {
+  query: string
+  locale?: string
+}
+
+interface ScoredMemoryEntry {
+  entry: AIMemoryEntry
+  score: number
+}
+
+export function rankMemoryEntries(entries: AIMemoryEntry[], options: RankMemoryEntriesOptions): AIMemorySearchResult {
+  const recentEntries = [...entries].sort(compareRecentMemoryEntries)
+  const query = normalizeSearchText(options.query)
+  if (!query) {
+    return { entries: recentEntries, retrievalMode: 'recent_fallback', matchedCount: 0 }
+  }
+
+  const locale = normalizeMemoryLocale(options.locale)
+  const queryTokens = tokenizeMemoryText(options.query, locale)
+  const scored: ScoredMemoryEntry[] = recentEntries.map((entry) => ({
+    entry,
+    score: scoreMemoryEntry(entry.content, query, queryTokens, locale),
+  }))
+  const matchedCount = scored.filter((item) => item.score > 0).length
+  if (matchedCount === 0) {
+    return { entries: recentEntries, retrievalMode: 'recent_fallback', matchedCount: 0 }
+  }
+
+  scored.sort((left, right) => {
+    if (left.score !== right.score) return right.score - left.score
+    if (left.entry.sourceType !== right.entry.sourceType) return left.entry.sourceType === 'user' ? -1 : 1
+    return compareRecentMemoryEntries(left.entry, right.entry)
+  })
+  return {
+    entries: scored.map((item) => item.entry),
+    retrievalMode: 'relevance',
+    matchedCount,
+  }
+}
+
+export function buildGlobalMemoryPrompt(entries: AIMemoryEntry[], locale = 'zh-CN', query = ''): string {
+  const rankedEntries = rankMemoryEntries(entries, { query, locale }).entries
+  const recentUserEntries = [...entries]
+    .filter((entry) => entry.sourceType === 'user')
+    .sort(compareRecentMemoryEntries)
+    .slice(0, AI_MEMORY_PROMPT_BASE_USER_ENTRIES)
+  const baseUserIds = new Set(recentUserEntries.map((entry) => entry.id))
+  const prioritizedEntries = [...recentUserEntries, ...rankedEntries.filter((entry) => !baseUserIds.has(entry.id))]
   const selected: AIMemoryEntry[] = []
   let contentChars = 0
-  for (const entry of entries) {
-    if (
-      selected.length >= AI_MEMORY_PROMPT_MAX_ENTRIES ||
-      contentChars + entry.content.length > AI_MEMORY_PROMPT_MAX_CONTENT_CHARS
-    ) {
-      break
-    }
+  for (const entry of prioritizedEntries) {
+    if (selected.length >= AI_MEMORY_PROMPT_MAX_ENTRIES) break
+    if (contentChars + entry.content.length > AI_MEMORY_PROMPT_MAX_CONTENT_CHARS) continue
     selected.push(entry)
     contentChars += entry.content.length
   }
   if (selected.length === 0) return ''
 
   const lines = selected.map((entry) => `- [id=${entry.id}; source=${entry.sourceType}] ${entry.content}`)
-  if (selected.length < entries.length) {
+  if (selected.length < prioritizedEntries.length) {
     lines.push(
       locale.startsWith('zh')
         ? '- 部分全局记忆未注入；需要时调用 memory_read 读取。'
@@ -56,7 +110,8 @@ interface SelectedEntityMemory {
 export function buildEntityMemoryPrompt(
   entityRefs: AIEntityRef[] | undefined,
   loadEntries: (scope: AIMemoryScope) => AIMemoryEntry[],
-  locale = 'zh-CN'
+  locale = 'zh-CN',
+  query = ''
 ): string {
   const buckets: EntityMemoryBucket[] = []
   const seenScopes = new Set<string>()
@@ -76,7 +131,7 @@ export function buildEntityMemoryPrompt(
     buckets.push({
       scope,
       displayName: ref.displayName,
-      entries: loadEntries(scope),
+      entries: rankMemoryEntries(loadEntries(scope), { query, locale }).entries,
     })
   }
 
@@ -216,6 +271,18 @@ export class AIMemoryService {
       .all(normalized.scopeType, normalized.scopeId) as AIMemoryEntry[]
   }
 
+  search(scope: AIMemoryScope, query: string, locale = 'zh-CN'): AIMemorySearchResult {
+    const startedAt = Date.now()
+    const result = rankMemoryEntries(this.list(scope), { query, locale })
+    appLogger.debug('ai-memory', 'AI memory relevance search completed', {
+      candidateCount: result.entries.length,
+      matchedCount: result.matchedCount,
+      retrievalMode: result.retrievalMode,
+      durationMs: Date.now() - startedAt,
+    })
+    return result
+  }
+
   get(id: string): AIMemoryEntry | null {
     const row = this.getDb()
       .prepare(
@@ -332,9 +399,14 @@ export class AIMemoryService {
     const db = this.nativeBinding
       ? new Database(this.dbPath, { nativeBinding: this.nativeBinding })
       : new Database(this.dbPath)
-    db.pragma('journal_mode = WAL')
-    db.pragma('busy_timeout = 5000')
-    migrateMemorySchema(db)
+    try {
+      db.pragma('journal_mode = WAL')
+      db.pragma('busy_timeout = 5000')
+      migrateMemorySchema(db)
+    } catch (error) {
+      db.close()
+      throw error
+    }
     this.db = db
     appLogger.info('ai-memory', 'AI memory database initialized', { schemaVersion: AI_MEMORY_SCHEMA_VERSION })
     return db
@@ -354,6 +426,64 @@ export class AIMemoryService {
       throw error
     }
   }
+}
+
+function compareRecentMemoryEntries(left: AIMemoryEntry, right: AIMemoryEntry): number {
+  return right.updatedAt - left.updatedAt || left.id.localeCompare(right.id)
+}
+
+function normalizeMemoryLocale(locale?: string): SupportedLocale {
+  if (locale?.startsWith('zh-TW')) return 'zh-TW'
+  if (locale?.startsWith('zh')) return 'zh-CN'
+  if (locale?.startsWith('ja')) return 'ja-JP'
+  return 'en-US'
+}
+
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize('NFKC')
+    .toLocaleLowerCase()
+    .replace(/[\p{P}\p{S}\s]+/gu, '')
+}
+
+function tokenizeMemoryText(value: string, locale: SupportedLocale): Set<string> {
+  const tokens = new Set(
+    segment(value, locale, { posFilterMode: 'all', enableStopwords: true }).map(normalizeSearchText).filter(Boolean)
+  )
+  if (locale.startsWith('zh')) {
+    for (const token of extractCjkBigrams(value)) tokens.add(token)
+  }
+  return tokens
+}
+
+function extractCjkBigrams(value: string): string[] {
+  const runs = value.normalize('NFKC').match(/[\p{Script=Han}]+/gu) ?? []
+  return runs.flatMap((run) =>
+    Array.from({ length: Math.max(0, run.length - 1) }, (_, index) => run.slice(index, index + 2))
+  )
+}
+
+function scoreMemoryEntry(
+  content: string,
+  normalizedQuery: string,
+  queryTokens: Set<string>,
+  locale: SupportedLocale
+): number {
+  const normalizedContent = normalizeSearchText(content)
+  let score = 0
+  if (normalizedContent.includes(normalizedQuery) || normalizedQuery.includes(normalizedContent)) score += 3
+
+  if (queryTokens.size === 0) return score
+  const contentTokens = tokenizeMemoryText(content, locale)
+  if (contentTokens.size === 0) return score
+
+  let overlap = 0
+  for (const token of queryTokens) {
+    if (contentTokens.has(token)) overlap += 1
+  }
+  if (overlap === 0) return score
+
+  return score + (overlap / queryTokens.size) * 2 + overlap / contentTokens.size
 }
 
 function normalizeScope(scope: AIMemoryScope): AIMemoryScope {
@@ -398,12 +528,11 @@ function migrateMemorySchema(db: Database.Database): void {
     throw new Error(`Unsupported AI memory schema version: ${version}`)
   }
   if (version === AI_MEMORY_SCHEMA_VERSION) return
+  if (version !== 0) {
+    throw new Error(`Unsupported AI memory schema version: ${version}`)
+  }
 
   const migrate = db.transaction(() => {
-    if (version === 1) {
-      db.exec('ALTER TABLE ai_memory RENAME TO ai_memory_v1')
-    }
-
     db.exec(`
       CREATE TABLE ai_memory (
         id TEXT PRIMARY KEY,
@@ -421,19 +550,6 @@ function migrateMemorySchema(db: Database.Database): void {
         )
       );
     `)
-
-    if (version === 1) {
-      db.exec(`
-        INSERT INTO ai_memory (
-          id, scope_type, scope_id, content, source_type,
-          source_ai_chat_id, source_message_id, created_at, updated_at
-        )
-        SELECT id, scope_type, scope_id, content, source_type,
-               source_ai_chat_id, source_message_id, created_at, updated_at
-          FROM ai_memory_v1;
-        DROP TABLE ai_memory_v1;
-      `)
-    }
 
     db.exec(`
       CREATE INDEX idx_ai_memory_scope_updated

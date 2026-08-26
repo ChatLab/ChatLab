@@ -10,6 +10,10 @@ const readSchema: JsonSchema = {
       type: 'string',
       description: 'Stable contactKey or group sessionId. Omit for global and self memory.',
     },
+    query: {
+      type: 'string',
+      description: 'Current question or topic used to rank memories inside the authorized scope.',
+    },
     limit: { type: 'number', minimum: 1, maximum: 50, default: 20 },
   },
   required: ['scope_type'],
@@ -45,7 +49,7 @@ const forgetSchema: JsonSchema = {
 export const memoryReadTool: ToolDefinition<CrossChatToolExecutionContext> = {
   name: 'memory_read',
   description:
-    'Read durable global preferences, facts about the user, or memories for one resolved contact/group. Self memory is read on demand and is never injected automatically. AI-derived memories are leads and must be re-verified against current chat evidence.',
+    'Read durable global preferences, facts about the user, or memories for one resolved contact/group. Pass the current question or topic as query to rank relevant entries inside that authorized scope. Self memory is read on demand and is never injected automatically. AI-derived memories are leads and must be re-verified against current chat evidence.',
   inputSchema: readSchema,
   handler: memoryReadHandler,
 }
@@ -75,7 +79,11 @@ async function memoryReadHandler(
   const scope = parseScope(params)
   await assertResolvableEntityScope(scope, context)
   const limit = parseLimit(params.limit)
-  const allEntries = context.memoryService.list(scope)
+  const query = optionalString(params.query)
+  const searchResult = query
+    ? context.memoryService.search(scope, query, context.locale)
+    : { entries: context.memoryService.list(scope), retrievalMode: 'recent_fallback' as const }
+  const allEntries = searchResult.entries
   const entries = allEntries.slice(0, limit)
   const truncated = allEntries.length > entries.length
   const verificationGuidance = entries.some((entry) => entry.sourceType === 'ai')
@@ -83,7 +91,7 @@ async function memoryReadHandler(
       ? '标记为 ai 的记忆只是调查线索，使用前必须重新查询原始聊天证据。'
       : 'Memories marked ai are investigation leads. Re-query the original chat evidence before using them.'
     : null
-  const data = { entries, truncated, verificationGuidance }
+  const data = { entries, truncated, retrievalMode: searchResult.retrievalMode, verificationGuidance }
   return { content: JSON.stringify(data), data }
 }
 

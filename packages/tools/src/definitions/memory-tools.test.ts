@@ -10,6 +10,7 @@ import { memoryForgetTool, memoryReadTool, memoryWriteTool } from './memory-tool
 class FakeMemoryService implements AIMemoryToolService {
   entries: AIMemoryEntry[] = []
   nextId = 1
+  searchQueries: string[] = []
 
   list(scope?: AIMemoryScope): AIMemoryEntry[] {
     const matches = scope
@@ -20,6 +21,20 @@ class FakeMemoryService implements AIMemoryToolService {
 
   get(id: string): AIMemoryEntry | null {
     return this.entries.find((entry) => entry.id === id) ?? null
+  }
+
+  search(scope: AIMemoryScope, query: string): { entries: AIMemoryEntry[]; retrievalMode: 'relevance' } {
+    this.searchQueries.push(query)
+    const entries = this.list(scope)
+    const normalizedQuery = query.trim().toLocaleLowerCase()
+    return {
+      entries: [...entries].sort((left, right) => {
+        const leftMatches = left.content.toLocaleLowerCase().includes(normalizedQuery)
+        const rightMatches = right.content.toLocaleLowerCase().includes(normalizedQuery)
+        return Number(rightMatches) - Number(leftMatches)
+      }),
+      retrievalMode: 'relevance',
+    }
   }
 
   create(input: Parameters<AIMemoryToolService['create']>[0]): AIMemoryEntry {
@@ -340,5 +355,32 @@ describe('global memory tools', () => {
     const forgotten = await memoryForgetTool.handler({ id }, context)
     assert.deepEqual(forgotten.data, { id, deleted: true })
     assert.equal(memoryService.get(id), null)
+  })
+
+  it('passes an optional query to scope-bounded relevance search', async () => {
+    const context = createContext()
+    const memoryService = context.memoryService as FakeMemoryService
+    memoryService.create({
+      scopeType: 'global',
+      scopeId: null,
+      content: '先给结论',
+      sourceType: 'user',
+    })
+    memoryService.create({
+      scopeType: 'global',
+      scopeId: null,
+      content: '最近默认按 90 天计算',
+      sourceType: 'user',
+    })
+
+    const read = await memoryReadTool.handler({ scope_type: 'global', query: '90 天', limit: 1 }, context)
+
+    assert.deepEqual(memoryService.searchQueries, ['90 天'])
+    assert.deepEqual(
+      (read.data as { entries: AIMemoryEntry[] }).entries.map((entry) => entry.content),
+      ['最近默认按 90 天计算']
+    )
+    assert.equal((read.data as { retrievalMode: string }).retrievalMode, 'relevance')
+    assert.equal((read.data as { truncated: boolean }).truncated, true)
   })
 })

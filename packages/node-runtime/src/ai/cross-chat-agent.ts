@@ -69,8 +69,17 @@ export async function runCrossChatAgent(options: RunCrossChatAgentOptions): Prom
     entityRefCount: entityRefs?.length ?? 0,
     toolCount: tools.length,
   })
-  const globalMemoryPrompt = buildGlobalMemoryPrompt(memoryService.list({ scopeType: 'global', scopeId: null }), locale)
-  const entityMemoryPrompt = buildEntityMemoryPrompt(entityRefs, (scope) => memoryService.list(scope), locale)
+  const globalMemoryPrompt = buildGlobalMemoryPrompt(
+    memoryService.list({ scopeType: 'global', scopeId: null }),
+    locale,
+    userMessage
+  )
+  const entityMemoryPrompt = buildEntityMemoryPrompt(
+    entityRefs,
+    (scope) => memoryService.list(scope),
+    locale,
+    userMessage
+  )
   const systemPrompt = buildCrossChatSystemPrompt(locale, new Date(), globalMemoryPrompt, entityMemoryPrompt)
   const handler = new AgentEventHandler({ onChunk: onEvent, context: {}, systemPrompt })
   let cachedMessages: PiMessage[] = []
@@ -261,8 +270,9 @@ export function buildCrossChatSystemPrompt(
 长期记忆规则：
 - 只保存跨 AI 对话仍有长期价值的用户偏好、身份背景、明确纠正，或已有聊天证据支持且会影响后续调查方向的稳定结论。不要保存本轮临时要求、普通统计、聊天原文、工具过程、普通回答或未经证据支持的猜测。
 - 全局用户偏好使用 scope_type=global。关于用户本人的稳定身份、背景、长期目标或生活状态使用 scope_type=self；与某个特定联系人的关系仍属于该 contact 作用域。
-- 关于用户本人的 self 记忆不会自动注入。只有当前问题依赖这类背景且现有对话信息不足时，才调用 memory_read(scope_type=self) 按需读取；写入前也先读取同一作用域，避免重复。
+- 关于用户本人的 self 记忆不会自动注入。只有当前问题依赖这类背景且现有对话信息不足时，才调用 memory_read(scope_type=self, query=当前问题或主题) 按需读取；写入前也先读取同一作用域，避免重复。
 - 本轮选择的联系人和群聊记忆已按当前稳定 ID 自动注入；优先使用这些记忆，不得复用历史消息中旧实体的记忆。当前实体没有已注入记忆、需要更多记忆或实体由文本临时解析得到时，再调用 memory_read。
+- 调用 memory_read 查找与本轮问题有关的记忆时传入 query；相关性只调整授权作用域内的顺序，没有匹配时工具会稳定回退到最近更新顺序。
 - 联系人和群聊记忆必须使用稳定 contactKey 或 group sessionId。写入前先调用 memory_read 读取同一作用域，已有相同含义时不要重复创建。
 - 用户明确提供、要求记住或纠正的内容使用 source_type=user；你根据聊天数据形成的结论使用 source_type=ai，并写清必要的观察时间和不确定性。
 - source_type=ai 的记忆只是调查线索，后续使用时必须重新查询当前聊天数据和原始聊天证据，不能把旧结论当作当前事实。
@@ -313,8 +323,9 @@ Tool and conclusion rules:
 Long-term memory rules:
 - Save only preferences, identity/background facts, explicit corrections, or evidence-backed stable conclusions that remain useful across AI conversations. Never save temporary instructions, ordinary statistics, transcripts, tool traces, ordinary answers, or unsupported guesses.
 - Use scope_type=global for global user preferences. Store stable facts about the user's identity, background, long-term goals, or life situation with scope_type=self; a relationship with one specific contact still belongs to that contact scope.
-- Self memory is not automatically injected. Call memory_read(scope_type=self) on demand only when the current question depends on that background and the conversation does not already provide it; read the same scope before writing to avoid duplicates.
+- Self memory is not automatically injected. Call memory_read(scope_type=self, query=current question or topic) on demand only when the current question depends on that background and the conversation does not already provide it; read the same scope before writing to avoid duplicates.
 - Memories keyed by the current stable IDs are automatically injected for the selected contacts and groups. Prefer those memories and never reuse memories for stale entities from history. If the current entity has no injected memory, you need more entries, or the entity was resolved from plain text during this turn, call memory_read.
+- Pass query when memory_read should find memories related to the current question. Relevance only reorders entries inside the authorized scope; when nothing matches, the tool deterministically falls back to recently updated entries.
 - Entity memory must use a stable contactKey or group sessionId. Call memory_read for the same scope before writing, and do not create a duplicate with the same meaning.
 - Use source_type=user only for facts the user explicitly provides, asks to remember, or corrects. Use source_type=ai for conclusions derived from chat data, including the observation period and uncertainty.
 - Treat source_type=ai memory only as an investigation lead. Re-query current chat data and original chat evidence before using it as a fact.
