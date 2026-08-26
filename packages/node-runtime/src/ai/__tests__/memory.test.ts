@@ -395,6 +395,22 @@ describe('memory relevance ranking', () => {
     assert.doesNotMatch(prompt, /ai-19/)
   })
 
+  it('reserves prompt capacity for relevance before long baseline preferences', () => {
+    const prompt = buildGlobalMemoryPrompt(
+      [
+        createMemoryEntry('recent-a', '甲'.repeat(2_000), 300),
+        createMemoryEntry('recent-b', '乙'.repeat(2_000), 200),
+        createMemoryEntry('relevant', '用户所说的“最近”默认指最近 90 天', 100, { sourceType: 'ai' }),
+      ],
+      'zh-CN',
+      '最近按多少天'
+    )
+
+    assert.match(prompt, /relevant.*最近 90 天/)
+    assert.match(prompt, /recent-a/)
+    assert.doesNotMatch(prompt, /recent-b/)
+  })
+
   it('continues scanning for shorter memories when one entry exceeds the remaining character budget', () => {
     const prompt = buildGlobalMemoryPrompt([
       createMemoryEntry('long-a', 'a'.repeat(1_894), 400, { sourceType: 'ai' }),
@@ -423,6 +439,53 @@ describe('memory relevance ranking', () => {
     assert.deepEqual(
       first.entries.map((entry) => entry.id),
       second.entries.map((entry) => entry.id)
+    )
+  })
+
+  it('does not treat terse normalized content as a reverse substring match', () => {
+    const result = rankMemoryEntries(
+      [createMemoryEntry('cpp', 'C++', 200), createMemoryEntry('alice', 'Alice is my colleague', 100)],
+      { query: 'Who is Alice?', locale: 'en-US' }
+    )
+
+    assert.equal(result.retrievalMode, 'relevance')
+    assert.equal(result.matchedCount, 1)
+    assert.deepEqual(
+      result.entries.map((entry) => entry.id),
+      ['alice', 'cpp']
+    )
+  })
+
+  it('matches a symbolic short query without treating its normalized letter as a substring', () => {
+    const result = rankMemoryEntries(
+      [
+        createMemoryEntry('unrelated', 'ChatLab configuration note', 200),
+        createMemoryEntry('cpp', 'I prefer C++', 100),
+      ],
+      { query: 'C++', locale: 'en-US' }
+    )
+
+    assert.equal(result.retrievalMode, 'relevance')
+    assert.equal(result.matchedCount, 1)
+    assert.deepEqual(
+      result.entries.map((entry) => entry.id),
+      ['cpp', 'unrelated']
+    )
+  })
+
+  it('retains numeric tokens that distinguish otherwise similar memories', () => {
+    const result = rankMemoryEntries(
+      [
+        createMemoryEntry('port-4000', 'The API runs on port 4000', 200),
+        createMemoryEntry('port-3000', 'The API runs on port 3000', 100),
+      ],
+      { query: 'Should I use port 3000?', locale: 'en-US' }
+    )
+
+    assert.equal(result.retrievalMode, 'relevance')
+    assert.deepEqual(
+      result.entries.map((entry) => entry.id),
+      ['port-3000', 'port-4000']
     )
   })
 })
