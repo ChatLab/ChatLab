@@ -3,44 +3,40 @@ interface PendingMemoryProvenance {
   expectedParentMessageId: string | null
   memoryIds: Set<string>
   completed: boolean
-  expiresAt: number
 }
-
-const DEFAULT_TTL_MS = 10 * 60 * 1000
 
 export class MemoryProvenanceCoordinator {
   private readonly pending = new Map<string, PendingMemoryProvenance>()
 
-  constructor(private readonly ttlMs = DEFAULT_TTL_MS) {}
-
   begin(token: string, aiChatId: string, expectedParentMessageId: string | null): void {
-    this.cleanupExpired()
     this.pending.set(token, {
       aiChatId,
       expectedParentMessageId,
       memoryIds: new Set(),
       completed: false,
-      expiresAt: Date.now() + this.ttlMs,
     })
   }
 
   record(token: string, memoryId: string): void {
     const changeSet = this.pending.get(token)
-    if (!changeSet || changeSet.completed || Date.now() > changeSet.expiresAt) return
+    if (!changeSet || changeSet.completed) return
     changeSet.memoryIds.add(memoryId)
   }
 
   complete(token: string): void {
     const changeSet = this.pending.get(token)
     if (!changeSet) return
+    if (changeSet.memoryIds.size === 0) {
+      this.pending.delete(token)
+      return
+    }
     changeSet.completed = true
   }
 
   validate(token: string, aiChatId: string, memoryIds: string[]): { expectedParentMessageId: string | null } {
-    this.cleanupExpired()
     const changeSet = this.pending.get(token)
     if (!changeSet || !changeSet.completed || changeSet.aiChatId !== aiChatId) {
-      throw new Error('Memory provenance token is invalid or expired')
+      throw new Error('Memory provenance token is invalid')
     }
 
     const requestedIds = new Set(memoryIds)
@@ -55,12 +51,5 @@ export class MemoryProvenanceCoordinator {
 
   consume(token: string): void {
     this.pending.delete(token)
-  }
-
-  private cleanupExpired(): void {
-    const now = Date.now()
-    for (const [token, changeSet] of this.pending) {
-      if (now > changeSet.expiresAt) this.pending.delete(token)
-    }
   }
 }
