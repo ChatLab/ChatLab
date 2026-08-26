@@ -700,6 +700,51 @@ export class AIChatManager {
     }))()
   }
 
+  /** 原子替换当前问答轮，避免新回复插入失败后留下已修改问题或已删除旧回复。 */
+  replaceMessageRound(
+    aiChatId: string,
+    input: {
+      userMessageId: string
+      userContent: string
+      oldAssistantMessageId?: string
+      assistantMessage: { content: string; contentBlocks?: ContentBlock[]; tokenUsage?: TokenUsageData }
+    }
+  ): AIMessage {
+    const db = this.getDb()
+    return db.transaction(() => {
+      const userMessage = this.getMessageRow(input.userMessageId)
+      if (!userMessage || userMessage.aiChatId !== aiChatId || userMessage.role !== 'user') {
+        throw new Error('User message not found in AI chat')
+      }
+
+      if (input.oldAssistantMessageId) {
+        const oldAssistantMessage = this.getMessageRow(input.oldAssistantMessageId)
+        if (
+          !oldAssistantMessage ||
+          oldAssistantMessage.aiChatId !== aiChatId ||
+          oldAssistantMessage.role !== 'assistant' ||
+          oldAssistantMessage.parentId !== input.userMessageId
+        ) {
+          throw new Error('Assistant message not found after user message')
+        }
+      }
+
+      this.updateMessageContent(input.userMessageId, input.userContent)
+      if (input.oldAssistantMessageId) {
+        this.deleteAndRelinkMessage(aiChatId, input.oldAssistantMessageId)
+      }
+
+      return this.insertMessageAfter(
+        aiChatId,
+        input.userMessageId,
+        'assistant',
+        input.assistantMessage.content,
+        input.assistantMessage.contentBlocks,
+        input.assistantMessage.tokenUsage
+      )
+    })()
+  }
+
   private addMessageWithEntityRefs(
     aiChatId: string,
     role: AIMessageRole,

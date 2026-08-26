@@ -2000,20 +2000,17 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         return { success: false, reason: 'error' }
       }
 
-      await useAIService().updateMessageContent(originalMessage.id, content)
-      if (hasOldAiResponse) {
-        await useAIService().deleteAndRelinkMessage(state.currentAIChatId!, oldAiResponse.id)
-      }
-
       const serializableContentBlocks = toSerializableContentBlocks(targetBuffer.messages[aiMessageIndex].contentBlocks)
-      const savedAiMsg = await useAIService().insertMessageAfter(
-        state.currentAIChatId!,
-        originalMessage.id,
-        'assistant',
-        targetBuffer.messages[aiMessageIndex].content,
-        serializableContentBlocks,
-        lastDoneUsage
-      )
+      const savedAiMsg = await useAIService().replaceMessageRound(state.currentAIChatId!, {
+        userMessageId: originalMessage.id,
+        userContent: content,
+        oldAssistantMessageId: hasOldAiResponse ? oldAiResponse.id : undefined,
+        assistantMessage: {
+          content: targetBuffer.messages[aiMessageIndex].content,
+          contentBlocks: serializableContentBlocks,
+          tokenUsage: lastDoneUsage,
+        },
+      })
       const processDurationMs = targetBuffer.messages[aiMessageIndex].processDurationMs
       targetBuffer.messages[aiMessageIndex] = {
         ...toRuntimeMessage(savedAiMsg),
