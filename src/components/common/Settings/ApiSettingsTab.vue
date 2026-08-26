@@ -94,6 +94,7 @@ const statusColor = computed(() => {
 })
 
 const apiBaseUrl = computed(() => {
+  if (config.value.socket) return `unix://${config.value.socket}`
   const port = status.value.port || config.value.port
   return `http://127.0.0.1:${port}/api/v1`
 })

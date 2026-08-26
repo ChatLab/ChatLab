@@ -580,6 +580,31 @@ describe('registerSharedRoutes smoke tests', () => {
     }
   })
 
+  it('GET /_web/automation/config reports a Unix socket listener', async () => {
+    const ctx = createTestContext()
+    ctx.automation = {
+      serverInfo: { port: 3110, host: '127.0.0.1', socket: '/tmp/chatlab.sock', token: 'api-token' },
+      dsManager: {} as NonNullable<typeof ctx.automation>['dsManager'],
+      pullEngine: {} as NonNullable<typeof ctx.automation>['pullEngine'],
+    }
+    const routeApp = Fastify()
+    registerAutomationRoutes(routeApp, ctx)
+
+    try {
+      const resp = await routeApp.inject({ method: 'GET', url: '/_web/automation/config' })
+      assert.equal(resp.statusCode, 200)
+      assert.deepEqual(resp.json(), {
+        enabled: true,
+        port: 3110,
+        host: '127.0.0.1',
+        socket: '/tmp/chatlab.sock',
+        token: 'api-token',
+      })
+    } finally {
+      await routeApp.close()
+    }
+  })
+
   it('DELETE /_web/automation/data-sources/:id/sessions/:sessId deletes imported local session when deleteData=true', async () => {
     const ds = {
       id: 'source-1',

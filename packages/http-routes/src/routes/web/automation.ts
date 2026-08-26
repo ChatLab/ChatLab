@@ -70,6 +70,7 @@ export function registerAutomationRoutes(server: FastifyInstance, ctx: Automatio
       port: automation.serverInfo.port,
       token: automation.serverInfo.token,
       host: automation.serverInfo.host,
+      socket: automation.serverInfo.socket,
     }
   })
 

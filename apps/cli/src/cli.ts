@@ -119,6 +119,7 @@ program
   .description('Start ChatLab (HTTP API + Web UI)')
   .option('--port <port>', 'Server port', String(DEFAULT_API_PORT))
   .option('--host <host>', 'Listen address', '127.0.0.1')
+  .option('--socket <path>', 'Listen on a Unix domain socket instead of a TCP port')
   .option('--token <token>', 'Custom Bearer Token (reads from config or auto-generates if omitted)')
   .option('--headless', 'API-only mode, do not serve the Web UI')
   .option('--require-auth', 'Require Bearer token for all routes including /_web/*')
@@ -127,6 +128,10 @@ program
   .action(async (options) => {
     // --daemon: install as system service and exit
     if (options.daemon) {
+      if (options.socket) {
+        console.error('Unix domain sockets are not yet supported with --daemon.')
+        process.exit(1)
+      }
       const { serviceInstall } = await import('./daemon/service')
       serviceInstall({
         port: parseInt(options.port, 10),
@@ -155,7 +160,7 @@ program
       // 启动前预检端口，快速失败，避免无谓的初始化后再报 EADDRINUSE；
       // 置于 try 内确保非 EADDRINUSE 错误（EACCES/EADDRNOTAVAIL 等）
       // 也能走到统一的 Startup failed 错误处理路径。
-      if (!(await isPortAvailable(port, options.host))) {
+      if (!options.socket && !(await isPortAvailable(port, options.host))) {
         console.error(formatPortInUseError(port))
         process.exit(1)
       }
@@ -163,6 +168,7 @@ program
       const info = await startHttpServer({
         port,
         host: options.host,
+        socket: options.socket,
         token: options.token || undefined,
         webRoot,
         requireAuth: options.requireAuth || undefined,
@@ -171,21 +177,31 @@ program
       const { startPeriodicUpdateCheck } = await import('./update-checker')
       startPeriodicUpdateCheck()
 
-      const displayHost = info.host === '0.0.0.0' ? '127.0.0.1' : info.host
-      const url = `http://${displayHost}:${info.port}`
-
       console.log(`\nChatLab v${getVersion()}`)
-      if (webRoot) console.log(`  Web UI: ${url}/`)
-      console.log(`  API:    ${url}`)
-      console.log(`  Token:  ${info.token}`)
-      console.log(`\nExample:`)
-      console.log(`  curl -H "Authorization: Bearer ${info.token}" ${url}/api/v1/status`)
-
-      if (webRoot && options.open) {
-        openBrowser(url)
-        console.log(`\nBrowser opened. Press Ctrl+C to stop.\n`)
-      } else {
+      if (info.socket) {
+        console.log(`  Socket: ${info.socket}`)
+        console.log(`  Token:  ${info.token}`)
+        console.log(`\nExample:`)
+        console.log(
+          `  curl --unix-socket "${info.socket}" -H "Authorization: Bearer ${info.token}" http://localhost/api/v1/status`
+        )
+        if (webRoot) console.log(`\nUse a reverse proxy to access the Web UI through a browser.`)
         console.log(`\nPress Ctrl+C to stop.\n`)
+      } else {
+        const displayHost = info.host === '0.0.0.0' ? '127.0.0.1' : info.host
+        const url = `http://${displayHost}:${info.port}`
+        if (webRoot) console.log(`  Web UI: ${url}/`)
+        console.log(`  API:    ${url}`)
+        console.log(`  Token:  ${info.token}`)
+        console.log(`\nExample:`)
+        console.log(`  curl -H "Authorization: Bearer ${info.token}" ${url}/api/v1/status`)
+
+        if (webRoot && options.open) {
+          openBrowser(url)
+          console.log(`\nBrowser opened. Press Ctrl+C to stop.\n`)
+        } else {
+          console.log(`\nPress Ctrl+C to stop.\n`)
+        }
       }
 
       const shutdown = async () => {
