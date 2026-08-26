@@ -61,23 +61,27 @@ test('restores the latest valid AI chat without leaking stale navigation state',
     createAIChat: async () => {
       throw new Error('create failed')
     },
-    addMessage: async (
+    addMessagePair: async (
       aiChatId: string,
-      role: 'user' | 'assistant',
-      content: string,
-      _dataKeywords?: string[],
-      _dataMessageCount?: number,
-      contentBlocks?: unknown,
-      _tokenUsage?: unknown,
-      entityRefs?: unknown
+      userMessage: { content: string; entityRefs?: unknown },
+      assistantMessage: { content: string; contentBlocks?: unknown }
     ) => ({
-      id: `saved-${++savedMessageId}`,
-      aiChatId,
-      role,
-      content,
-      timestamp: 1,
-      contentBlocks,
-      entityRefs,
+      userMessage: {
+        id: `saved-${++savedMessageId}`,
+        aiChatId,
+        role: 'user' as const,
+        content: userMessage.content,
+        timestamp: 1,
+        entityRefs: userMessage.entityRefs,
+      },
+      assistantMessage: {
+        id: `saved-${++savedMessageId}`,
+        aiChatId,
+        role: 'assistant' as const,
+        content: assistantMessage.content,
+        timestamp: 1,
+        contentBlocks: assistantMessage.contentBlocks,
+      },
     }),
   }
   const assistantStore = {
@@ -247,6 +251,40 @@ test('restores the latest valid AI chat without leaking stale navigation state',
       result: streamFailureResult,
       phase: first.state.agentStatus?.phase,
       errorBlocks: failedAssistant?.contentBlocks?.filter((block) => block.type === 'error').length,
+    },
+    {
+      result: { success: false, reason: 'error' },
+      phase: 'error',
+      errorBlocks: 1,
+    }
+  )
+
+  const networkError = { name: 'FetchError', message: 'connection lost', stack: null }
+  agentStreamRun = (onChunk) => {
+    onChunk?.({
+      type: 'status',
+      status: {
+        phase: 'responding',
+        round: 1,
+        toolsUsed: 0,
+        contextTokens: 10,
+        totalUsage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        updatedAt: 1,
+      },
+    })
+    return {
+      requestId: 'network-error',
+      promise: Promise.resolve({ success: false, error: networkError }),
+    }
+  }
+  const networkFailureResult = await store.sendMessage(first.chatKey, 'Trigger network failure')
+  const networkFailedAssistant = first.state.messages.findLast((message) => message.role === 'assistant')
+
+  assert.deepEqual(
+    {
+      result: networkFailureResult,
+      phase: first.state.agentStatus?.phase,
+      errorBlocks: networkFailedAssistant?.contentBlocks?.filter((block) => block.type === 'error').length,
     },
     {
       result: { success: false, reason: 'error' },
