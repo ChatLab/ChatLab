@@ -45,7 +45,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const layoutStore = useLayoutStore()
 
-const timeSelectVisible = computed(() => !['ai-chat', 'memory', 'lab', 'debug'].includes(activeTab.value))
+const timeSelectVisible = computed(() => !['ai-chat', 'memory', 'more'].includes(activeTab.value))
 const navigationItems = computed(() =>
   props.tabs.map((tab) => ({
     id: tab.id,

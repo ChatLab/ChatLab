@@ -3,9 +3,8 @@ import { ref, computed, defineAsyncComponent, provide } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
-import LabTab from '@/components/analysis/LabTab.vue'
+import MoreTab from '@/components/analysis/MoreTab.vue'
 import MemoryTab from '@/components/analysis/MemoryTab.vue'
-import { DebugTab } from '@/components/DebugTab'
 import { ChatExplorer } from '@/components/AIChat'
 import GroupChatInsights from './components/insights/GroupChatInsights.vue'
 import RankingView from '@/components/analysis/ranking/RankingView.vue'
@@ -52,23 +51,13 @@ function openChatRecordViewer() {
 }
 
 // Tab 配置
-const baseTabs = [
+const tabs = [
   { id: 'insights', labelKey: 'analysis.tabs.insights', icon: 'i-heroicons-presentation-chart-bar' },
   { id: 'ranking', labelKey: 'analysis.tabs.ranking', icon: 'i-heroicons-trophy' },
   { id: 'ai-chat', labelKey: 'analysis.tabs.aiChat', icon: 'i-heroicons-chat-bubble-left-ellipsis' },
   { id: 'memory', labelKey: 'analysis.tabs.memory', icon: 'i-heroicons-light-bulb' },
-  { id: 'lab', labelKey: 'analysis.tabs.lab', icon: 'i-heroicons-beaker' },
+  { id: 'more', labelKey: 'analysis.tabs.more', icon: 'i-heroicons-squares-2x2' },
 ]
-
-// Tab 列表（Debug tab 仅在 debugMode 开启时显示）
-const tabs = computed(() => {
-  if (settingsStore.debugMode) {
-    return [...baseTabs, { id: 'debug', labelKey: 'analysis.tabs.debug', icon: 'i-heroicons-bug-ant' }]
-  }
-  return baseTabs
-})
-
-const allTabIds = computed(() => tabs.value.map((tab) => tab.id))
 
 const {
   activeTab,
@@ -93,7 +82,7 @@ const {
   currentSessionId,
   selectSession: sessionStore.selectSession,
   defaultTab: settingsStore.defaultSessionTab,
-  validTabIds: allTabIds.value,
+  validTabIds: tabs.map((tab) => tab.id),
 })
 
 provide('session-switch-loading', isSessionSwitching)
@@ -187,16 +176,11 @@ const filteredMemberCount = computed(() => {
               :session-id="currentSessionId!"
               :session-name="session.name"
             />
-            <LabTab
-              v-else-if="activeTab === 'lab'"
-              :key="'lab-' + currentSessionId"
+            <MoreTab
+              v-else-if="activeTab === 'more'"
+              :key="'more-' + currentSessionId"
               :session-id="currentSessionId!"
               chat-type="group"
-            />
-            <DebugTab
-              v-else-if="activeTab === 'debug'"
-              :key="'debug-' + currentSessionId"
-              :session-id="currentSessionId!"
             />
           </Transition>
         </div>
