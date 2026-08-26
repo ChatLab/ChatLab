@@ -18,6 +18,7 @@ import { createSyncResultPoller } from './syncResultPolling'
 export interface ApiServerConfig {
   enabled: boolean
   port: number
+  socket?: string
   token: string
   createdAt: number
 }

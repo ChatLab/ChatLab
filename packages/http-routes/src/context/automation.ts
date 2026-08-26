@@ -34,7 +34,7 @@ export interface AutomationRouteContext {
     triggerPullAll: (sourceId: string) => Promise<unknown>
     getProgress: () => unknown[]
   }
-  serverInfo?: { port: number; host: string; token: string }
+  serverInfo?: { port: number; host: string; socket?: string; token: string }
   deleteSessionData?: (sessionId: string) => void
   reloadTimer?: (sourceId: string, immediate?: boolean) => void
   stopTimer?: (sourceId: string) => void

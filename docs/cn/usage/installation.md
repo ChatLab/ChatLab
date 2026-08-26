@@ -28,7 +28,7 @@ clb web --no-open   # 启动 API + Web UI，但不自动打开浏览器
 clb web --headless  # 仅启动 API，不提供 Web UI（供脚本 / AI Agent 调用）
 ```
 
-常用选项：`--port <端口>`（默认 `3110`）、`--host <地址>`、`--token <令牌>`。
+常用选项：`--port <端口>`（默认 `3110`）、`--host <地址>`、`--token <令牌>`。在 macOS 和 Linux 上，可以使用 `--socket <路径>` 监听 Unix 域套接字而不占用 TCP 端口，例如 `clb web --socket /tmp/chatlab.sock --no-open`。可通过 `curl --unix-socket /tmp/chatlab.sock http://localhost/api/v1/status` 访问，或在其前面配置反向代理。
 
 如果希望服务常驻后台，可以使用：
 

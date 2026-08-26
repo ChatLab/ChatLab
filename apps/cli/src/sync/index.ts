@@ -31,7 +31,7 @@ export function initSync(
   server: FastifyInstance,
   dbManager: DatabaseManager,
   pathProvider: PathProvider,
-  serverInfo: { port: number; host: string; token: string }
+  serverInfo: { port: number; host: string; socket?: string; token: string }
 ): void {
   const settingsDir = pathProvider.getSettingsDir()
 

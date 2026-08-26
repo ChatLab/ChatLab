@@ -41,6 +41,7 @@ import { initSync, cleanupSync } from '../sync'
 import { resolveCliPath } from '../paths'
 import { assertCliDataDirCompatible } from '../runtime-compat'
 import { resolveCliLocalEmbeddingRuntimeConfig } from '../semantic-index/local-runtime'
+import { prepareUnixSocket } from './port'
 
 let server: FastifyInstance | null = null
 let dbManager: DatabaseManager | null = null
@@ -50,6 +51,8 @@ let aiMemoryService: AIMemoryService | null = null
 export interface HttpServerOptions {
   port?: number
   host?: string
+  /** Unix domain socket path. When set, takes precedence over port and host. */
+  socket?: string
   token?: string
   /** dist-cli-web/ 目录路径，启用后托管 CLI Web SPA 静态资源 */
   webRoot?: string
@@ -80,8 +83,9 @@ function ensureToken(config: ChatLabConfig): string {
  * 启动独立 HTTP API 服务
  */
 export async function startHttpServer(options?: HttpServerOptions): Promise<{
-  port: number
-  host: string
+  port?: number
+  host?: string
+  socket?: string
   token: string
 }> {
   if (server) {
@@ -91,7 +95,10 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
   let config = loadConfig()
   const port = options?.port ?? config.api.port
   const host = options?.host ?? config.api.host
+  const socket = options?.socket
   const token = options?.token ?? ensureToken(config)
+
+  if (socket) await prepareUnixSocket(socket)
 
   const pendingMigration = applyPendingNodeDataDirMigrationIfNeeded()
   if (!pendingMigration.skipped) {
@@ -178,7 +185,10 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
   initServerAiLogger(pathProvider.getLogsDir())
   appLogger.info('ai-config', 'Shared LLM configuration store initialized', { aiDataDir })
   appLogger.info('temp-workspace', 'Temporary workspace initialized', { root: pathProvider.getTempDir() })
-  appLogger.info('server', `HTTP server starting on ${host}:${port}`)
+  appLogger.info(
+    'server',
+    socket ? `HTTP server starting on Unix socket ${socket}` : `HTTP server starting on ${host}:${port}`
+  )
   // 记录 Rust native parser 可用性（导入是否走 Rust 内核），便于按日志排查回退原因
   logNativeParserStatus()
 
@@ -237,7 +247,7 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
     },
   })
 
-  initSync(server, dbManager, pathProvider, { port, host, token })
+  initSync(server, dbManager, pathProvider, { port, host, socket, token })
 
   if (options?.webRoot && fs.existsSync(options.webRoot)) {
     // 注册反向代理：将 /_proxy/chatlab.fun/* 转发至 https://chatlab.fun，
@@ -256,9 +266,13 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
     })
   }
 
-  await server.listen({ port, host })
+  if (socket) {
+    await server.listen({ path: socket })
+  } else {
+    await server.listen({ port, host })
+  }
 
-  return { port, host, token }
+  return socket ? { socket, token } : { port, host, token }
 }
 
 /**
