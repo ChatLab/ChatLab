@@ -5,7 +5,7 @@ import type { AIMemoryEntry } from '@openchatlab/shared-types'
 test('ranks Chinese memories without loading the optional Jieba segmenter', async (t) => {
   let segmentCalls = 0
   await t.mock.module('../../nlp/segmenter', {
-    exports: {
+    namedExports: {
       segment() {
         segmentCalls++
         throw new Error('optional Jieba dependency is unavailable')
