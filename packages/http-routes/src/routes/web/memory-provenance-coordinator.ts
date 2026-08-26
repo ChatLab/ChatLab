@@ -8,10 +8,10 @@ interface PendingMemoryProvenance {
 export class MemoryProvenanceCoordinator {
   private readonly pending = new Map<string, PendingMemoryProvenance>()
 
-  begin(token: string, aiChatId: string, expectedParentMessageId: string | null): void {
+  begin(token: string, aiChatId: string): void {
     this.pending.set(token, {
       aiChatId,
-      expectedParentMessageId,
+      expectedParentMessageId: null,
       memoryIds: new Set(),
       completed: false,
     })
@@ -23,13 +23,14 @@ export class MemoryProvenanceCoordinator {
     changeSet.memoryIds.add(memoryId)
   }
 
-  complete(token: string): void {
+  complete(token: string, expectedParentMessageId: string | null): void {
     const changeSet = this.pending.get(token)
     if (!changeSet) return
     if (changeSet.memoryIds.size === 0) {
       this.pending.delete(token)
       return
     }
+    changeSet.expectedParentMessageId = expectedParentMessageId
     changeSet.completed = true
   }
 
