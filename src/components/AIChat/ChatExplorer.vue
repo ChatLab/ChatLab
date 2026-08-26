@@ -374,6 +374,7 @@ async function handleSend(payload: {
     onAccepted: payload.onAccepted,
   })
   if (!result.success) {
+    if (result.reason === 'error') conversationListRef.value?.refresh()
     if (result.reason === 'busy') {
       showRunningTaskToast()
     }
