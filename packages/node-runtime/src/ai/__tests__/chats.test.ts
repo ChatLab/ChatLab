@@ -434,7 +434,54 @@ describe('AIChatManager global chats and entity references', () => {
   })
 })
 
-describe('AIChatManager message editing', () => {
+describe('AIChatManager message persistence and editing', () => {
+  it('persists a user and assistant message atomically', () => {
+    const dir = createTempDir()
+    try {
+      const manager = createManager(dir)
+      const chat = manager.createAIChat('s1', 'Atomic turn', 'general_cn')
+      const refs: AIEntityRef[] = [{ type: 'contact', contactKey: 'qq:10001', displayName: 'Alice' }]
+      const usage = {
+        promptTokens: 1,
+        completionTokens: 2,
+        totalTokens: 3,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+      }
+      const saved = manager.addMessagePair(
+        chat.id,
+        { content: 'question', entityRefs: refs },
+        { content: 'answer', contentBlocks: [{ type: 'text', text: 'answer' }], tokenUsage: usage }
+      )
+
+      assert.equal(saved.assistantMessage.parentId, saved.userMessage.id)
+      assert.deepEqual(saved.userMessage.entityRefs, refs)
+      assert.deepEqual(saved.assistantMessage.contentBlocks, [{ type: 'text', text: 'answer' }])
+      assert.deepEqual(manager.getAIChatTokenUsage(chat.id), usage)
+
+      const messagesBeforeFailure = manager.getMessages(chat.id)
+      manager.executeAiSQL(`
+        CREATE TRIGGER reject_assistant_message
+        BEFORE INSERT ON ai_message
+        WHEN NEW.role = 'assistant'
+        BEGIN
+          SELECT RAISE(ABORT, 'injected assistant failure');
+        END
+      `)
+
+      assert.throws(
+        () => manager.addMessagePair(chat.id, { content: 'orphan' }, { content: 'must roll back' }),
+        /injected assistant failure/
+      )
+      assert.deepEqual(manager.getMessages(chat.id), messagesBeforeFailure)
+      assert.equal(manager.getAIChat(chat.id)?.activeMessageId, saved.assistantMessage.id)
+      assert.deepEqual(manager.getAIChatTokenUsage(chat.id), usage)
+      manager.close()
+    } finally {
+      cleanup(dir)
+    }
+  })
+
   it('updateMessageContent atomically replaces or clears user entity references', () => {
     const dir = createTempDir()
     try {

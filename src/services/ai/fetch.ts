@@ -92,6 +92,17 @@ export class FetchAIAdapter implements AIAdapter {
     return get<AIMessage[]>(`/ai/chats/${aiChatId}/messages`)
   }
 
+  async addMessagePair(
+    aiChatId: string,
+    userMessage: { content: string; entityRefs?: AIEntityRef[] },
+    assistantMessage: { content: string; contentBlocks?: ContentBlock[]; tokenUsage?: TokenUsageData }
+  ): Promise<{ userMessage: AIMessage; assistantMessage: AIMessage }> {
+    return post<{ userMessage: AIMessage; assistantMessage: AIMessage }>(`/ai/chats/${aiChatId}/message-pair`, {
+      userMessage,
+      assistantMessage,
+    })
+  }
+
   async addMessage(
     aiChatId: string,
     role: AIMessageRole,

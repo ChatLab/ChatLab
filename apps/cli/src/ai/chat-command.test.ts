@@ -34,23 +34,23 @@ function createAIChatManager(
       chats.set(id, chat)
       return chat
     },
-    addMessage: (
-      aiChatId: string,
-      role: string,
-      content: string,
-      _dataKeywords?: string[],
-      _dataMessageCount?: number,
-      contentBlocks?: ContentBlock[],
-      tokenUsage?: TokenUsageData
-    ) => {
+    addMessagePair: (aiChatId, userMessage, assistantMessage) => {
+      const savedUserMessage = { id: `msg_${messages.length + 1}`, aiChatId, role: 'user' as const, timestamp: 1 }
+      messages.push({ aiChatId, role: 'user', content: userMessage.content })
+      const savedAssistantMessage = {
+        id: `msg_${messages.length + 1}`,
+        aiChatId,
+        role: 'assistant' as const,
+        timestamp: 1,
+      }
       messages.push({
         aiChatId,
-        role,
-        content,
-        ...(contentBlocks ? { contentBlocks } : {}),
-        ...(tokenUsage ? { tokenUsage } : {}),
+        role: 'assistant',
+        content: assistantMessage.content,
+        ...(assistantMessage.contentBlocks ? { contentBlocks: assistantMessage.contentBlocks } : {}),
+        ...(assistantMessage.tokenUsage ? { tokenUsage: assistantMessage.tokenUsage } : {}),
       })
-      return { id: `msg_${messages.length}`, aiChatId, role, content, timestamp: 1 }
+      return { userMessage: savedUserMessage, assistantMessage: savedAssistantMessage }
     },
     __messages: messages,
   } as unknown as AIChatManager

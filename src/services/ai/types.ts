@@ -141,6 +141,11 @@ export interface AIAdapter {
 
   // ===== 消息 =====
   getMessages(aiChatId: string): Promise<AIMessage[]>
+  addMessagePair(
+    aiChatId: string,
+    userMessage: { content: string; entityRefs?: AIEntityRef[] },
+    assistantMessage: { content: string; contentBlocks?: ContentBlock[]; tokenUsage?: TokenUsageData }
+  ): Promise<{ userMessage: AIMessage; assistantMessage: AIMessage }>
   addMessage(
     aiChatId: string,
     role: AIMessageRole,
