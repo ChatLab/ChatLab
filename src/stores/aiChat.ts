@@ -1457,6 +1457,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           isStreaming: false,
         }
       } else if (!hasStreamError) {
+        setAgentPhase(state, 'error')
         const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
         blocks.push({
           type: 'error',
@@ -2006,6 +2007,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           isStreaming: false,
         })
       } else if (!hasStreamError) {
+        setAgentPhase(state, 'error')
         const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
         blocks.push({ type: 'error', error: normalizeSerializedError(result.error) })
         updateAIMessage({ contentBlocks: [...blocks], isStreaming: false })

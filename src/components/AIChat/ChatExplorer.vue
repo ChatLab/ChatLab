@@ -283,9 +283,15 @@ function handleSwitchAssistant(id: string) {
 
 async function handlePresetQuestion(question: string) {
   const result = await sendMessage(question)
-  if (!result.success && result.reason === 'busy') {
-    showRunningTaskToast()
+  if (!result.success) {
+    if (result.reason === 'error') conversationListRef.value?.refresh()
+    if (result.reason === 'busy') {
+      showRunningTaskToast()
+    }
+    return
   }
+  scrollToBottom(true)
+  conversationListRef.value?.refresh()
 }
 
 function handleEditPresetQuestions() {
