@@ -18,6 +18,9 @@ const AI_MEMORY_SCHEMA_VERSION = 2
 const AI_MEMORY_PROMPT_MAX_ENTRIES = 20
 const AI_MEMORY_PROMPT_MAX_CONTENT_CHARS = 4_000
 const AI_MEMORY_PROMPT_BASE_USER_ENTRIES = 5
+const AI_MEMORY_SUBSTRING_MIN_CHARS = 3
+const NUMERIC_MEMORY_TOKEN_REGEX = /\p{Number}+/gu
+const SYMBOL_SUFFIX_MEMORY_TOKEN_REGEX = /[\p{Letter}\p{Number}]+(?:\+\+|#)/gu
 
 export type AIMemoryRetrievalMode = 'relevance' | 'recent_fallback'
 
@@ -68,13 +71,20 @@ export function rankMemoryEntries(entries: AIMemoryEntry[], options: RankMemoryE
 }
 
 export function buildGlobalMemoryPrompt(entries: AIMemoryEntry[], locale = 'zh-CN', query = ''): string {
-  const rankedEntries = rankMemoryEntries(entries, { query, locale }).entries
+  const ranking = rankMemoryEntries(entries, { query, locale })
+  const rankedEntries = ranking.entries
   const recentUserEntries = [...entries]
     .filter((entry) => entry.sourceType === 'user')
     .sort(compareRecentMemoryEntries)
     .slice(0, AI_MEMORY_PROMPT_BASE_USER_ENTRIES)
-  const baseUserIds = new Set(recentUserEntries.map((entry) => entry.id))
-  const prioritizedEntries = [...recentUserEntries, ...rankedEntries.filter((entry) => !baseUserIds.has(entry.id))]
+  const prioritizedEntries: AIMemoryEntry[] = []
+  const prioritizedIds = new Set<string>()
+  const topRelevantEntries = ranking.retrievalMode === 'relevance' ? rankedEntries.slice(0, 1) : []
+  for (const entry of [...topRelevantEntries, ...recentUserEntries, ...rankedEntries]) {
+    if (prioritizedIds.has(entry.id)) continue
+    prioritizedIds.add(entry.id)
+    prioritizedEntries.push(entry)
+  }
   const selected: AIMemoryEntry[] = []
   let contentChars = 0
   for (const entry of prioritizedEntries) {
@@ -447,13 +457,33 @@ function normalizeSearchText(value: string): string {
 }
 
 function tokenizeMemoryText(value: string, locale: SupportedLocale): Set<string> {
-  const tokens = new Set(
-    segment(value, locale, { posFilterMode: 'all', enableStopwords: true }).map(normalizeSearchText).filter(Boolean)
-  )
+  const words = locale.startsWith('zh')
+    ? segmentChineseMemoryText(value, locale)
+    : segment(value, locale, { posFilterMode: 'all', enableStopwords: true })
+  const tokens = new Set(words.map(normalizeSearchText).filter((token) => token.length >= 2))
+  for (const token of extractNumericMemoryTokens(value)) tokens.add(token)
+  for (const token of extractSymbolSuffixMemoryTokens(value)) tokens.add(token)
   if (locale.startsWith('zh')) {
     for (const token of extractCjkBigrams(value)) tokens.add(token)
   }
   return tokens
+}
+
+function extractNumericMemoryTokens(value: string): string[] {
+  return value.normalize('NFKC').match(NUMERIC_MEMORY_TOKEN_REGEX) ?? []
+}
+
+function extractSymbolSuffixMemoryTokens(value: string): string[] {
+  return value.normalize('NFKC').toLocaleLowerCase().match(SYMBOL_SUFFIX_MEMORY_TOKEN_REGEX) ?? []
+}
+
+function segmentChineseMemoryText(value: string, locale: SupportedLocale): string[] {
+  try {
+    const segmenter = new Intl.Segmenter(locale, { granularity: 'word' })
+    return [...segmenter.segment(value)].filter((item) => item.isWordLike).map((item) => item.segment)
+  } catch {
+    return value.match(/[\p{Letter}\p{Number}]+/gu) ?? []
+  }
 }
 
 function extractCjkBigrams(value: string): string[] {
@@ -471,7 +501,11 @@ function scoreMemoryEntry(
 ): number {
   const normalizedContent = normalizeSearchText(content)
   let score = 0
-  if (normalizedContent.includes(normalizedQuery) || normalizedQuery.includes(normalizedContent)) score += 3
+  const matchesFullQuery =
+    normalizedQuery.length >= AI_MEMORY_SUBSTRING_MIN_CHARS && normalizedContent.includes(normalizedQuery)
+  const isMeaningfulReverseMatch =
+    normalizedContent.length >= AI_MEMORY_SUBSTRING_MIN_CHARS && normalizedQuery.includes(normalizedContent)
+  if (matchesFullQuery || isMeaningfulReverseMatch) score += 3
 
   if (queryTokens.size === 0) return score
   const contentTokens = tokenizeMemoryText(content, locale)
