@@ -1434,13 +1434,12 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           targetBuffer.messages[aiMessageIndex],
           lastDoneUsage
         )
-        if (savedMessages) {
-          Object.assign(userMessage, savedMessages.userMessage)
-          targetBuffer.messages[aiMessageIndex] = {
-            ...targetBuffer.messages[aiMessageIndex],
-            ...savedMessages.assistantMessage,
-            isStreaming: false,
-          }
+        if (!savedMessages) return { success: false, reason: 'error' }
+        Object.assign(userMessage, savedMessages.userMessage)
+        targetBuffer.messages[aiMessageIndex] = {
+          ...targetBuffer.messages[aiMessageIndex],
+          ...savedMessages.assistantMessage,
+          isStreaming: false,
         }
       } else if (!hasStreamError) {
         const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
@@ -1459,13 +1458,12 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           targetBuffer.messages[aiMessageIndex],
           lastDoneUsage
         )
-        if (savedMessages) {
-          Object.assign(userMessage, savedMessages.userMessage)
-          targetBuffer.messages[aiMessageIndex] = {
-            ...targetBuffer.messages[aiMessageIndex],
-            ...savedMessages.assistantMessage,
-            isStreaming: false,
-          }
+        if (!savedMessages) return { success: false, reason: 'error' }
+        Object.assign(userMessage, savedMessages.userMessage)
+        targetBuffer.messages[aiMessageIndex] = {
+          ...targetBuffer.messages[aiMessageIndex],
+          ...savedMessages.assistantMessage,
+          isStreaming: false,
         }
       } else {
         const savedMessages = await saveAIChatMessages(
@@ -1474,13 +1472,12 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           targetBuffer.messages[aiMessageIndex],
           lastDoneUsage
         )
-        if (savedMessages) {
-          Object.assign(userMessage, savedMessages.userMessage)
-          targetBuffer.messages[aiMessageIndex] = {
-            ...targetBuffer.messages[aiMessageIndex],
-            ...savedMessages.assistantMessage,
-            isStreaming: false,
-          }
+        if (!savedMessages) return { success: false, reason: 'error' }
+        Object.assign(userMessage, savedMessages.userMessage)
+        targetBuffer.messages[aiMessageIndex] = {
+          ...targetBuffer.messages[aiMessageIndex],
+          ...savedMessages.assistantMessage,
+          isStreaming: false,
         }
       }
 
@@ -1534,26 +1531,13 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         return null
       }
 
-      const savedUserMessage = await useAIService().addMessage(
-        aiChatId,
-        'user',
-        userMsg.content,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        userMsg.entityRefs
-      )
       const serializableContentBlocks = toSerializableContentBlocks(aiMsg.contentBlocks)
-      const savedAssistantMessage = await useAIService().addMessage(
-        aiChatId,
-        'assistant',
-        aiMsg.content,
-        undefined,
-        undefined,
-        serializableContentBlocks,
-        tokenUsage
-      )
+      const { userMessage: savedUserMessage, assistantMessage: savedAssistantMessage } =
+        await useAIService().addMessagePair(
+          aiChatId,
+          { content: userMsg.content, entityRefs: userMsg.entityRefs },
+          { content: aiMsg.content, contentBlocks: serializableContentBlocks, tokenUsage }
+        )
       return {
         userMessage: toRuntimeMessage(savedUserMessage),
         assistantMessage: toRuntimeMessage(savedAssistantMessage),

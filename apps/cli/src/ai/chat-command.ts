@@ -317,15 +317,14 @@ export async function runChatTurn(
     write(stdout, '\n')
   }
 
-  deps.aiChatManager.addMessage(target.aiChatId, 'user', options.question)
-  deps.aiChatManager.addMessage(
+  deps.aiChatManager.addMessagePair(
     target.aiChatId,
-    'assistant',
-    answer,
-    undefined,
-    undefined,
-    hasReplayContentBlocks ? contentBlocks : undefined,
-    tokenUsage ?? undefined
+    { content: options.question },
+    {
+      content: answer,
+      contentBlocks: hasReplayContentBlocks ? contentBlocks : undefined,
+      tokenUsage: tokenUsage ?? undefined,
+    }
   )
 
   return {

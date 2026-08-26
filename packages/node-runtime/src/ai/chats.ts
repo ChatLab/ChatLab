@@ -671,6 +671,35 @@ export class AIChatManager {
     )
   }
 
+  addMessagePair(
+    aiChatId: string,
+    userMessage: { content: string; entityRefs?: AIEntityRef[] },
+    assistantMessage: { content: string; contentBlocks?: ContentBlock[]; tokenUsage?: TokenUsageData }
+  ): { userMessage: AIMessage; assistantMessage: AIMessage } {
+    const db = this.getDb()
+    return db.transaction(() => ({
+      userMessage: this.addMessage(
+        aiChatId,
+        'user',
+        userMessage.content,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        userMessage.entityRefs
+      ),
+      assistantMessage: this.addMessage(
+        aiChatId,
+        'assistant',
+        assistantMessage.content,
+        undefined,
+        undefined,
+        assistantMessage.contentBlocks,
+        assistantMessage.tokenUsage
+      ),
+    }))()
+  }
+
   private addMessageWithEntityRefs(
     aiChatId: string,
     role: AIMessageRole,

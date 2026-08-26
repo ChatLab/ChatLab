@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import type { AiRouteContext } from '../../context/ai'
 import { countMessagesTokens } from '@openchatlab/node-runtime'
-import type { AIEntityRef } from '@openchatlab/node-runtime'
+import type { AIEntityRef, ContentBlock, TokenUsageData } from '@openchatlab/node-runtime'
 
 type AiChatRouteContext = Pick<AiRouteContext, 'aiChatManager'>
 
@@ -55,6 +55,20 @@ export function registerAiChatRoutes(server: FastifyInstance, ctx: AiChatRouteCo
   })
 
   // ==================== Message CRUD ====================
+
+  server.post<{
+    Params: { id: string }
+    Body: {
+      userMessage: { content: string; entityRefs?: AIEntityRef[] }
+      assistantMessage: {
+        content: string
+        contentBlocks?: ContentBlock[]
+        tokenUsage?: TokenUsageData
+      }
+    }
+  }>('/_web/ai/chats/:id/message-pair', async (request) => {
+    return cm.addMessagePair(request.params.id, request.body.userMessage, request.body.assistantMessage)
+  })
 
   server.post<{
     Params: { id: string }

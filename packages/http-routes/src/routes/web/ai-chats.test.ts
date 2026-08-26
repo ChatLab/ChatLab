@@ -48,21 +48,22 @@ test('global AI chat routes keep global history separate and persist entity refe
       sessionType: 'group' as const,
     },
   ]
-  const messageResponse = await app.inject({
+  const messagePairResponse = await app.inject({
     method: 'POST',
-    url: `/_web/ai/chats/${globalChat.id}/messages`,
-    payload: { role: 'user', content: 'Compare them', entityRefs: refs },
+    url: `/_web/ai/chats/${globalChat.id}/message-pair`,
+    payload: {
+      userMessage: { content: 'Compare them', entityRefs: refs },
+      assistantMessage: { content: 'I will compare them' },
+    },
   })
-  assert.equal(messageResponse.statusCode, 200)
-  assert.deepEqual(messageResponse.json<{ entityRefs: unknown[] }>().entityRefs, refs)
-
-  const assistantResponse = await app.inject({
-    method: 'POST',
-    url: `/_web/ai/chats/${globalChat.id}/messages`,
-    payload: { role: 'assistant', content: 'I will compare them', entityRefs: refs },
-  })
-  assert.equal(assistantResponse.statusCode, 200)
-  assert.equal(assistantResponse.json<{ entityRefs?: unknown[] }>().entityRefs, undefined)
+  assert.equal(messagePairResponse.statusCode, 200)
+  const messagePair = messagePairResponse.json<{
+    userMessage: { id: string; entityRefs: unknown[] }
+    assistantMessage: { parentId: string; entityRefs?: unknown[] }
+  }>()
+  assert.deepEqual(messagePair.userMessage.entityRefs, refs)
+  assert.equal(messagePair.assistantMessage.parentId, messagePair.userMessage.id)
+  assert.equal(messagePair.assistantMessage.entityRefs, undefined)
 
   const messageList = await app.inject({
     method: 'GET',
@@ -78,7 +79,7 @@ test('global AI chat routes keep global history separate and persist entity refe
       sessionType: 'group' as const,
     },
   ]
-  const userMessageId = messageResponse.json<{ id: string }>().id
+  const userMessageId = messagePair.userMessage.id
   const replaceResponse = await app.inject({
     method: 'PUT',
     url: `/_web/ai/messages/${userMessageId}/content`,
