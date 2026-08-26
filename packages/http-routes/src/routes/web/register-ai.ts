@@ -14,6 +14,7 @@ import { registerSemanticIndexRoutes } from './ai-semantic-index'
 import { registerAiSkillRoutes } from './ai-skills'
 import { registerAiSummaryRoutes } from './ai-summaries'
 import { registerAiToolRoutes } from './ai-tools'
+import { MemoryProvenanceCoordinator } from './memory-provenance-coordinator'
 
 export type AiRoutesContext = AiRouteContext &
   Pick<RuntimeRouteContext, 'dbManager' | 'sessionAdapter' | 'pathProvider' | 'runtimeIdentity' | 'nativeBinding'> &
@@ -46,15 +47,16 @@ function assertRequiredAiContext(ctx: AiRouteContext): void {
 /** Register all AI-related Web routes while preserving optional-feature behavior. */
 export function registerAiRoutes(server: FastifyInstance, ctx: AiRoutesContext, options?: AiRouteOptions): void {
   if (options?.requireAi) assertRequiredAiContext(ctx)
+  const memoryProvenanceCoordinator = new MemoryProvenanceCoordinator()
 
   registerAiAssistantRoutes(server, ctx)
   registerAiSkillRoutes(server, ctx)
   registerAiLlmRoutes(server, ctx)
   registerAiLlmStreamRoutes(server, ctx)
-  registerAiAgentStreamRoutes(server, ctx)
+  registerAiAgentStreamRoutes(server, ctx, memoryProvenanceCoordinator)
   registerAiToolRoutes(server, ctx)
   registerAiChatRoutes(server, ctx)
-  registerAiMemoryRoutes(server, ctx)
+  registerAiMemoryRoutes(server, ctx, memoryProvenanceCoordinator)
   registerAiChatTopicRoutes(server, ctx)
   registerAiSummaryRoutes(server, ctx)
   registerAiLogRoutes(server, ctx)

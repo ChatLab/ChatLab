@@ -160,6 +160,7 @@ export function createCliRunAgentStream(
         maxToolResultTokens: resolveCrossChatToolResultTokenBudget(contextWindow),
         memoryService: options.memoryService,
         aiChatId,
+        reportMemoryChange: (memoryId) => onEvent({ type: 'memory_change', memoryId }),
       })
       await runCrossChatAgent({
         userMessage,

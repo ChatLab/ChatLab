@@ -1,20 +1,28 @@
 import type { FastifyInstance } from 'fastify'
+import { randomUUID } from 'node:crypto'
 import type { AgentStreamRequest, AiRouteContext } from '../../context/ai'
 import { chatTopicWorkCoordinator } from '@openchatlab/node-runtime'
+import type { MemoryProvenanceCoordinator } from './memory-provenance-coordinator'
 
 const activeAgentAborts = new Map<string, AbortController>()
 
-type AiAgentStreamRouteContext = Pick<AiRouteContext, 'runAgentStream'>
+type AiAgentStreamRouteContext = Pick<AiRouteContext, 'runAgentStream' | 'aiChatManager'>
 
-export function registerAiAgentStreamRoutes(server: FastifyInstance, ctx: AiAgentStreamRouteContext): void {
+export function registerAiAgentStreamRoutes(
+  server: FastifyInstance,
+  ctx: AiAgentStreamRouteContext,
+  memoryProvenanceCoordinator?: MemoryProvenanceCoordinator
+): void {
   if (!ctx.runAgentStream) return
 
   const runAgentStream = ctx.runAgentStream
 
   server.post<{ Body: AgentStreamRequest }>('/_web/ai/agent/stream', async (request, reply) => {
-    const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    const requestId = `req_${randomUUID()}`
     const abortController = new AbortController()
     activeAgentAborts.set(requestId, abortController)
+    const expectedParentMessageId = ctx.aiChatManager?.getAIChat(request.body.aiChatId)?.activeMessageId ?? null
+    memoryProvenanceCoordinator?.begin(requestId, request.body.aiChatId, expectedParentMessageId)
 
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -50,6 +58,11 @@ export function registerAiAgentStreamRoutes(server: FastifyInstance, ctx: AiAgen
         request.body,
         (chunk) => {
           if (chunk.type === 'done') emittedDone = true
+          if (chunk.type === 'memory_change' && chunk.memoryId) {
+            memoryProvenanceCoordinator?.record(requestId, chunk.memoryId)
+            safeSendSSE(chunk.type, { ...chunk, provenanceToken: requestId })
+            return
+          }
           safeSendSSE(chunk.type, chunk)
         },
         abortController.signal
@@ -58,6 +71,7 @@ export function registerAiAgentStreamRoutes(server: FastifyInstance, ctx: AiAgen
       const msg = error instanceof Error ? error.message : String(error)
       safeSendSSE('error', { type: 'error', error: { name: 'ServerError', message: msg } })
     } finally {
+      memoryProvenanceCoordinator?.complete(requestId)
       releaseInteractiveWork()
       if (!emittedDone) safeSendSSE('done', { type: 'done', isFinished: true })
       activeAgentAborts.delete(requestId)

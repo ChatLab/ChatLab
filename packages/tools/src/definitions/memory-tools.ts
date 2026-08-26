@@ -128,6 +128,7 @@ async function memoryWriteHandler(
     })
   }
 
+  context.reportMemoryChange?.(entry.id)
   return { content: JSON.stringify(entry), data: entry }
 }
 

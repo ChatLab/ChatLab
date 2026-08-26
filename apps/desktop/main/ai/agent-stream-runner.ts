@@ -155,6 +155,7 @@ export function createElectronRunAgentStream(
         maxToolResultTokens: resolveCrossChatToolResultTokenBudget(resolvedContextWindow),
         memoryService: crossChatOptions.memoryService,
         aiChatId,
+        reportMemoryChange: (memoryId) => onEvent({ type: 'memory_change', memoryId }),
       })
       await runCrossChatAgent({
         userMessage,

@@ -20,11 +20,12 @@ import type {
   ToolCatalogEntry,
   ToolExecuteResult,
   DesensitizeRule,
-  AIMemoryEntry,
+  AIMemoryManagementEntry,
   AIMemoryScope,
   CreateUserAIMemoryInput,
   ClearAIMemoriesInput,
 } from './types'
+import type { LinkAIMemorySourcesInput, LinkAIMemorySourcesResult } from '@openchatlab/shared-types'
 import { get, post, put, del, fetchWithAuth } from '../utils/http'
 
 const NOT_AVAILABLE_WEB = 'This feature is not available in web mode'
@@ -64,19 +65,19 @@ export class FetchAIAdapter implements AIAdapter {
   }
 
   // ===== 长期记忆 =====
-  async getAIMemories(scope?: AIMemoryScope): Promise<AIMemoryEntry[]> {
-    if (!scope) return get<AIMemoryEntry[]>('/ai/memories')
+  async getAIMemories(scope?: AIMemoryScope): Promise<AIMemoryManagementEntry[]> {
+    if (!scope) return get<AIMemoryManagementEntry[]>('/ai/memories')
     const params = new URLSearchParams({ scopeType: scope.scopeType })
     if (scope.scopeId) params.set('scopeId', scope.scopeId)
-    return get<AIMemoryEntry[]>(`/ai/memories?${params.toString()}`)
+    return get<AIMemoryManagementEntry[]>(`/ai/memories?${params.toString()}`)
   }
 
-  async createAIMemory(input: CreateUserAIMemoryInput): Promise<AIMemoryEntry> {
-    return post<AIMemoryEntry>('/ai/memories', input)
+  async createAIMemory(input: CreateUserAIMemoryInput): Promise<AIMemoryManagementEntry> {
+    return post<AIMemoryManagementEntry>('/ai/memories', input)
   }
 
-  async updateAIMemory(id: string, content: string): Promise<AIMemoryEntry> {
-    return put<AIMemoryEntry>(`/ai/memories/${id}`, { content })
+  async updateAIMemory(id: string, content: string): Promise<AIMemoryManagementEntry> {
+    return put<AIMemoryManagementEntry>(`/ai/memories/${id}`, { content })
   }
 
   async deleteAIMemory(id: string): Promise<{ success: boolean }> {
@@ -85,6 +86,10 @@ export class FetchAIAdapter implements AIAdapter {
 
   async clearAIMemories(input: ClearAIMemoriesInput): Promise<{ success: boolean; cleared: number }> {
     return post<{ success: boolean; cleared: number }>('/ai/memories/clear', input)
+  }
+
+  async linkAIMemorySources(input: LinkAIMemorySourcesInput): Promise<LinkAIMemorySourcesResult> {
+    return post<LinkAIMemorySourcesResult>('/ai/memories/link-sources', input)
   }
 
   // ===== 消息 =====

@@ -4,6 +4,8 @@
  * 包含标题、描述、可选头像/图标，以及默认 slot 用于额外内容
  */
 
+import { IS_ELECTRON } from '@/utils/platform'
+
 const props = withDefaults(
   defineProps<{
     title: string
@@ -31,7 +33,7 @@ const props = withDefaults(
   >
     <!-- 拖拽区域 - 覆盖顶部安全区域（平台自适应）
          macOS: 16px padding + 16px = 32px | Windows/Linux: 32px padding + 16px = 48px -->
-    <div class="titlebar-drag-cover" />
+    <div v-if="IS_ELECTRON" class="titlebar-drag-cover" />
 
     <!-- 标题区域 -->
     <div class="flex items-center justify-between">

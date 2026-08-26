@@ -50,6 +50,7 @@ import {
 } from './aiChatContentBlocks'
 import { createToolLifecycleTracker, type ToolStatus } from './aiToolLifecycle'
 import { applyQueuedStreamTextDeltas, createAIStreamTextBatcher } from './aiChatStreamBatcher'
+import { reportError } from '@/services/log-report'
 
 export type { ToolStatus } from './aiToolLifecycle'
 
@@ -1041,6 +1042,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     // 在 try 外部声明，以便 catch 块能正确引用当前轮次的用户消息
     let currentUserMessage: ChatMessage | undefined
     let lastDoneUsage: TokenUsage | undefined
+    const changedMemoryIds = new Set<string>()
+    let memoryProvenanceToken: string | null = null
 
     targetBuffer.assistantId = state.selectedAssistantId
     targetBuffer.loaded = true
@@ -1318,6 +1321,11 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               }
               break
 
+            case 'memory_change':
+              if (chunk.memoryId) changedMemoryIds.add(chunk.memoryId)
+              if (chunk.provenanceToken) memoryProvenanceToken = chunk.provenanceToken
+              break
+
             case 'plan':
               if (chunk.plan) {
                 appendPlanToBlocks(chunk.plan)
@@ -1433,7 +1441,9 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           resolvedAIChatId,
           userMessage,
           targetBuffer.messages[aiMessageIndex],
-          lastDoneUsage
+          lastDoneUsage,
+          [...changedMemoryIds],
+          memoryProvenanceToken
         )
         if (!savedMessages) return { success: false, reason: 'error' }
         Object.assign(userMessage, savedMessages.userMessage)
@@ -1457,7 +1467,9 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           resolvedAIChatId,
           userMessage,
           targetBuffer.messages[aiMessageIndex],
-          lastDoneUsage
+          lastDoneUsage,
+          [...changedMemoryIds],
+          memoryProvenanceToken
         )
         if (!savedMessages) return { success: false, reason: 'error' }
         Object.assign(userMessage, savedMessages.userMessage)
@@ -1471,7 +1483,9 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           resolvedAIChatId,
           userMessage,
           targetBuffer.messages[aiMessageIndex],
-          lastDoneUsage
+          lastDoneUsage,
+          [...changedMemoryIds],
+          memoryProvenanceToken
         )
         if (!savedMessages) return { success: false, reason: 'error' }
         Object.assign(userMessage, savedMessages.userMessage)
@@ -1505,7 +1519,14 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         // 优先使用当前轮次的用户消息，避免多轮对话取到第一条历史消息
         const userMsg = currentUserMessage || targetBuffer.messages.findLast((m) => m.role === 'user')
         if (userMsg) {
-          await saveAIChatMessages(resolvedAIChatId, userMsg, lastMessage, lastDoneUsage)
+          await saveAIChatMessages(
+            resolvedAIChatId,
+            userMsg,
+            lastMessage,
+            lastDoneUsage,
+            [...changedMemoryIds],
+            memoryProvenanceToken
+          )
         }
       }
 
@@ -1525,7 +1546,9 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     aiChatId: string | null,
     userMsg: ChatMessage,
     aiMsg: ChatMessage,
-    tokenUsage?: TokenUsage
+    tokenUsage?: TokenUsage,
+    changedMemoryIds: string[] = [],
+    memoryProvenanceToken: string | null = null
   ): Promise<{ userMessage: ChatMessage; assistantMessage: ChatMessage } | null> {
     try {
       if (!aiChatId) {
@@ -1539,6 +1562,20 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           { content: userMsg.content, entityRefs: userMsg.entityRefs },
           { content: aiMsg.content, contentBlocks: serializableContentBlocks, tokenUsage }
         )
+      if (changedMemoryIds.length > 0) {
+        try {
+          if (!memoryProvenanceToken) throw new Error('Memory provenance token is missing')
+          await useAIService().linkAIMemorySources({
+            provenanceToken: memoryProvenanceToken,
+            aiChatId,
+            userMessageId: savedUserMessage.id,
+            assistantMessageId: savedAssistantMessage.id,
+            memoryIds: changedMemoryIds,
+          })
+        } catch (error) {
+          reportError('AI memory source linking failed', error instanceof Error ? error.stack : undefined)
+        }
+      }
       return {
         userMessage: toRuntimeMessage(savedUserMessage),
         assistantMessage: toRuntimeMessage(savedAssistantMessage),

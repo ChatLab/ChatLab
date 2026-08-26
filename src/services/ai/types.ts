@@ -1,6 +1,13 @@
 import type { TimeFilter } from '@/types/base'
 import type { ChartPayload, ChatEvidencePayload } from '@openchatlab/core'
-import type { AIEntityRef, AIMemoryEntry, AIMemoryScope, CrossChatEvidencePayload } from '@openchatlab/shared-types'
+import type {
+  AIEntityRef,
+  AIMemoryManagementEntry,
+  AIMemoryScope,
+  CrossChatEvidencePayload,
+  LinkAIMemorySourcesInput,
+  LinkAIMemorySourcesResult,
+} from '@openchatlab/shared-types'
 import type { PlanContentBlock } from './planBlocks'
 
 export interface AIChat {
@@ -14,7 +21,7 @@ export interface AIChat {
   updatedAt: number
 }
 
-export type { AIEntityRef, AIMemoryEntry, AIMemoryScope } from '@openchatlab/shared-types'
+export type { AIEntityRef, AIMemoryManagementEntry, AIMemoryScope } from '@openchatlab/shared-types'
 
 export type CreateUserAIMemoryInput = AIMemoryScope & { content: string }
 export type ClearAIMemoriesInput = AIMemoryScope | { all: true }
@@ -133,11 +140,12 @@ export interface AIAdapter {
   deleteAIChat(aiChatId: string): Promise<boolean>
 
   // ===== 长期记忆 =====
-  getAIMemories(scope?: AIMemoryScope): Promise<AIMemoryEntry[]>
-  createAIMemory(input: CreateUserAIMemoryInput): Promise<AIMemoryEntry>
-  updateAIMemory(id: string, content: string): Promise<AIMemoryEntry>
+  getAIMemories(scope?: AIMemoryScope): Promise<AIMemoryManagementEntry[]>
+  createAIMemory(input: CreateUserAIMemoryInput): Promise<AIMemoryManagementEntry>
+  updateAIMemory(id: string, content: string): Promise<AIMemoryManagementEntry>
   deleteAIMemory(id: string): Promise<{ success: boolean }>
   clearAIMemories(input: ClearAIMemoriesInput): Promise<{ success: boolean; cleared: number }>
+  linkAIMemorySources(input: LinkAIMemorySourcesInput): Promise<LinkAIMemorySourcesResult>
 
   // ===== 消息 =====
   getMessages(aiChatId: string): Promise<AIMessage[]>

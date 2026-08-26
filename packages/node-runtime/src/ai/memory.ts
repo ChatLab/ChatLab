@@ -371,6 +371,29 @@ export class AIMemoryService {
     })
   }
 
+  linkSourceMessages(links: Array<{ id: string; sourceAIChatId: string; sourceMessageId: string }>): string[] {
+    if (links.length === 0) return []
+    return this.runWrite('link sources', () => {
+      const db = this.getDb()
+      const update = db.prepare(
+        `UPDATE ai_memory
+            SET source_message_id = ?
+          WHERE id = ?
+            AND source_ai_chat_id = ?
+            AND (source_message_id IS NULL OR source_message_id = ?)`
+      )
+      return db.transaction(() => {
+        const linkedIds: string[] = []
+        for (const link of links) {
+          const result = update.run(link.sourceMessageId, link.id, link.sourceAIChatId, link.sourceMessageId)
+          if (result.changes === 0) throw new Error('AI memory source changed before it could be linked')
+          linkedIds.push(link.id)
+        }
+        return linkedIds
+      })()
+    })
+  }
+
   forget(id: string): boolean {
     return this.runWrite('forget', () => this.getDb().prepare('DELETE FROM ai_memory WHERE id = ?').run(id).changes > 0)
   }

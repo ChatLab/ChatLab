@@ -39,12 +39,14 @@ const chatInputRef = ref<{ clearDraft: () => void } | null>(null)
 let isUnmounted = false
 let conversationSelectionRequestId = 0
 let contextEstimateRequestId = 0
+let sourceHighlightTimer: ReturnType<typeof setTimeout> | null = null
 
 function isGlobalPageActive(): boolean {
   return !isUnmounted && route.name === 'global-ai'
 }
 const estimatedContextTokens = ref(0)
 const showMemoryManager = ref(false)
+const highlightedSourceMessageId = ref<string | null>(null)
 
 const pairs = computed(() => groupMessagesToQAPairs(messages.value))
 const { messagesContainer, showScrollToBottom, handleScrollToBottom, scrollToBottom } = useChatScroll(
@@ -82,7 +84,7 @@ async function loadConversations(): Promise<void> {
   }
 }
 
-async function selectConversation(aiChatId: string): Promise<void> {
+async function selectConversation(aiChatId: string, sourceMessageId: string | null = null): Promise<void> {
   const currentRequest = ++conversationSelectionRequestId
   const loaded = await aiChatStore.loadAIChat(chatKey, aiChatId)
   if (currentRequest !== conversationSelectionRequestId || !isGlobalPageActive()) return
@@ -95,7 +97,44 @@ async function selectConversation(aiChatId: string): Promise<void> {
   await syncAIChatIdToRoute(aiChatId)
   if (currentRequest !== conversationSelectionRequestId || !isGlobalPageActive()) return
   await nextTick()
-  scrollToBottom(true)
+  if (sourceMessageId) {
+    await revealSourceMessage(sourceMessageId)
+  } else {
+    highlightedSourceMessageId.value = null
+    scrollToBottom(true)
+  }
+}
+
+async function revealSourceMessage(messageId: string): Promise<void> {
+  const targetExists = pairs.value.some(
+    (pair) => pair.user?.id === messageId || pair.assistant?.id === messageId || pair.standalone?.id === messageId
+  )
+  if (!targetExists) {
+    toast.warn(t('ai.global.memory.sourceUnavailable'))
+    return
+  }
+
+  while (
+    hasOlderPairs.value &&
+    !visiblePairs.value.some(
+      (pair) => pair.user?.id === messageId || pair.assistant?.id === messageId || pair.standalone?.id === messageId
+    )
+  ) {
+    await loadOlderPairs()
+  }
+
+  highlightedSourceMessageId.value = messageId
+  await nextTick()
+  const element = messagesContainer.value?.querySelector<HTMLElement>(`[data-ai-message-id="${CSS.escape(messageId)}"]`)
+  element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  if (sourceHighlightTimer) clearTimeout(sourceHighlightTimer)
+  sourceHighlightTimer = setTimeout(() => {
+    if (highlightedSourceMessageId.value === messageId) highlightedSourceMessageId.value = null
+  }, 4000)
+}
+
+async function handleViewMemorySource(payload: { aiChatId: string; messageId: string | null }): Promise<void> {
+  await selectConversation(payload.aiChatId, payload.messageId)
 }
 
 function startNewConversation(): void {
@@ -227,6 +266,7 @@ onUnmounted(() => {
   isUnmounted = true
   conversationSelectionRequestId++
   contextEstimateRequestId++
+  if (sourceHighlightTimer) clearTimeout(sourceHighlightTimer)
 })
 </script>
 
@@ -319,6 +359,7 @@ onUnmounted(() => {
                     :content="pair.user.content"
                     :timestamp="pair.user.timestamp"
                     :entity-refs="pair.user.entityRefs"
+                    :highlighted="highlightedSourceMessageId === pair.user.id"
                   />
                   <ChatMessage
                     v-if="
@@ -334,6 +375,7 @@ onUnmounted(() => {
                     :content-blocks="pair.assistant.contentBlocks"
                     :show-capture-button="!pair.assistant.isStreaming"
                     :active-tool="pair.assistant.isStreaming ? state.currentToolStatus : null"
+                    :highlighted="highlightedSourceMessageId === pair.assistant.id"
                   />
                   <AIThinkingIndicator
                     v-else-if="pair.assistant?.isStreaming"
@@ -384,6 +426,6 @@ onUnmounted(() => {
       </section>
     </div>
 
-    <AIMemoryManagerModal v-model:open="showMemoryManager" />
+    <AIMemoryManagerModal v-model:open="showMemoryManager" @view-source="handleViewMemorySource" />
   </div>
 </template>
