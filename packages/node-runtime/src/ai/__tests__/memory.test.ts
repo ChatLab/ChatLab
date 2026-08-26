@@ -5,7 +5,13 @@ import { join } from 'node:path'
 import { describe, it } from 'node:test'
 import Database from 'better-sqlite3'
 import type { AIMemoryEntry, AIMemoryScope } from '@openchatlab/shared-types'
-import { AI_MEMORY_CONTENT_MAX_CHARS, AIMemoryService, buildEntityMemoryPrompt } from '../memory'
+import {
+  AI_MEMORY_CONTENT_MAX_CHARS,
+  AIMemoryService,
+  buildEntityMemoryPrompt,
+  buildGlobalMemoryPrompt,
+  rankMemoryEntries,
+} from '../memory'
 
 const sqliteNativeBinding = process.env.CHATLAB_TEST_SQLITE_NATIVE_BINDING
 
@@ -25,6 +31,25 @@ function cleanup(dir: string): void {
     rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 })
   } catch {
     // Windows can hold SQLite WAL handles briefly after close; temp cleanup is best-effort.
+  }
+}
+
+function createMemoryEntry(
+  id: string,
+  content: string,
+  updatedAt: number,
+  options: Partial<Pick<AIMemoryEntry, 'scopeType' | 'scopeId' | 'sourceType'>> = {}
+): AIMemoryEntry {
+  return {
+    id,
+    scopeType: options.scopeType ?? 'global',
+    scopeId: options.scopeId ?? null,
+    content,
+    sourceType: options.sourceType ?? 'user',
+    sourceAIChatId: null,
+    sourceMessageId: null,
+    createdAt: updatedAt,
+    updatedAt,
   }
 }
 
@@ -115,28 +140,12 @@ describe('AIMemoryService', () => {
     }
   })
 
-  it('migrates version 1 without losing existing memories and then accepts self memories', () => {
+  it('rejects unpublished legacy schemas instead of carrying compatibility code', () => {
     const dir = createTempDir()
     try {
       createVersionOneDatabase(dir)
-      const service = createService(dir, { now: () => 3, idFactory: () => 'self-memory' })
-
-      assert.equal(service.getSchemaVersion(), 2)
-      assert.deepEqual(
-        service.list().map((entry) => [entry.id, entry.scopeType, entry.scopeId, entry.content]),
-        [
-          ['legacy-contact', 'contact', 'contact-a', '大学同学'],
-          ['legacy-global', 'global', null, '先给结论'],
-        ]
-      )
-
-      service.create({
-        scopeType: 'self',
-        scopeId: null,
-        content: '用户正在维护 ChatLab',
-        sourceType: 'user',
-      })
-      assert.equal(service.list({ scopeType: 'self', scopeId: null })[0]?.content, '用户正在维护 ChatLab')
+      const service = createService(dir)
+      assert.throws(() => service.getSchemaVersion(), /Unsupported AI memory schema version: 1/)
       service.close()
     } finally {
       cleanup(dir)
@@ -288,6 +297,136 @@ describe('AIMemoryService', () => {
   })
 })
 
+describe('memory relevance ranking', () => {
+  it('ranks an older relevant memory ahead of newer unrelated entries', () => {
+    const result = rankMemoryEntries(
+      [
+        createMemoryEntry('newest', '回答尽量简短', 300),
+        createMemoryEntry('middle', '优先分析私聊', 200),
+        createMemoryEntry('relevant', '用户所说的“最近”默认指最近 90 天', 100),
+      ],
+      { query: '看看我最近和谁联系最多', locale: 'zh-CN' }
+    )
+
+    assert.equal(result.retrievalMode, 'relevance')
+    assert.equal(result.matchedCount, 1)
+    assert.deepEqual(
+      result.entries.map((entry) => entry.id),
+      ['relevant', 'newest', 'middle']
+    )
+  })
+
+  it('falls back to deterministic recent order when the query has no match', () => {
+    const result = rankMemoryEntries(
+      [
+        createMemoryEntry('older', '优先分析私聊', 100),
+        createMemoryEntry('newer-b', '先给结论', 200),
+        createMemoryEntry('newer-a', '附带证据', 200),
+      ],
+      { query: '天气怎么样', locale: 'zh-CN' }
+    )
+
+    assert.equal(result.retrievalMode, 'recent_fallback')
+    assert.equal(result.matchedCount, 0)
+    assert.deepEqual(
+      result.entries.map((entry) => entry.id),
+      ['newer-a', 'newer-b', 'older']
+    )
+  })
+
+  it('uses user provenance only as a tie-breaker for equally relevant memories', () => {
+    const result = rankMemoryEntries(
+      [
+        createMemoryEntry('ai-newer', '最近默认指 30 天', 200, { sourceType: 'ai' }),
+        createMemoryEntry('user-older', '最近默认指 90 天', 100, { sourceType: 'user' }),
+      ],
+      { query: '最近', locale: 'zh-CN' }
+    )
+
+    assert.deepEqual(
+      result.entries.map((entry) => entry.id),
+      ['user-older', 'ai-newer']
+    )
+  })
+
+  it('keeps the same retrieval contract across all supported locales', () => {
+    const cases = [
+      { locale: 'zh-CN', query: '看看最近的联系人', content: '“最近”默认指 90 天' },
+      { locale: 'zh-TW', query: '看看最近的聯絡人', content: '「最近」預設指 90 天' },
+      { locale: 'en-US', query: 'Please include evidence', content: 'Always include evidence after the conclusion.' },
+      { locale: 'ja-JP', query: '最近の連絡先を調べて', content: '「最近」は90日間を意味します' },
+    ] as const
+
+    for (const testCase of cases) {
+      const result = rankMemoryEntries(
+        [
+          createMemoryEntry('unrelated', 'Use a concise answer format.', 200),
+          createMemoryEntry('relevant', testCase.content, 100),
+        ],
+        testCase
+      )
+      assert.equal(result.retrievalMode, 'relevance', testCase.locale)
+      assert.equal(result.entries[0]?.id, 'relevant', testCase.locale)
+    }
+  })
+
+  it('puts an older relevant global preference inside the fixed prompt budget', () => {
+    const entries = Array.from({ length: 22 }, (_, index) =>
+      createMemoryEntry(`memory-${index}`, `无关偏好 ${index}`, 100 - index)
+    )
+    entries[21] = createMemoryEntry('relevant', '用户所说的“最近”默认指最近 90 天', 1)
+
+    const prompt = buildGlobalMemoryPrompt(entries, 'zh-CN', '看看我最近和谁联系最多')
+
+    assert.match(prompt, /relevant.*最近 90 天/)
+    assert.match(prompt, /部分全局记忆未注入/)
+  })
+
+  it('keeps explicit global user preferences when relevant AI memories fill the budget', () => {
+    const entries = Array.from({ length: 20 }, (_, index) =>
+      createMemoryEntry(`ai-${index}`, `开源项目证据 ${index}`, 200 - index, { sourceType: 'ai' })
+    )
+    entries.push(createMemoryEntry('user-preference', '回答时始终先给结论', 1, { sourceType: 'user' }))
+
+    const prompt = buildGlobalMemoryPrompt(entries, 'zh-CN', '请分析开源项目证据')
+
+    assert.match(prompt, /user-preference.*先给结论/)
+    assert.match(prompt, /ai-0.*开源项目证据/)
+    assert.doesNotMatch(prompt, /ai-19/)
+  })
+
+  it('continues scanning for shorter memories when one entry exceeds the remaining character budget', () => {
+    const prompt = buildGlobalMemoryPrompt([
+      createMemoryEntry('long-a', 'a'.repeat(1_894), 400, { sourceType: 'ai' }),
+      createMemoryEntry('long-b', 'b'.repeat(1_894), 300, { sourceType: 'ai' }),
+      createMemoryEntry('does-not-fit', 'c'.repeat(506), 200, { sourceType: 'ai' }),
+      createMemoryEntry('short', '结论优先', 100, { sourceType: 'ai' }),
+    ])
+
+    assert.match(prompt, /long-a/)
+    assert.match(prompt, /long-b/)
+    assert.doesNotMatch(prompt, /does-not-fit/)
+    assert.match(prompt, /short.*结论优先/)
+  })
+
+  it('keeps large local candidate sets deterministic without an index', () => {
+    const entries = Array.from({ length: 1_000 }, (_, index) =>
+      createMemoryEntry(`memory-${String(index).padStart(4, '0')}`, `长期偏好 ${index}`, 1_000 - index)
+    )
+    entries[999] = createMemoryEntry('relevant', '回答必须附带原始证据', 1)
+
+    const first = rankMemoryEntries(entries, { query: '请附带证据', locale: 'zh-CN' })
+    const second = rankMemoryEntries(entries, { query: '请附带证据', locale: 'zh-CN' })
+
+    assert.equal(first.entries.length, 1_000)
+    assert.equal(first.entries[0]?.id, 'relevant')
+    assert.deepEqual(
+      first.entries.map((entry) => entry.id),
+      second.entries.map((entry) => entry.id)
+    )
+  })
+})
+
 describe('entity memory prompt', () => {
   it('injects only current contacts and groups, shares the budget fairly, and ignores private sessions', () => {
     const contactEntries: AIMemoryEntry[] = Array.from({ length: 20 }, (_, index) => ({
@@ -386,5 +525,44 @@ describe('entity memory prompt', () => {
 
     assert.match(prompt, /只属于联系人 B/)
     assert.doesNotMatch(prompt, /只属于联系人 A/)
+  })
+
+  it('prioritizes relevant memories inside each entity before applying the fair shared budget', () => {
+    const entries = Array.from({ length: 21 }, (_, index) =>
+      createMemoryEntry(`memory-${index}`, `无关背景 ${index}`, 100 - index, {
+        scopeType: 'contact',
+        scopeId: 'contact-a',
+      })
+    )
+    entries[20] = createMemoryEntry('relevant', '用户和她曾经一起准备研究生考试', 1, {
+      scopeType: 'contact',
+      scopeId: 'contact-a',
+    })
+
+    const prompt = buildEntityMemoryPrompt(
+      [{ type: 'contact', contactKey: 'contact-a', displayName: '联系人 A' }],
+      () => entries,
+      'zh-CN',
+      '我们有没有聊过研究生考试？'
+    )
+
+    assert.match(prompt, /relevant.*研究生考试/)
+    assert.match(prompt, /部分当前实体记忆未注入/)
+  })
+
+  it('keeps recent entity context as fallback for generic relationship questions', () => {
+    const prompt = buildEntityMemoryPrompt(
+      [{ type: 'contact', contactKey: 'contact-a', displayName: '联系人 A' }],
+      () => [
+        createMemoryEntry('relationship', '她是用户的大学同学', 100, {
+          scopeType: 'contact',
+          scopeId: 'contact-a',
+        }),
+      ],
+      'zh-CN',
+      '我和她是什么关系？'
+    )
+
+    assert.match(prompt, /relationship.*大学同学/)
   })
 })

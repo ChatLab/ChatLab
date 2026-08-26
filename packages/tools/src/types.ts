@@ -398,6 +398,11 @@ export interface CrossChatAnalysisToolService {
 
 export interface AIMemoryToolService {
   list(scope?: AIMemoryScope): AIMemoryEntry[]
+  search(
+    scope: AIMemoryScope,
+    query: string,
+    locale?: string
+  ): { entries: AIMemoryEntry[]; retrievalMode: 'relevance' | 'recent_fallback' }
   get(id: string): AIMemoryEntry | null
   create(
     input: AIMemoryScope & {
