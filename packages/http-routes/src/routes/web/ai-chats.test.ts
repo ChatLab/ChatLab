@@ -135,8 +135,8 @@ test('message round replacement route rolls back every edit when the replacement
   })
 
   const chat = manager.createAIChat('session-1', 'Editable chat', 'general_cn')
-  const firstTurn = manager.addMessagePair(chat.id, { content: 'question' }, { content: 'old answer' })
-  manager.addMessagePair(chat.id, { content: 'follow up' }, { content: 'follow answer' })
+  manager.addMessagePair(chat.id, { content: 'question' }, { content: 'old answer' })
+  const latestTurn = manager.addMessagePair(chat.id, { content: 'follow up' }, { content: 'follow answer' })
   const messagesBeforeFailure = manager.getMessages(chat.id)
 
   manager.executeAiSQL(`
@@ -150,11 +150,10 @@ test('message round replacement route rolls back every edit when the replacement
 
   const response = await app.inject({
     method: 'POST',
-    url: `/_web/ai/chats/${chat.id}/replace-message-round`,
+    url: `/_web/ai/chats/${chat.id}/replace-latest-message-round`,
     payload: {
-      userMessageId: firstTurn.userMessage.id,
+      userMessageId: latestTurn.userMessage.id,
       userContent: 'must roll back',
-      oldAssistantMessageId: firstTurn.assistantMessage.id,
       assistantMessage: { content: 'must not persist' },
     },
   })

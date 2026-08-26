@@ -69,8 +69,8 @@ export function useAIChat(
     agentStatus: toRef(state, 'agentStatus'),
     selectedAssistantId: toRef(state, 'selectedAssistantId'),
     sendMessage: (content: string, options?: SendMessageOptions) => aiChatStore.sendMessage(chatKey, content, options),
-    editMessageAndRegenerate: (messageId: string, content: string, options?: { overwriteSubsequent?: boolean }) =>
-      aiChatStore.editMessageAndRegenerate(chatKey, messageId, content, options),
+    editMessageAndRegenerate: (messageId: string, content: string) =>
+      aiChatStore.editMessageAndRegenerate(chatKey, messageId, content),
     loadAIChat: (aiChatId: string) => aiChatStore.loadAIChat(chatKey, aiChatId),
     startNewAIChat: (welcomeMessage?: string) => aiChatStore.startNewAIChat(chatKey, welcomeMessage),
     loadMoreSourceMessages: () => aiChatStore.loadMoreSourceMessages(),

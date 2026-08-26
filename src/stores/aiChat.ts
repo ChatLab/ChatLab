@@ -1349,7 +1349,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                   content: chunk.compressionResult.summaryContent,
                   timestamp: chunk.compressionResult.timestamp,
                 }
-                const insertIdx = Math.max(0, targetBuffer.messages.length - 1)
+                // Compression is persisted before the in-flight user/assistant pair.
+                const insertIdx = Math.max(0, targetBuffer.messages.length - 2)
                 targetBuffer.messages.splice(insertIdx, 0, summaryMsg)
                 aiMessageIndex++
               }
@@ -1642,8 +1643,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
   async function editMessageAndRegenerate(
     chatKey: string,
     messageId: string,
-    newContent: string,
-    options?: { overwriteSubsequent?: boolean }
+    newContent: string
   ): Promise<SendMessageResult> {
     const state = getSessionState(chatKey)
     const content = newContent.trim()
@@ -1653,7 +1653,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       return { success: false, reason: 'busy', activeTask: activeTask.value }
     }
 
-    const overwriteAll = options?.overwriteSubsequent ?? false
     const targetBuffer = getOrCreateBuffer(state, state.currentAIChatId, state.selectedAssistantId)
     const editIndex = targetBuffer.messages.findIndex((message) => message.id === messageId)
     const originalMessage = targetBuffer.messages[editIndex]
@@ -1664,42 +1663,18 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       return { success: false, reason: 'empty' }
     }
 
-    if (overwriteAll) {
-      return editAndOverwriteAll(chatKey, state, targetBuffer, editIndex, originalMessage, content)
-    }
-    return editCurrentRoundOnly(chatKey, state, targetBuffer, editIndex, originalMessage, content)
-  }
-
-  async function editAndOverwriteAll(
-    chatKey: string,
-    state: AIChatSessionState,
-    targetBuffer: AIChatBuffer,
-    editIndex: number,
-    originalMessage: ChatMessage,
-    content: string
-  ): Promise<SendMessageResult> {
-    try {
-      const hasConfig = await useLLMService().hasConfig()
-      if (!hasConfig) {
-        return { success: false, reason: 'no_config' }
-      }
-      if (state.isAborted) {
-        return { success: false, reason: 'aborted' }
-      }
-      if (state.isAIThinking || activeTask.value) {
-        return { success: false, reason: 'busy', activeTask: activeTask.value }
-      }
-
-      await useAIService().deleteMessagesFrom(state.currentAIChatId!, originalMessage.id)
-      targetBuffer.messages.splice(editIndex, targetBuffer.messages.length - editIndex)
-      return sendMessage(chatKey, content)
-    } catch (error) {
-      console.error('[AI] edit and overwrite failed:', error)
+    const latestUserIndex = targetBuffer.messages.findLastIndex((message) => message.role === 'user')
+    const followingMessages = targetBuffer.messages.slice(editIndex + 1)
+    const hasReplaceableTail =
+      editIndex === latestUserIndex &&
+      (followingMessages.length === 0 || (followingMessages.length === 1 && followingMessages[0]?.role === 'assistant'))
+    if (!hasReplaceableTail) {
       return { success: false, reason: 'error' }
     }
+    return editLatestRound(chatKey, state, targetBuffer, editIndex, originalMessage, content)
   }
 
-  async function editCurrentRoundOnly(
+  async function editLatestRound(
     chatKey: string,
     state: AIChatSessionState,
     targetBuffer: AIChatBuffer,
@@ -1727,9 +1702,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
     const oldAiResponse = targetBuffer.messages[editIndex + 1]
     const hasOldAiResponse = oldAiResponse?.role === 'assistant'
-    const subsequentMessages = hasOldAiResponse
-      ? targetBuffer.messages.slice(editIndex + 2)
-      : targetBuffer.messages.slice(editIndex + 1)
 
     const aiPlaceholder: ChatMessage = {
       id: generateId('ai'),
@@ -1759,7 +1731,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       if (hasOldAiResponse) {
         targetBuffer.messages.splice(editIndex + 1, 0, oldAiResponse)
       }
-      targetBuffer.messages.push(...subsequentMessages)
     }
 
     const {
@@ -2001,10 +1972,9 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       }
 
       const serializableContentBlocks = toSerializableContentBlocks(targetBuffer.messages[aiMessageIndex].contentBlocks)
-      const savedAiMsg = await useAIService().replaceMessageRound(state.currentAIChatId!, {
+      const savedAiMsg = await useAIService().replaceLatestMessageRound(state.currentAIChatId!, {
         userMessageId: originalMessage.id,
         userContent: content,
-        oldAssistantMessageId: hasOldAiResponse ? oldAiResponse.id : undefined,
         assistantMessage: {
           content: targetBuffer.messages[aiMessageIndex].content,
           contentBlocks: serializableContentBlocks,
@@ -2021,14 +1991,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       targetBuffer.messages[editIndex] = {
         ...targetBuffer.messages[editIndex],
         content,
-      }
-
-      const nextMsgIndex = aiMessageIndex + 1
-      if (nextMsgIndex < targetBuffer.messages.length) {
-        targetBuffer.messages[nextMsgIndex] = {
-          ...targetBuffer.messages[nextMsgIndex],
-          parentId: savedAiMsg.id,
-        }
       }
 
       targetBuffer.sessionTokenUsage = toTokenUsage(await useAIService().getAIChatTokenUsage(state.currentAIChatId!))
