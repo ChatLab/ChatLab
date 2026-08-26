@@ -1370,7 +1370,11 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                   cacheWriteTokens: state.sessionTokenUsage.cacheWriteTokens + chunk.usage.cacheWriteTokens,
                 }
               }
-              setAgentPhase(state, 'completed', chunk.usage ? { totalUsage: chunk.usage } : undefined)
+              setAgentPhase(
+                state,
+                hasStreamError ? 'error' : 'completed',
+                chunk.usage ? { totalUsage: chunk.usage } : undefined
+              )
               break
 
             case 'error':
@@ -1484,7 +1488,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         }
       }
 
-      return { success: true }
+      return result.success ? { success: true } : { success: false, reason: 'error' }
     } catch (error) {
       console.error('[AI] 处理失败：', error)
       state.agentStatus = null
@@ -1960,7 +1964,11 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               state.currentToolStatus = null
               if (!hasStreamError) updatePlanBlockStatus('done')
               if (chunk.usage) lastDoneUsage = { ...chunk.usage }
-              setAgentPhase(state, 'completed', chunk.usage ? { totalUsage: chunk.usage } : undefined)
+              setAgentPhase(
+                state,
+                hasStreamError ? 'error' : 'completed',
+                chunk.usage ? { totalUsage: chunk.usage } : undefined
+              )
               break
             case 'error': {
               settleProcessDuration()
