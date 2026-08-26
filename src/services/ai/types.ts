@@ -146,6 +146,15 @@ export interface AIAdapter {
     userMessage: { content: string; entityRefs?: AIEntityRef[] },
     assistantMessage: { content: string; contentBlocks?: ContentBlock[]; tokenUsage?: TokenUsageData }
   ): Promise<{ userMessage: AIMessage; assistantMessage: AIMessage }>
+  replaceMessageRound(
+    aiChatId: string,
+    input: {
+      userMessageId: string
+      userContent: string
+      oldAssistantMessageId?: string
+      assistantMessage: { content: string; contentBlocks?: ContentBlock[]; tokenUsage?: TokenUsageData }
+    }
+  ): Promise<AIMessage>
   addMessage(
     aiChatId: string,
     role: AIMessageRole,

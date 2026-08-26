@@ -103,6 +103,18 @@ export class FetchAIAdapter implements AIAdapter {
     })
   }
 
+  async replaceMessageRound(
+    aiChatId: string,
+    input: {
+      userMessageId: string
+      userContent: string
+      oldAssistantMessageId?: string
+      assistantMessage: { content: string; contentBlocks?: ContentBlock[]; tokenUsage?: TokenUsageData }
+    }
+  ): Promise<AIMessage> {
+    return post<AIMessage>(`/ai/chats/${aiChatId}/replace-message-round`, input)
+  }
+
   async addMessage(
     aiChatId: string,
     role: AIMessageRole,

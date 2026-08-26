@@ -119,3 +119,46 @@ test('global AI chat routes keep global history separate and persist entity refe
     false
   )
 })
+
+test('message round replacement route rolls back every edit when the replacement insert fails', async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'chatlab-ai-edit-route-'))
+  const manager = sqliteNativeBinding
+    ? new AIChatManager(dir, { nativeBinding: sqliteNativeBinding })
+    : new AIChatManager(dir)
+  const app = Fastify()
+  registerAiChatRoutes(app, { aiChatManager: manager })
+
+  t.after(async () => {
+    await app.close()
+    manager.close()
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  const chat = manager.createAIChat('session-1', 'Editable chat', 'general_cn')
+  const firstTurn = manager.addMessagePair(chat.id, { content: 'question' }, { content: 'old answer' })
+  manager.addMessagePair(chat.id, { content: 'follow up' }, { content: 'follow answer' })
+  const messagesBeforeFailure = manager.getMessages(chat.id)
+
+  manager.executeAiSQL(`
+    CREATE TRIGGER reject_route_replacement
+    BEFORE INSERT ON ai_message
+    WHEN NEW.role = 'assistant'
+    BEGIN
+      SELECT RAISE(ABORT, 'injected route replacement failure');
+    END
+  `)
+
+  const response = await app.inject({
+    method: 'POST',
+    url: `/_web/ai/chats/${chat.id}/replace-message-round`,
+    payload: {
+      userMessageId: firstTurn.userMessage.id,
+      userContent: 'must roll back',
+      oldAssistantMessageId: firstTurn.assistantMessage.id,
+      assistantMessage: { content: 'must not persist' },
+    },
+  })
+
+  assert.equal(response.statusCode, 500)
+  assert.deepEqual(manager.getMessages(chat.id), messagesBeforeFailure)
+})

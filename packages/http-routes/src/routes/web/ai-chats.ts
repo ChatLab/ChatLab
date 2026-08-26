@@ -73,6 +73,22 @@ export function registerAiChatRoutes(server: FastifyInstance, ctx: AiChatRouteCo
   server.post<{
     Params: { id: string }
     Body: {
+      userMessageId: string
+      userContent: string
+      oldAssistantMessageId?: string
+      assistantMessage: {
+        content: string
+        contentBlocks?: ContentBlock[]
+        tokenUsage?: TokenUsageData
+      }
+    }
+  }>('/_web/ai/chats/:id/replace-message-round', async (request) => {
+    return cm.replaceMessageRound(request.params.id, request.body)
+  })
+
+  server.post<{
+    Params: { id: string }
+    Body: {
       role: 'user' | 'assistant' | 'summary'
       content: string
       dataKeywords?: string[]

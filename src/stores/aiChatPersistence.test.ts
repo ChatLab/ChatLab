@@ -1,12 +1,16 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { AgentStreamChunk } from '@/services/ai-stream/types'
+import type { AIAdapter } from '@/services/ai/types'
 import { createPinia, setActivePinia } from 'pinia'
 import { ref } from 'vue'
 
-test('reports failure when an accepted turn cannot be persisted atomically', async (t) => {
+test('uses atomic persistence operations for new and edited turns', async (t) => {
   let messagePairWrites = 0
   let singleMessageWrites = 0
+  let messageRoundReplacements = 0
+  let legacyEditWrites = 0
+  let replacementInput: Parameters<AIAdapter['replaceMessageRound']>[1] | undefined
   const persistenceError = new Error('injected persistence failure')
   const aiService = {
     createAIChat: async (sessionId: string, title: string, assistantId: string) => ({
@@ -26,6 +30,57 @@ test('reports failure when an accepted turn cannot be persisted atomically', asy
       singleMessageWrites++
       if (role === 'assistant') throw persistenceError
       return { id: 'persisted-user', aiChatId, role, content, timestamp: 1 }
+    },
+    getAIChat: async (aiChatId: string) => ({
+      id: aiChatId,
+      sessionId: 'session-2',
+      kind: 'session' as const,
+      title: 'Editable chat',
+      assistantId: 'general_cn',
+      createdAt: 1,
+      updatedAt: 1,
+    }),
+    getMessages: async (aiChatId: string) => [
+      { id: 'edit-user', aiChatId, role: 'user' as const, content: 'original question', timestamp: 1 },
+      {
+        id: 'edit-assistant',
+        aiChatId,
+        role: 'assistant' as const,
+        content: 'original answer',
+        timestamp: 2,
+        parentId: 'edit-user',
+      },
+    ],
+    getAIChatTokenUsage: async () => ({
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    }),
+    replaceMessageRound: async (aiChatId: string, input: Parameters<AIAdapter['replaceMessageRound']>[1]) => {
+      messageRoundReplacements++
+      replacementInput = input
+      return {
+        id: 'replacement-assistant',
+        aiChatId,
+        role: 'assistant' as const,
+        content: input.assistantMessage.content,
+        contentBlocks: input.assistantMessage.contentBlocks,
+        tokenUsage: input.assistantMessage.tokenUsage,
+        timestamp: 3,
+        parentId: input.userMessageId,
+      }
+    },
+    updateMessageContent: async () => {
+      legacyEditWrites++
+    },
+    deleteAndRelinkMessage: async () => {
+      legacyEditWrites++
+    },
+    insertMessageAfter: async () => {
+      legacyEditWrites++
+      throw new Error('legacy edit persistence should not be used')
     },
   }
 
@@ -108,4 +163,25 @@ test('reports failure when an accepted turn cannot be persisted atomically', asy
   assert.deepEqual(result, { success: false, reason: 'error' })
   assert.equal(messagePairWrites, 1)
   assert.equal(singleMessageWrites, 0)
+
+  const { chatKey: editChatKey } = store.ensureSessionState({
+    sessionId: 'session-2',
+    sessionName: 'Editable session',
+    chatType: 'private',
+    locale: 'zh-CN',
+  })
+  assert.equal(await store.loadAIChat(editChatKey, 'chat-edit'), true)
+
+  const editResult = await store.editMessageAndRegenerate(editChatKey, 'edit-user', 'edited question')
+
+  assert.deepEqual(editResult, { success: true })
+  assert.equal(messageRoundReplacements, 1)
+  assert.equal(legacyEditWrites, 0)
+  assert.ok(replacementInput)
+  assert.equal(replacementInput.userMessageId, 'edit-user')
+  assert.equal(replacementInput.userContent, 'edited question')
+  assert.equal(replacementInput.oldAssistantMessageId, 'edit-assistant')
+  assert.equal(replacementInput.assistantMessage.content, 'model answer')
+  assert.equal(replacementInput.assistantMessage.contentBlocks?.length, 1)
+  assert.equal(replacementInput.assistantMessage.contentBlocks?.[0]?.type, 'text')
 })
