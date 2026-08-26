@@ -274,6 +274,12 @@ function splitMessagesForCompression<T extends CompressibleMessage>(
     }
   }
 
+  // Summary boundaries have second precision, so equal-timestamp messages must stay together.
+  if (splitIndex > 0) {
+    const boundaryTimestamp = messages[Math.min(splitIndex, messages.length - 1)]!.timestamp
+    while (splitIndex > 0 && messages[splitIndex - 1]!.timestamp === boundaryTimestamp) splitIndex--
+  }
+
   return {
     bufferMessages: messages.slice(splitIndex),
     messagesToCompress: messages.slice(0, splitIndex),
