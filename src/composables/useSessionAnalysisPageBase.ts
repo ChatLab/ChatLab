@@ -64,7 +64,6 @@ export function useSessionAnalysisPageBase(options: UseSessionAnalysisPageBaseOp
         insights: 'insights',
         ranking: 'ranking',
         'ai-chat': 'ai_chat',
-        lab: 'sql_lab',
       }[tab]
       if (featureId) trackProductEvent('feature_used', { feature_id: featureId })
     },
