@@ -17,6 +17,8 @@ const MIN_DRAWER_WIDTH = 480
 const VIEWPORT_MARGIN = 32
 let dragStartX = 0
 let dragStartWidth = 0
+let resizeHandle: HTMLElement | null = null
+let resizePointerId: number | null = null
 
 const maxDrawerWidth = ref(1280 - VIEWPORT_MARGIN)
 const minDrawerWidth = computed(() => Math.min(MIN_DRAWER_WIDTH, maxDrawerWidth.value))
@@ -33,6 +35,14 @@ function clampDrawerWidth(width: number) {
 function stopResize() {
   window.removeEventListener('pointermove', handleResize)
   window.removeEventListener('pointerup', stopResize)
+  window.removeEventListener('pointercancel', stopResize)
+  window.removeEventListener('blur', stopResize)
+  resizeHandle?.removeEventListener('lostpointercapture', stopResize)
+  if (resizeHandle && resizePointerId !== null && resizeHandle.hasPointerCapture(resizePointerId)) {
+    resizeHandle.releasePointerCapture(resizePointerId)
+  }
+  resizeHandle = null
+  resizePointerId = null
   document.body.style.cursor = ''
   document.body.style.userSelect = ''
 }
@@ -43,10 +53,16 @@ function handleResize(event: PointerEvent) {
 
 function startResize(event: PointerEvent) {
   if (event.button !== 0) return
+  resizeHandle = event.currentTarget as HTMLElement
+  resizePointerId = event.pointerId
+  resizeHandle.setPointerCapture(resizePointerId)
+  resizeHandle.addEventListener('lostpointercapture', stopResize)
   dragStartX = event.clientX
   dragStartWidth = effectiveDrawerWidth.value
   window.addEventListener('pointermove', handleResize)
   window.addEventListener('pointerup', stopResize)
+  window.addEventListener('pointercancel', stopResize)
+  window.addEventListener('blur', stopResize)
   document.body.style.cursor = 'col-resize'
   document.body.style.userSelect = 'none'
 }
