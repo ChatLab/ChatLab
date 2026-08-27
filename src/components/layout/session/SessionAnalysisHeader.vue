@@ -105,12 +105,13 @@ const navigationItems = computed(() =>
       <CaptureButton v-else-if="showSessionActions" color="gray" />
     </template>
 
-    <div class="mt-3 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+    <div
+      class="mt-3 flex flex-col items-stretch gap-2 sm:min-h-8 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+    >
       <PageTabs v-model="activeTab" class="min-w-0 shrink" :items="navigationItems" />
       <!-- 不使用时间范围的一级 Tab 不挂载筛选器，避免发起无关查询。 -->
-      <div class="max-w-full overflow-x-auto scrollbar-hide">
+      <div v-if="timeSelectVisible" class="max-w-full overflow-x-auto scrollbar-hide">
         <TimeSelect
-          v-if="timeSelectVisible"
           v-model="timeRangeValue"
           :session-id="currentSessionId ?? undefined"
           :initial-state="initialTimeState"
