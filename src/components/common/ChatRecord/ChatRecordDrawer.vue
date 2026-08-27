@@ -32,7 +32,8 @@ function clampDrawerWidth(width: number) {
   return Math.min(maxDrawerWidth.value, Math.max(minDrawerWidth.value, width))
 }
 
-function stopResize() {
+function stopResize(event?: Event) {
+  if (event instanceof PointerEvent && event.pointerId !== resizePointerId) return
   window.removeEventListener('pointermove', handleResize)
   window.removeEventListener('pointerup', stopResize)
   window.removeEventListener('pointercancel', stopResize)
@@ -48,11 +49,12 @@ function stopResize() {
 }
 
 function handleResize(event: PointerEvent) {
+  if (event.pointerId !== resizePointerId) return
   layoutStore.chatRecordDrawerWidth = clampDrawerWidth(dragStartWidth + dragStartX - event.clientX)
 }
 
 function startResize(event: PointerEvent) {
-  if (event.button !== 0) return
+  if (event.button !== 0 || resizePointerId !== null) return
   resizeHandle = event.currentTarget as HTMLElement
   resizePointerId = event.pointerId
   resizeHandle.setPointerCapture(resizePointerId)
