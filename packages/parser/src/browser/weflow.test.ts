@@ -42,4 +42,46 @@ describe('WeFlow browser-safe JSON parser', () => {
     )
     assert.equal(progress.at(-1)?.progress, 1)
   })
+
+  it('does not treat export-local IDs as stable message IDs', async () => {
+    const content = JSON.stringify({
+      weflow: { version: '1.0.0' },
+      session: { wxid: 'group@chatroom', displayName: 'Project Team', type: '群聊' },
+      messages: [
+        {
+          localId: 1,
+          createTime: 1704164645,
+          type: '文本消息',
+          content: 'old message',
+          senderUsername: 'member-1',
+          senderDisplayName: 'Member 1',
+        },
+        {
+          localId: 1,
+          platformMessageId: 'server-2',
+          createTime: 1767225600,
+          type: '文本消息',
+          content: 'new message',
+          senderUsername: 'member-2',
+          senderDisplayName: 'Member 2',
+        },
+        {
+          localId: 2,
+          platformMessageId: '0',
+          createTime: 1767225601,
+          type: '文本消息',
+          content: 'message without a stable ID',
+          senderUsername: 'member-2',
+          senderDisplayName: 'Member 2',
+        },
+      ],
+    })
+
+    const result = await parseWeFlowJson(content, 'project.json')
+
+    assert.deepEqual(
+      result.messages.map((message) => message.platformMessageId),
+      [undefined, 'server-2', undefined]
+    )
+  })
 })

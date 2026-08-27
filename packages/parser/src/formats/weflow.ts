@@ -83,6 +83,7 @@ interface WeFlowSession {
 
 interface WeFlowMessage {
   localId: number
+  platformMessageId?: string | number
   createTime: number // Unix 时间戳（秒）
   formattedTime: string
   type: string // 中文消息类型
@@ -93,6 +94,12 @@ interface WeFlowMessage {
   senderDisplayName: string // 发送者显示名
   senderAvatarKey: string // 头像查找 key（通常与 senderUsername 相同）
   source: string
+}
+
+function normalizePlatformMessageId(value: unknown): string | undefined {
+  if (typeof value !== 'string' && typeof value !== 'number') return undefined
+  const id = String(value).trim()
+  return id && id !== '0' ? id : undefined
 }
 
 // ==================== 消息类型映射 ====================
@@ -527,8 +534,10 @@ async function* parseWeFlow(options: ParseOptions): AsyncGenerator<ParseEvent, v
         content = rawContent.trim() || null
       }
 
+      const platformMessageId = normalizePlatformMessageId(msg.platformMessageId)
+
       return {
-        platformMessageId: String(msg.localId), // 消息的平台原始 ID（用于回复关联查询）
+        platformMessageId,
         senderPlatformId: platformId,
         senderAccountName: accountName,
         // WeFlow 格式没有单独的群昵称字段

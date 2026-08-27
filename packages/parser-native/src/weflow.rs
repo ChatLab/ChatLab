@@ -49,17 +49,17 @@ fn convert_message_type(type_str: Option<&str>) -> u32 {
     }
 }
 
-/// JS `String(x)` semantics for the localId field.
-fn js_string(value: Option<&Value>) -> String {
-    match value {
-        None => "undefined".to_string(),
-        Some(Value::Null) => "null".to_string(),
-        Some(Value::String(s)) => s.clone(),
-        Some(Value::Bool(b)) => b.to_string(),
-        Some(Value::Number(n)) => n.to_string(),
-        // Arrays/objects are pathological for an ID field; compact JSON is a
-        // reasonable stand-in for JS coercion here.
-        Some(other) => serde_json::to_string(other).unwrap_or_default(),
+fn normalize_platform_message_id(value: Option<&Value>) -> Option<String> {
+    let raw = match value {
+        Some(Value::String(value)) => value.clone(),
+        Some(Value::Number(value)) => value.to_string(),
+        _ => return None,
+    };
+    let id = js_trim(&raw);
+    if id.is_empty() || id == "0" {
+        None
+    } else {
+        Some(id.to_string())
     }
 }
 
@@ -272,8 +272,7 @@ pub fn parse_weflow(
             };
 
             messages.push(NativeMessage {
-                // WeFlow always emits an id string (String(localId), JS semantics).
-                platform_message_id: Some(js_string(obj.get("localId"))),
+                platform_message_id: normalize_platform_message_id(obj.get("platformMessageId")),
                 sender_platform_id: sender.to_string(),
                 sender_account_name: account_name.to_string(),
                 sender_group_nickname: None,
@@ -330,7 +329,7 @@ mod tests {
       "session": {"wxid": "room@chatroom", "nickname": "群名", "displayName": "群显示名", "type": "群聊", "avatar": ""},
       "avatars": {"wxid_a": "data:image/jpeg;base64,AAA", "room@chatroom": "data:image/jpeg;base64,ROOM", "wxid_empty": ""},
       "messages": [
-        {"localId": 1, "createTime": 100, "type": "文本消息", "content": " hello ", "isSend": 0, "senderUsername": "wxid_a", "senderDisplayName": "Alice", "senderAvatarKey": "wxid_a"},
+        {"localId": 1, "platformMessageId": "server-1", "createTime": 100, "type": "文本消息", "content": " hello ", "isSend": 0, "senderUsername": "wxid_a", "senderDisplayName": "Alice", "senderAvatarKey": "wxid_a"},
         {"localId": 2, "createTime": 101, "type": "图片消息", "content": "[图片]", "isSend": 1, "senderUsername": "wxid_b", "senderDisplayName": "Bob"},
         {"localId": 3, "createTime": 102, "type": "系统消息", "content": "sys", "isSend": null, "senderUsername": "room@chatroom", "senderDisplayName": "群"},
         {"localId": 4, "createTime": 103, "type": "未知类型(88)", "content": null, "isSend": 0, "senderUsername": "wxid_a", "senderDisplayName": "Alice2"}
@@ -349,7 +348,11 @@ mod tests {
         assert_eq!(out.messages.len(), 3);
         assert_eq!(out.messages[0].content.as_deref(), Some("hello"));
         assert_eq!(out.messages[0].message_type, 0);
-        assert_eq!(out.messages[0].platform_message_id.as_deref(), Some("1"));
+        assert_eq!(
+            out.messages[0].platform_message_id.as_deref(),
+            Some("server-1")
+        );
+        assert_eq!(out.messages[1].platform_message_id, None);
         assert_eq!(out.messages[1].message_type, 1);
         assert_eq!(out.messages[2].message_type, 99);
         assert_eq!(out.messages[2].content, None);
@@ -386,11 +389,8 @@ mod tests {
         assert_eq!(out.messages[1].sender_account_name, "wxid_a");
         // Whitespace-only content is normalized to null.
         assert_eq!(out.messages[1].content, None);
-        // localId missing -> String(undefined).
-        assert_eq!(
-            out.messages[0].platform_message_id.as_deref(),
-            Some("undefined")
-        );
+        // Missing stable platform IDs remain absent so import can use content fingerprinting.
+        assert_eq!(out.messages[0].platform_message_id, None);
     }
 
     #[test]
@@ -466,12 +466,29 @@ mod tests {
     }
 
     #[test]
-    fn js_string_semantics_for_local_id() {
+    fn normalizes_stable_platform_message_id() {
         let n: Value = serde_json::from_str("3.5").unwrap();
-        assert_eq!(js_string(Some(&n)), "3.5");
-        assert_eq!(js_string(Some(&Value::Null)), "null");
-        assert_eq!(js_string(None), "undefined");
-        assert_eq!(js_string(Some(&Value::String("abc".into()))), "abc");
-        assert_eq!(js_string(Some(&Value::Bool(true))), "true");
+        assert_eq!(
+            normalize_platform_message_id(Some(&n)).as_deref(),
+            Some("3.5")
+        );
+        assert_eq!(
+            normalize_platform_message_id(Some(&Value::String(" server-1 ".into()))).as_deref(),
+            Some("server-1")
+        );
+        assert_eq!(
+            normalize_platform_message_id(Some(&Value::String("0".into()))),
+            None
+        );
+        assert_eq!(
+            normalize_platform_message_id(Some(&Value::Number(0.into()))),
+            None
+        );
+        assert_eq!(normalize_platform_message_id(Some(&Value::Null)), None);
+        assert_eq!(normalize_platform_message_id(None), None);
+        assert_eq!(
+            normalize_platform_message_id(Some(&Value::Bool(true))),
+            None
+        );
     }
 }
