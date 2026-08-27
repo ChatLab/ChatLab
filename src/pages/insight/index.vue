@@ -101,7 +101,7 @@ onBeforeUnmount(() => {
     >
       <PageTabs
         v-if="navigationItems.length > 0"
-        class="mt-3 pb-1.5"
+        class="mt-3 min-h-[38px] pb-1.5"
         :model-value="activeSubpage"
         :items="navigationItems"
         :aria-label="t('insight.tabs.nav')"

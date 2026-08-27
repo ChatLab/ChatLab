@@ -41,6 +41,14 @@ export function useSessionAnalysisPageBase(options: UseSessionAnalysisPageBaseOp
   let analysisLoadVersion = 0
   let baseDataReady = false
   let analysisDataReady = false
+  let loadedAnalysisScopeKey: string | null = null
+
+  function getAnalysisScopeKey(): string | null {
+    const sessionId = currentSessionId.value
+    if (!sessionId) return null
+    const filter = timeFilter.value
+    return filter ? `${sessionId}:${filter.startTs}:${filter.endTs}` : `${sessionId}:all`
+  }
 
   function finishSessionSwitchIfReady() {
     if (!isSessionSwitching.value || !baseDataReady) return
@@ -96,6 +104,7 @@ export function useSessionAnalysisPageBase(options: UseSessionAnalysisPageBaseOp
     if (!sessionId) return
 
     const loadVersion = ++analysisLoadVersion
+    const analysisScopeKey = getAnalysisScopeKey()
     if (!activeTabUsesOverviewAnalytics.value) {
       isLoading.value = false
       analysisDataReady = true
@@ -123,6 +132,7 @@ export function useSessionAnalysisPageBase(options: UseSessionAnalysisPageBaseOp
       hourlyActivity.value = hourly
       dailyActivity.value = daily
       messageTypes.value = types
+      loadedAnalysisScopeKey = analysisScopeKey
     } catch (error) {
       if (loadVersion === analysisLoadVersion) {
         console.error('加载分析数据失败:', error)
@@ -178,6 +188,14 @@ export function useSessionAnalysisPageBase(options: UseSessionAnalysisPageBaseOp
       return
     }
 
+    const analysisScopeKey = getAnalysisScopeKey()
+    if (analysisScopeKey && analysisScopeKey === loadedAnalysisScopeKey) {
+      isLoading.value = false
+      analysisDataReady = true
+      finishSessionSwitchIfReady()
+      return
+    }
+
     isLoading.value = true
     if (currentSessionId.value && timeRangeValue.value) void loadAnalysisData()
   })
@@ -201,6 +219,7 @@ export function useSessionAnalysisPageBase(options: UseSessionAnalysisPageBaseOp
     currentSessionId,
     () => {
       analysisLoadVersion++
+      loadedAnalysisScopeKey = null
       resetTimeRange()
       baseDataReady = false
       analysisDataReady = !activeTabUsesTimeRange.value

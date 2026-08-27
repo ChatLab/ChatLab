@@ -83,9 +83,6 @@ const {
 
 provide('session-switch-loading', isSessionSwitching)
 
-const isAIChatRestoring = ref(activeTab.value === 'ai-chat' && typeof route.query.aiChatId === 'string')
-const showSessionLoading = computed(() => isSessionSwitching.value || isAIChatRestoring.value)
-
 // 当前筛选后的消息总数
 const filteredMessageCount = computed(() => {
   return memberActivity.value.reduce((sum, m) => sum + m.messageCount, 0)
@@ -126,7 +123,7 @@ const otherMemberAvatar = computed(() => {
 <template>
   <div class="relative flex h-full flex-col dark:bg-page-dark" style="padding-top: var(--titlebar-area-height)">
     <div
-      v-if="showSessionLoading"
+      v-if="isSessionSwitching"
       data-testid="private-chat-switch-loading"
       class="absolute inset-0 z-20 flex cursor-wait items-center justify-center bg-page-bg dark:bg-page-dark"
       :style="{ paddingTop: 'var(--titlebar-area-height)' }"
@@ -159,7 +156,7 @@ const otherMemberAvatar = computed(() => {
       <!-- Tab Content -->
       <div class="relative flex-1 overflow-y-auto">
         <!-- Loading Overlay -->
-        <LoadingState v-if="isLoading && !showSessionLoading" variant="overlay" :text="t('common.loading')" />
+        <LoadingState v-if="isLoading && !isSessionSwitching" variant="overlay" :text="t('common.loading')" />
 
         <div class="h-full">
           <Transition name="tab-slide" mode="out-in">
@@ -183,7 +180,6 @@ const otherMemberAvatar = computed(() => {
               :session-id="currentSessionId!"
               :session-name="session.name"
               chat-type="private"
-              @restore-loading-change="isAIChatRestoring = $event"
             />
             <MemoryTab
               v-else-if="activeTab === 'memory'"
@@ -281,8 +277,7 @@ const otherMemberAvatar = computed(() => {
 </template>
 
 <style scoped>
-.tab-slide-enter-active,
-.tab-slide-leave-active {
+.tab-slide-enter-active {
   transition:
     opacity 0.2s ease,
     transform 0.2s ease;
@@ -291,10 +286,5 @@ const otherMemberAvatar = computed(() => {
 .tab-slide-enter-from {
   opacity: 0;
   transform: translateY(10px);
-}
-
-.tab-slide-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
 }
 </style>

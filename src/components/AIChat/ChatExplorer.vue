@@ -10,6 +10,7 @@ import AIChatInput from './input/AIChatInput.vue'
 import AIThinkingIndicator from './chat/AIThinkingIndicator.vue'
 import ChatStatusBar from './chat/ChatStatusBar.vue'
 import ChatHeaderActions from './chat/ChatHeaderActions.vue'
+import LoadingState from '@/components/UI/LoadingState.vue'
 import { useAIChat } from '@/composables/useAIChat'
 import { useAIService, useLLMService } from '@/services'
 import AssistantInlineBar from './assistant/AssistantInlineBar.vue'
@@ -46,12 +47,7 @@ const props = defineProps<{
   chatType?: 'group' | 'private'
 }>()
 
-const emit = defineEmits<{
-  'restore-loading-change': [loading: boolean]
-}>()
-
 const initialAIChatId = typeof route.query.aiChatId === 'string' ? route.query.aiChatId : null
-emit('restore-loading-change', true)
 
 // 使用 AI 对话 Composable
 const {
@@ -85,6 +81,19 @@ const {
 
 let isAIChatInitialized = false
 let isUnmounted = false
+const showRestoreLoading = ref(false)
+// 快速缓存恢复不显示遮罩，避免切换 Tab 时出现单帧闪屏；较慢恢复只覆盖 AI 内容区。
+let restoreLoadingTimer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+  showRestoreLoading.value = true
+}, 120)
+
+function finishRestoreLoading(): void {
+  if (restoreLoadingTimer) {
+    clearTimeout(restoreLoadingTimer)
+    restoreLoadingTimer = null
+  }
+  showRestoreLoading.value = false
+}
 
 function isCurrentSessionRoute(): boolean {
   const routeName = (props.chatType ?? 'group') === 'private' ? 'private-chat' : 'group-chat'
@@ -106,16 +115,16 @@ async function syncAIChatIdToRoute(aiChatId: string | null): Promise<void> {
 }
 
 void initialization.finally(() => {
+  finishRestoreLoading()
   if (!isCurrentSessionRoute()) return
 
-  emit('restore-loading-change', false)
   isAIChatInitialized = true
   void syncAIChatIdToRoute(currentAIChatId.value)
 })
 
 onUnmounted(() => {
   isUnmounted = true
-  emit('restore-loading-change', false)
+  finishRestoreLoading()
 })
 
 watch(currentAIChatId, (aiChatId) => {
@@ -472,7 +481,9 @@ watch(
 </script>
 
 <template>
-  <div class="main-content flex h-full overflow-hidden">
+  <div class="main-content relative flex h-full overflow-hidden">
+    <LoadingState v-if="showRestoreLoading" variant="overlay" />
+
     <!-- 左侧：对话记录列表（始终显示） -->
     <ConversationList
       ref="conversationListRef"

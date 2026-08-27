@@ -240,3 +240,64 @@ test('session loading coordinates required data, missing ranges, and non-analysi
   assert.equal(page.memberActivity.value[0]?.name, 'session-four')
   assert.equal(page.isLoading.value, false)
 })
+
+test('returning to insights reuses analytics for the unchanged session and time range', async (t) => {
+  await t.mock.module('@/utils', {
+    namedExports: {
+      formatLocalizedDate: () => '',
+    },
+  })
+  const { useSessionAnalysisPageBase } = await import('./useSessionAnalysisPageBase')
+
+  let analysisLoadCount = 0
+  registerAdapter('data', {
+    getSession: async () => ({ id: 'session-one' }),
+    getMemberActivity: async () => [createMember('session-one')],
+    getHourlyActivity: async () => [],
+    getDailyActivity: async () => [],
+    getMessageTypeDistribution: async () => {
+      analysisLoadCount++
+      return []
+    },
+  } as unknown as DataAdapter)
+
+  t.mock.method(console, 'warn', () => undefined)
+  const scope = effectScope()
+  t.after(() => scope.stop())
+  const route = reactive({ params: { id: 'session-one' }, query: {} }) as unknown as RouteLocationNormalizedLoaded
+  const router = { replace: async () => undefined } as unknown as Router
+  const currentSessionId = ref<string | null>('session-one')
+  const page = scope.run(() =>
+    useSessionAnalysisPageBase({
+      route,
+      router,
+      currentSessionId,
+      selectSession: () => undefined,
+      defaultTab: 'ai-chat',
+      validTabIds: ['insights', 'ai-chat'],
+    })
+  )!
+
+  page.timeRangeValue.value = {
+    startTs: 1,
+    endTs: 2,
+    displayLabel: 'test',
+    isFullRange: false,
+    state: { mode: 'custom', customStart: '1970-01-01', customEnd: '1970-01-01' },
+  }
+  await nextTick()
+
+  page.activeTab.value = 'insights'
+  await flushPromises()
+
+  assert.equal(analysisLoadCount, 1)
+  assert.equal(page.isLoading.value, false)
+
+  page.activeTab.value = 'ai-chat'
+  await nextTick()
+  page.activeTab.value = 'insights'
+  await flushPromises()
+
+  assert.equal(analysisLoadCount, 1)
+  assert.equal(page.isLoading.value, false)
+})
