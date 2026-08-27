@@ -70,7 +70,7 @@ const {
   fullTimeRange,
   timeFilter,
   initialTimeState,
-  loadAnalysisData,
+  invalidateAnalysisData,
   handleTimeRangeInitialized,
 } = useSessionAnalysisPageBase({
   route,
@@ -236,7 +236,7 @@ const otherMemberAvatar = computed(() => {
       :session-name="session.name"
       @imported="
         () => {
-          loadAnalysisData()
+          invalidateAnalysisData()
           sessionStore.loadSessions()
         }
       "
@@ -267,7 +267,7 @@ const otherMemberAvatar = computed(() => {
               :session-id="currentSessionId"
               :show-header="false"
               chat-type="private"
-              @data-changed="loadAnalysisData"
+              @data-changed="invalidateAnalysisData"
             />
           </div>
         </div>

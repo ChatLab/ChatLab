@@ -75,6 +75,7 @@ const {
   timeFilter,
   initialTimeState,
   loadData,
+  invalidateAnalysisData,
   handleTimeRangeInitialized,
 } = useSessionAnalysisPageBase({
   route,
@@ -222,6 +223,7 @@ const filteredMemberCount = computed(() => {
       @imported="
         () => {
           loadData()
+          invalidateAnalysisData()
           sessionStore.loadSessions()
         }
       "
@@ -255,7 +257,12 @@ const filteredMemberCount = computed(() => {
               :session-id="currentSessionId"
               :show-header="false"
               chat-type="group"
-              @data-changed="loadData"
+              @data-changed="
+                () => {
+                  loadData()
+                  invalidateAnalysisData()
+                }
+              "
             />
           </div>
         </div>
