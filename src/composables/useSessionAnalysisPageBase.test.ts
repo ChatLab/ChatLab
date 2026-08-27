@@ -241,7 +241,7 @@ test('session loading coordinates required data, missing ranges, and non-analysi
   assert.equal(page.isLoading.value, false)
 })
 
-test('returning to insights reuses analytics for the unchanged session and time range', async (t) => {
+test('returning to insights reuses unchanged analytics and reloads invalidated data', async (t) => {
   await t.mock.module('@/utils', {
     namedExports: {
       formatLocalizedDate: () => '',
@@ -299,5 +299,17 @@ test('returning to insights reuses analytics for the unchanged session and time 
   await flushPromises()
 
   assert.equal(analysisLoadCount, 1)
+  assert.equal(page.isLoading.value, false)
+
+  page.activeTab.value = 'ai-chat'
+  await nextTick()
+  page.invalidateAnalysisData()
+
+  assert.equal(analysisLoadCount, 1)
+
+  page.activeTab.value = 'insights'
+  await flushPromises()
+
+  assert.equal(analysisLoadCount, 2)
   assert.equal(page.isLoading.value, false)
 })

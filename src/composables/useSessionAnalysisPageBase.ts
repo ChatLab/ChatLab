@@ -146,6 +146,11 @@ export function useSessionAnalysisPageBase(options: UseSessionAnalysisPageBaseOp
     }
   }
 
+  function invalidateAnalysisData() {
+    loadedAnalysisScopeKey = null
+    if (activeTabUsesOverviewAnalytics.value) void loadAnalysisData()
+  }
+
   function handleTimeRangeInitialized(hasRange: boolean) {
     if (hasRange) return
     timeRangeValue.value = null
@@ -254,6 +259,7 @@ export function useSessionAnalysisPageBase(options: UseSessionAnalysisPageBaseOp
     syncSession,
     loadData,
     loadAnalysisData,
+    invalidateAnalysisData,
     handleTimeRangeInitialized,
   }
 }
