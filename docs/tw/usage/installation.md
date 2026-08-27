@@ -28,7 +28,7 @@ clb web --no-open   # 啟動 API + Web UI，但不自動開啟瀏覽器
 clb web --headless  # 僅啟動 API，不提供 Web UI（供腳本 / AI Agent 呼叫）
 ```
 
-常用選項：`--port <連接埠>`（預設 `3110`）、`--host <位址>`、`--token <令牌>`。在 macOS 和 Linux 上，可以使用 `--socket <路徑>` 監聽 Unix 網域通訊端而不占用 TCP 連接埠，例如 `clb web --socket /tmp/chatlab.sock --no-open`。可透過 `curl --unix-socket /tmp/chatlab.sock http://localhost/api/v1/status` 存取，或在其前方設定反向代理。
+常用選項：`--port <連接埠>`（預設 `3110`）、`--host <位址>`、`--token <令牌>`。在 macOS 和 Linux 上，可以使用 `--socket <路徑>` 監聽 Unix 網域通訊端而不占用 TCP 連接埠，例如 `clb web --socket /tmp/chatlab.sock --no-open`。可透過 `curl --unix-socket /tmp/chatlab.sock http://localhost/api/v1/status` 存取（需要驗證身分），或在其前方設定反向代理。
 
 若要讓服務常駐後台，可以使用：
 
