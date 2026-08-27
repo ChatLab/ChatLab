@@ -519,6 +519,7 @@
       "title": "API Service",
       "enable": "Enable API Service",
       "enableDesc": "When enabled, external tools can query, export, and import chat data via HTTP API. Localhost only (127.0.0.1)",
+      "socket": "Unix Socket",
       "portInUseHint": "Port is in use. Please change the port below or close the program using this port"
     },
     "status": {

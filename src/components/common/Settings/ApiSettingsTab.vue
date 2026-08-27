@@ -94,7 +94,6 @@ const statusColor = computed(() => {
 })
 
 const apiBaseUrl = computed(() => {
-  if (config.value.socket) return `unix://${config.value.socket}`
   const port = status.value.port || config.value.port
   return `http://127.0.0.1:${port}/api/v1`
 })
@@ -418,7 +417,11 @@ function subscribedRemoteIds(ds: DataSource): Set<string> {
                 <div
                   class="mt-3 space-y-2 border-t border-gray-200 pt-3 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-400"
                 >
-                  <div class="flex items-center justify-between">
+                  <div v-if="config.socket" class="flex items-center justify-between gap-4">
+                    <span>{{ t('settings.api.service.socket') }}</span>
+                    <span class="break-all font-mono text-gray-700 dark:text-gray-300">{{ config.socket }}</span>
+                  </div>
+                  <div v-else class="flex items-center justify-between">
                     <span>{{ t('settings.api.port.label') }}</span>
                     <span class="font-mono text-gray-700 dark:text-gray-300">{{ config.port || '-' }}</span>
                   </div>
