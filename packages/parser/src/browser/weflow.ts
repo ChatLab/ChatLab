@@ -89,8 +89,9 @@ export async function parseWeFlowJson(
       members.set(sender, { platformId: sender, accountName, avatar })
     }
 
+    const platformMessageId = normalizePlatformMessageId(message.platformMessageId)
     messages.push({
-      platformMessageId: String(message.localId),
+      platformMessageId,
       senderPlatformId: sender,
       senderAccountName: accountName,
       senderGroupNickname: undefined,
@@ -168,6 +169,12 @@ function normalizeContent(value: unknown): string | null {
   if (value === undefined || value === null) return null
   const content = (typeof value === 'string' ? value : JSON.stringify(value)).trim()
   return content || null
+}
+
+function normalizePlatformMessageId(value: unknown): string | undefined {
+  if (typeof value !== 'string' && typeof value !== 'number') return undefined
+  const id = String(value).trim()
+  return id && id !== '0' ? id : undefined
 }
 
 function nameFromFilename(fileName: string): string {

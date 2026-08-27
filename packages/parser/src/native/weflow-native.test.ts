@@ -82,6 +82,7 @@ const FULL_FIXTURE = {
   messages: [
     {
       localId: 1,
+      platformMessageId: 'server-1',
       createTime: 1704164645,
       formattedTime: '',
       type: '文本消息',
@@ -151,7 +152,7 @@ const FULL_FIXTURE = {
       senderDisplayName: '',
       senderAvatarKey: 'wxid_keyed',
     },
-    // Numeric localId with fraction, emoji content, unicode whitespace trim
+    // Export-local ID must not be used when no stable platform ID is present.
     {
       localId: 10.5,
       createTime: 1704164750,
@@ -161,7 +162,7 @@ const FULL_FIXTURE = {
       senderUsername: 'wxid_owner',
       senderDisplayName: 'Me2',
     },
-    // Missing localId -> String(undefined); missing content -> null
+    // Missing localId and platformMessageId -> no stable ID; missing content -> null
     {
       createTime: 1704164760,
       type: '红包卡片',
@@ -192,8 +193,9 @@ describe('weflow native parser parity', { skip: !nativeAvailable() && 'native mo
     assert.equal(nativeResult.messages[2].timestamp, null)
     assert.equal(nativeResult.messages[3].content, '{"title":"引用","items":[1,true,null],"nested":{"a":"b"}}')
     assert.equal(nativeResult.messages[4].content, null)
-    assert.equal(nativeResult.messages[5].platformMessageId, '10.5')
-    assert.equal(nativeResult.messages[6].platformMessageId, 'undefined')
+    assert.equal(nativeResult.messages[0].platformMessageId, 'server-1')
+    assert.equal(nativeResult.messages[5].platformMessageId, undefined)
+    assert.equal(nativeResult.messages[6].platformMessageId, undefined)
     const bob = nativeResult.members.find((m) => m.platformId === 'wxid_bob')
     assert.equal(bob?.avatar, 'data:image/jpeg;base64,KEYED')
     assert.equal(bob?.accountName, 'wxid_bob')
