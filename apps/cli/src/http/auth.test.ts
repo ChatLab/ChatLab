@@ -58,6 +58,13 @@ describe('authHook — authentication matrix', () => {
     ['rejects /api/* with wrong token', '/api/v1/status', 'Bearer wrong_token', false, 401],
     ['allows /api/* with correct token', '/api/v1/status', `Bearer ${VALID_TOKEN}`, false, 0],
     ['rejects /_web/* without Bearer when requireAuth=true', '/_web/sessions', undefined, true, 401],
+    [
+      'rejects the token-bearing automation config without Bearer when requireAuth=true',
+      '/_web/automation/config',
+      undefined,
+      true,
+      401,
+    ],
     ['rejects /_web/* with wrong token when requireAuth=true', '/_web/sessions', 'Bearer bad', true, 401],
     ['allows /_web/* with correct token when requireAuth=true', '/_web/sessions', `Bearer ${VALID_TOKEN}`, true, 0],
     ['allows static file paths without auth', '/index.html', undefined, false, 0],

@@ -30,6 +30,10 @@ clb web --headless  # 仅启动 API，不提供 Web UI（供脚本 / AI Agent �
 
 常用选项：`--port <端口>`（默认 `3110`）、`--host <地址>`、`--token <令牌>`。在 macOS 和 Linux 上，可以使用 `--socket <路径>` 监听 Unix 域套接字而不占用 TCP 端口，例如 `clb web --socket /tmp/chatlab.sock --no-open`。可通过 `curl --unix-socket /tmp/chatlab.sock http://localhost/api/v1/status` 访问（需要身份验证），或在其前面配置反向代理。
 
+如果反向代理以另一个 Unix 用户运行，请在 ChatLab 启动后为代理所属组授予套接字访问权限：`sudo chgrp <代理组> /tmp/chatlab.sock && sudo chmod 660 /tmp/chatlab.sock`。每次重启后都需要重新应用，建议使用服务管理器的启动后钩子。ChatLab 与代理以同一用户运行时通常无需修改权限。
+
+如果代理可从本机可信环境之外访问，请使用 `--require-auth` 启动 ChatLab（或在代理层强制身份验证），避免 Web UI 路由和令牌配置公开暴露。
+
 如果希望服务常驻后台，可以使用：
 
 ```bash
