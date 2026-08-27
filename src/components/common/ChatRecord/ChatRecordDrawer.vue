@@ -3,7 +3,7 @@
  * Chat record viewer drawer.
  * Keeps the quick-view shell while ChatRecordWorkspace owns shared orchestration.
  */
-import { onBeforeUnmount, ref, onMounted } from 'vue'
+import { computed, onBeforeUnmount, ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ChatRecordWorkspace from './ChatRecordWorkspace.vue'
 import { useLayoutStore } from '@/stores/layout'
@@ -19,13 +19,15 @@ let dragStartX = 0
 let dragStartWidth = 0
 
 const maxDrawerWidth = ref(1280 - VIEWPORT_MARGIN)
+const minDrawerWidth = computed(() => Math.min(MIN_DRAWER_WIDTH, maxDrawerWidth.value))
+const effectiveDrawerWidth = computed(() => clampDrawerWidth(layoutStore.chatRecordDrawerWidth))
 
 function updateViewportLimit() {
-  maxDrawerWidth.value = Math.max(MIN_DRAWER_WIDTH, window.innerWidth - VIEWPORT_MARGIN)
+  maxDrawerWidth.value = Math.max(0, window.innerWidth - VIEWPORT_MARGIN)
 }
 
 function clampDrawerWidth(width: number) {
-  return Math.min(maxDrawerWidth.value, Math.max(MIN_DRAWER_WIDTH, width))
+  return Math.min(maxDrawerWidth.value, Math.max(minDrawerWidth.value, width))
 }
 
 function stopResize() {
@@ -42,7 +44,7 @@ function handleResize(event: PointerEvent) {
 function startResize(event: PointerEvent) {
   if (event.button !== 0) return
   dragStartX = event.clientX
-  dragStartWidth = layoutStore.chatRecordDrawerWidth
+  dragStartWidth = effectiveDrawerWidth.value
   window.addEventListener('pointermove', handleResize)
   window.addEventListener('pointerup', stopResize)
   document.body.style.cursor = 'col-resize'
@@ -53,13 +55,12 @@ function resizeWithKeyboard(event: KeyboardEvent) {
   if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
   event.preventDefault()
   const delta = event.key === 'ArrowLeft' ? 24 : -24
-  layoutStore.chatRecordDrawerWidth = clampDrawerWidth(layoutStore.chatRecordDrawerWidth + delta)
+  layoutStore.chatRecordDrawerWidth = clampDrawerWidth(effectiveDrawerWidth.value + delta)
 }
 
 onMounted(() => {
   isWindows.value = navigator.platform.toLowerCase().includes('win')
   updateViewportLimit()
-  layoutStore.chatRecordDrawerWidth = clampDrawerWidth(layoutStore.chatRecordDrawerWidth)
   window.addEventListener('resize', updateViewportLimit)
 })
 
@@ -81,7 +82,7 @@ onBeforeUnmount(() => {
       <div
         data-vaul-no-drag
         class="chat-record-drawer-content relative flex h-full flex-col bg-white dark:bg-page-dark"
-        :style="{ width: `${layoutStore.chatRecordDrawerWidth}px`, maxWidth: `calc(100vw - ${VIEWPORT_MARGIN}px)` }"
+        :style="{ width: `${effectiveDrawerWidth}px`, maxWidth: `calc(100vw - ${VIEWPORT_MARGIN}px)` }"
         style="-webkit-app-region: no-drag"
       >
         <div
@@ -89,9 +90,9 @@ onBeforeUnmount(() => {
           role="separator"
           aria-orientation="vertical"
           :aria-label="t('records.drawer.resize')"
-          :aria-valuemin="MIN_DRAWER_WIDTH"
+          :aria-valuemin="minDrawerWidth"
           :aria-valuemax="maxDrawerWidth"
-          :aria-valuenow="layoutStore.chatRecordDrawerWidth"
+          :aria-valuenow="effectiveDrawerWidth"
           tabindex="0"
           @pointerdown.prevent="startResize"
           @keydown="resizeWithKeyboard"
