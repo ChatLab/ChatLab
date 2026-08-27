@@ -8,6 +8,14 @@ export interface MessageDedupState {
   fallbackKeys: Set<string>
   /** Unmatched fallback keys whose accepted message did not have a stable platform ID. */
   fallbackOnlyKeys: Set<string>
+  preserveFallbackMultiplicity: boolean
+  /** Positive = unmatched ID-less occurrences; negative = unmatched stable-ID occurrences. */
+  fallbackMultiplicityBalances: Map<string, number>
+}
+
+export interface MessageDedupOptions {
+  /** Preserve repeated ID-less messages that share a fallback fingerprint. */
+  preserveFallbackMultiplicity?: boolean
 }
 
 export interface DedupMessage {
@@ -48,13 +56,34 @@ export function generateFallbackMessageKey(message: Omit<DedupMessage, 'platform
 export function createMessageDedupState(
   platformMessageIds: Iterable<string> = [],
   fallbackKeys: Iterable<string> = [],
-  fallbackOnlyKeys: Iterable<string> = []
+  fallbackOnlyKeys: Iterable<string> = [],
+  options: MessageDedupOptions = {}
 ): MessageDedupState {
+  const fallbackKeySet = new Set(fallbackKeys)
+  const fallbackOnlyKeySet = new Set(fallbackOnlyKeys)
+  const fallbackMultiplicityBalances = new Map<string, number>()
+  if (options.preserveFallbackMultiplicity) {
+    for (const key of fallbackKeySet) fallbackMultiplicityBalances.set(key, -1)
+    for (const key of fallbackOnlyKeySet) fallbackMultiplicityBalances.set(key, 1)
+  }
   return {
     platformMessageIds: new Set(platformMessageIds),
-    fallbackKeys: new Set(fallbackKeys),
-    fallbackOnlyKeys: new Set(fallbackOnlyKeys),
+    fallbackKeys: fallbackKeySet,
+    fallbackOnlyKeys: fallbackOnlyKeySet,
+    preserveFallbackMultiplicity: options.preserveFallbackMultiplicity ?? false,
+    fallbackMultiplicityBalances,
   }
+}
+
+function setFallbackMultiplicityBalance(state: MessageDedupState, key: string, balance: number): void {
+  if (balance === 0) state.fallbackMultiplicityBalances.delete(key)
+  else state.fallbackMultiplicityBalances.set(key, balance)
+}
+
+export function hasUnmatchedFallbackOnlyMessage(state: MessageDedupState, fallbackKey: string): boolean {
+  return state.preserveFallbackMultiplicity
+    ? (state.fallbackMultiplicityBalances.get(fallbackKey) ?? 0) > 0
+    : state.fallbackOnlyKeys.has(fallbackKey)
 }
 
 /**
@@ -68,11 +97,31 @@ export function registerMessageAndCheckDuplicate(message: DedupMessage, state: M
     if (state.platformMessageIds.has(message.platformMessageId)) return true
     state.platformMessageIds.add(message.platformMessageId)
 
+    if (state.preserveFallbackMultiplicity) {
+      const balance = state.fallbackMultiplicityBalances.get(key) ?? 0
+      if (balance > 0) {
+        setFallbackMultiplicityBalance(state, key, balance - 1)
+        return true
+      }
+      setFallbackMultiplicityBalance(state, key, balance - 1)
+      return false
+    }
+
     // Only bridge ID-bearing messages to fallback-only copies. Comparing this
     // key against other ID-bearing messages would incorrectly merge distinct
     // platform messages that happen to have identical content and timestamps.
     if (state.fallbackOnlyKeys.delete(key)) return true
     state.fallbackKeys.add(key)
+    return false
+  }
+
+  if (state.preserveFallbackMultiplicity) {
+    const balance = state.fallbackMultiplicityBalances.get(key) ?? 0
+    if (balance < 0) {
+      setFallbackMultiplicityBalance(state, key, balance + 1)
+      return true
+    }
+    setFallbackMultiplicityBalance(state, key, balance + 1)
     return false
   }
 

@@ -111,6 +111,38 @@ describe('buildMergedOutput', () => {
     assert.equal(result.chatLabData.meta.sources.length, 2)
   })
 
+  it('preserves the maximum fallback occurrence count across overlapping sources', () => {
+    const meta: MergerSourceMeta = { name: 'chat', platform: 'wechat', type: 'group', groupId: 'room' }
+    const repeatedImage: MergerInputMessage = {
+      senderPlatformId: 'u1',
+      timestamp: 100,
+      type: 1,
+      content: '[图片]',
+    }
+    const source1 = createMockSource(
+      meta,
+      [{ platformId: 'u1', accountName: 'Alice' }],
+      [{ ...repeatedImage }, { ...repeatedImage }]
+    )
+    const source2 = createMockSource(
+      meta,
+      [{ platformId: 'u1', accountName: 'Alice' }],
+      [{ ...repeatedImage }, { ...repeatedImage }, { ...repeatedImage }]
+    )
+
+    const sources = [
+      { source: source1, filename: 'first.json' },
+      { source: source2, filename: 'overlap.json' },
+    ]
+    const result = buildMergedOutput(sources, 'Merged')
+    const reversed = buildMergedOutput([...sources].reverse(), 'Merged')
+    const conflicts = checkConflictsFromSources(sources)
+
+    assert.equal(result.chatLabData.messages.length, 3)
+    assert.equal(reversed.chatLabData.messages.length, 3)
+    assert.equal(conflicts.totalMessages, 3)
+  })
+
   it('detects mixed platform when sources differ', () => {
     const s1 = createMockSource(
       { name: 'a', platform: 'qq', type: 'group' },
