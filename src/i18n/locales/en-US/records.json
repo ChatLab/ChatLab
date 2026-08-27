@@ -1,6 +1,7 @@
 {
   "drawer": {
-    "title": "Chat Record Viewer"
+    "title": "Chat Record Viewer",
+    "resize": "Resize chat record panel"
   },
   "workspace": {
     "indexMissingTitle": "No conversation summary index yet",

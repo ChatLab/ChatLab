@@ -1,6 +1,7 @@
 {
   "drawer": {
-    "title": "聊天记录查看器"
+    "title": "聊天记录查看器",
+    "resize": "调整聊天记录面板宽度"
   },
   "workspace": {
     "indexMissingTitle": "还没有可用的会话摘要索引",
