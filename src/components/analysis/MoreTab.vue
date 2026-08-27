@@ -2,8 +2,10 @@
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { SectionTabs } from '@/components/navigation'
 import { DebugTab } from '@/components/DebugTab'
+import { trackProductEvent } from '@/services/product-analytics'
 import { useSettingsStore } from '@/stores/settings'
 import SQLLabTab from './SQLLabTab.vue'
 
@@ -13,6 +15,7 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const route = useRoute()
 const settingsStore = useSettingsStore()
 const { debugMode } = storeToRefs(settingsStore)
 
@@ -34,7 +37,18 @@ const subTabs = computed(() => {
   return tabs
 })
 
-const activeSubTab = ref('sql-lab')
+const savedSubTab = route.query.moreTab
+const activeSubTab = ref(
+  typeof savedSubTab === 'string' && subTabs.value.some((tab) => tab.id === savedSubTab) ? savedSubTab : 'sql-lab'
+)
+
+watch(
+  activeSubTab,
+  (tab) => {
+    if (tab === 'sql-lab') trackProductEvent('feature_used', { feature_id: 'sql_lab' })
+  },
+  { immediate: true }
+)
 
 watch(debugMode, (enabled) => {
   if (!enabled && activeSubTab.value === 'debug') activeSubTab.value = 'sql-lab'
