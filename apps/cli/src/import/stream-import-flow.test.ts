@@ -67,6 +67,27 @@ function writeTempDuplicateChatFile(dir: string): string {
   return filePath
 }
 
+function writeWeFlowImageExport(dir: string, filename: string, messageCount: number): string {
+  const filePath = path.join(dir, filename)
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify({
+      weflow: { version: '1.0.0' },
+      session: { wxid: 'room@chatroom', displayName: 'Image Room', type: '群聊' },
+      messages: Array.from({ length: messageCount }, (_, index) => ({
+        localId: index + 1,
+        createTime: 1711468800,
+        type: '图片消息',
+        content: '[图片]',
+        isSend: 0,
+        senderUsername: 'wxid_alice',
+        senderDisplayName: 'Alice',
+      })),
+    })
+  )
+  return filePath
+}
+
 function writeBatchChatFile(dir: string, filename: string, groupId: string, content: string): string {
   const filePath = path.join(dir, filename)
   fs.writeFileSync(
@@ -473,6 +494,37 @@ test('autoImport reports the same exact-message deduplication on create and incr
   const row = db.prepare('SELECT COUNT(*) AS count FROM message').get() as { count: number }
   db.close()
   assert.equal(row.count, 1)
+})
+
+test('autoImport preserves same-second WeFlow message counts across overlapping exports', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  fs.mkdirSync(path.join(root, 'data', 'databases'), { recursive: true })
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+  const firstExport = writeWeFlowImageExport(root, 'weflow-first.json', 2)
+  const overlappingExport = writeWeFlowImageExport(root, 'weflow-overlap.json', 3)
+
+  const created = await autoImport(manager, firstExport, { nativeBinding })
+  const incremental = await autoImport(manager, overlappingExport, { nativeBinding })
+  const repeated = await autoImport(manager, overlappingExport, { nativeBinding })
+
+  assert.equal(created.success, true)
+  assert.equal(created.newMessageCount, 2)
+  assert.equal(created.duplicateCount, 0)
+  assert.equal(incremental.success, true)
+  assert.equal(incremental.newMessageCount, 1)
+  assert.equal(incremental.duplicateCount, 2)
+  assert.equal(repeated.success, true)
+  assert.equal(repeated.newMessageCount, 0)
+  assert.equal(repeated.duplicateCount, 3)
+
+  const db = manager.openRawSessionDatabase(created.sessionId!, { readonly: true })
+  const row = db.prepare('SELECT COUNT(*) AS count FROM message').get() as { count: number }
+  db.close()
+  assert.equal(row.count, 3)
 })
 
 test('autoImport uses an explicit id for create and then forces incremental import', async () => {

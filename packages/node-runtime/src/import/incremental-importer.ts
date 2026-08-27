@@ -25,7 +25,12 @@ import {
   type DedupMessage,
   type MessageDedupState,
 } from './message-deduplicator'
-import { normalizeSystemMemberName, SYSTEM_MEMBER_NAME, type ImportProgressCallback } from './streaming-importer'
+import {
+  normalizeSystemMemberName,
+  shouldPreserveFallbackMultiplicity,
+  SYSTEM_MEMBER_NAME,
+  type ImportProgressCallback,
+} from './streaming-importer'
 
 // ==================== Public interfaces ====================
 
@@ -109,8 +114,9 @@ interface ExistingMessageLookup {
   db: DatabaseAdapter
   maxMessageId: number
   hasFallbackOnlyMessages: boolean
-  consumedFallbackOnlyKeys: Set<string>
+  consumedFallbackOnlyOccurrenceCounts: Map<string, number>
   bridgedPlatformMessageIds: Set<string>
+  consumedFallbackOccurrenceCounts: Map<string, number>
   candidateStatement: PreparedStatement
   platformIdStatements: Map<number, PreparedStatement>
 }
@@ -159,8 +165,9 @@ function createExistingMessageLookup(db: DatabaseAdapter): ExistingMessageLookup
     db,
     maxMessageId,
     hasFallbackOnlyMessages,
-    consumedFallbackOnlyKeys: new Set<string>(),
+    consumedFallbackOnlyOccurrenceCounts: new Map<string, number>(),
     bridgedPlatformMessageIds: new Set<string>(),
+    consumedFallbackOccurrenceCounts: new Map<string, number>(),
     candidateStatement: db.prepare(
       `SELECT msg.type, msg.content, msg.reply_to_message_id, msg.platform_message_id
        FROM member m
@@ -229,7 +236,8 @@ function isExistingMessageDuplicate(
   lookup: ExistingMessageLookup,
   message: DedupMessage,
   existingBatchPlatformIds: Set<string>,
-  candidateCache: CandidateCache
+  candidateCache: CandidateCache,
+  preserveFallbackMultiplicity: boolean
 ): boolean {
   if (
     message.platformMessageId &&
@@ -241,20 +249,30 @@ function isExistingMessageDuplicate(
 
   const fallbackKey = generateFallbackMessageKey(message)
   if (message.platformMessageId) {
-    if (!lookup.hasFallbackOnlyMessages || lookup.consumedFallbackOnlyKeys.has(fallbackKey)) return false
-    const matchesFallbackOnly = getExistingCandidates(lookup, message, candidateCache).some(
+    if (!lookup.hasFallbackOnlyMessages) return false
+    const matchingFallbackOnlyCount = getExistingCandidates(lookup, message, candidateCache).filter(
       (candidate) => !candidate.platform_message_id && candidateFallbackKey(message, candidate) === fallbackKey
-    )
+    ).length
+    const consumedCount = lookup.consumedFallbackOnlyOccurrenceCounts.get(fallbackKey) ?? 0
+    const matchesFallbackOnly = preserveFallbackMultiplicity
+      ? consumedCount < matchingFallbackOnlyCount
+      : consumedCount === 0 && matchingFallbackOnlyCount > 0
     if (matchesFallbackOnly) {
-      lookup.consumedFallbackOnlyKeys.add(fallbackKey)
+      lookup.consumedFallbackOnlyOccurrenceCounts.set(fallbackKey, consumedCount + 1)
       lookup.bridgedPlatformMessageIds.add(message.platformMessageId)
     }
     return matchesFallbackOnly
   }
 
-  return getExistingCandidates(lookup, message, candidateCache).some(
+  const matchingCount = getExistingCandidates(lookup, message, candidateCache).filter(
     (candidate) => candidateFallbackKey(message, candidate) === fallbackKey
-  )
+  ).length
+  if (!preserveFallbackMultiplicity) return matchingCount > 0
+
+  const consumedCount = lookup.consumedFallbackOccurrenceCounts.get(fallbackKey) ?? 0
+  if (consumedCount >= matchingCount) return false
+  lookup.consumedFallbackOccurrenceCounts.set(fallbackKey, consumedCount + 1)
+  return true
 }
 
 function isDuplicate(
@@ -262,9 +280,13 @@ function isDuplicate(
   incomingState: MessageDedupState,
   message: DedupMessage,
   existingBatchPlatformIds: Set<string>,
-  candidateCache: CandidateCache
+  candidateCache: CandidateCache,
+  preserveFallbackMultiplicity: boolean
 ): boolean {
-  if (isExistingMessageDuplicate(lookup, message, existingBatchPlatformIds, candidateCache)) return true
+  if (
+    isExistingMessageDuplicate(lookup, message, existingBatchPlatformIds, candidateCache, preserveFallbackMultiplicity)
+  )
+    return true
   return registerMessageAndCheckDuplicate(message, incomingState)
 }
 
@@ -298,10 +320,11 @@ export async function analyzeIncrementalImport(
   let duplicateCount = 0
   let platform = formatFeature.platform
   const mapPlatformId = createPlatformIdMapper(options?.senderPlatformIdMappings)
+  const preserveFallbackMultiplicity = shouldPreserveFallbackMultiplicity(formatFeature.id)
 
   try {
     const existingLookup = createExistingMessageLookup(db)
-    const incomingState = createMessageDedupState()
+    const incomingState = createMessageDedupState([], [], [], { preserveFallbackMultiplicity })
 
     await streamParseFile(
       filePath,
@@ -336,7 +359,8 @@ export async function analyzeIncrementalImport(
                 incomingState,
                 { ...msg, timestamp },
                 existingBatchPlatformIds,
-                candidateCache
+                candidateCache,
+                preserveFallbackMultiplicity
               )
             ) {
               duplicateCount++
@@ -378,10 +402,11 @@ export async function incrementalImport(
   const metaUpdateMode = options?.metaUpdateMode ?? 'patch'
   const memberUpdateMode = options?.memberUpdateMode ?? 'upsert'
   const mapPlatformId = createPlatformIdMapper(options?.senderPlatformIdMappings)
+  const preserveFallbackMultiplicity = shouldPreserveFallbackMultiplicity(formatFeature.id)
 
   try {
     const existingLookup = createExistingMessageLookup(db)
-    const incomingState = createMessageDedupState()
+    const incomingState = createMessageDedupState([], [], [], { preserveFallbackMultiplicity })
 
     const memberIdMap = new Map<string, number>()
     const existingMembers = db.prepare('SELECT id, platform_id FROM member').all() as Array<{
@@ -526,7 +551,8 @@ export async function incrementalImport(
                 incomingState,
                 { ...msg, timestamp },
                 existingBatchPlatformIds,
-                candidateCache
+                candidateCache,
+                preserveFallbackMultiplicity
               )
             ) {
               duplicateCount++

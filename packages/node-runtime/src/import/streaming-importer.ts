@@ -24,6 +24,7 @@ import {
   getPreprocessor,
   needsPreprocess,
   isNativeFormatAvailable,
+  PARSER_FORMAT_IDS,
   type ParsedMeta,
   type FormatFeature,
   type ParseProgress,
@@ -32,6 +33,10 @@ import * as fs from 'fs'
 import { performance } from 'node:perf_hooks'
 import { MessageBatchInserter, type MessageInsertRow } from './message-batch-inserter'
 import { createMessageDedupState, registerMessageAndCheckDuplicate, type DedupMessage } from './message-deduplicator'
+
+export function shouldPreserveFallbackMultiplicity(formatId: string): boolean {
+  return formatId === PARSER_FORMAT_IDS.WEFLOW || formatId === PARSER_FORMAT_IDS.ECHOTRACE
+}
 
 // ==================== Public interfaces ====================
 
@@ -524,7 +529,9 @@ async function streamImportSingle(
     skippedInvalidTimestamp: 0,
     skippedNoType: 0,
   }
-  const dedupState = createMessageDedupState()
+  const dedupState = createMessageDedupState([], [], [], {
+    preserveFallbackMultiplicity: shouldPreserveFallbackMultiplicity(formatFeature.id),
+  })
 
   logger?.info('Starting streamParseFile...')
   const parsePipelineStartedAt = now()
@@ -940,7 +947,9 @@ export async function analyzeNewImport(
 
   let meta: { name: string; platform: string; type: string } | null = null
   const memberSet = new Set<string>()
-  const dedupState = createMessageDedupState()
+  const dedupState = createMessageDedupState([], [], [], {
+    preserveFallbackMultiplicity: shouldPreserveFallbackMultiplicity(formatFeature.id),
+  })
   let totalMessages = 0
   let newMessageCount = 0
   let duplicateCount = 0

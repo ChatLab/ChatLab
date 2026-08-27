@@ -21,6 +21,7 @@ import { CHATLAB_FORMAT_VERSION } from '@openchatlab/shared-types'
 import {
   createMessageDedupState,
   generateFallbackMessageKey,
+  hasUnmatchedFallbackOnlyMessage,
   registerMessageAndCheckDuplicate,
 } from '../import/message-deduplicator'
 
@@ -93,6 +94,37 @@ interface MessageScopeContext {
   sourceIndex: number
   messageScope: string
   messageBridgeFamily?: string
+}
+
+function createFallbackOccurrenceTracker(): (message: MergerInputMessage, sourceIndex: number) => boolean {
+  // Overlapping exports contribute the maximum occurrence count for each
+  // fallback key, rather than collapsing to one message or summing all copies.
+  const maximumOccurrences = new Map<string, number>()
+  const sourceOccurrences = new Map<number, Map<string, number>>()
+
+  return (message, sourceIndex) => {
+    if (message.platformMessageId) return false
+
+    const fallbackKey = generateFallbackMessageKey({
+      timestamp: message.timestamp,
+      senderPlatformId: message.senderPlatformId,
+      type: message.type,
+      content: message.content ?? null,
+      replyToMessageId: message.replyToMessageId,
+    })
+    let occurrences = sourceOccurrences.get(sourceIndex)
+    if (!occurrences) {
+      occurrences = new Map<string, number>()
+      sourceOccurrences.set(sourceIndex, occurrences)
+    }
+    const occurrence = (occurrences.get(fallbackKey) ?? 0) + 1
+    occurrences.set(fallbackKey, occurrence)
+
+    const previousMaximum = maximumOccurrences.get(fallbackKey) ?? 0
+    if (occurrence <= previousMaximum) return true
+    maximumOccurrences.set(fallbackKey, occurrence)
+    return false
+  }
 }
 
 function createMessageScopeResolver(contexts: Iterable<MessageScopeContext>): {
@@ -241,23 +273,24 @@ export function checkConflictsFromSources(
   const normalizeMessageId = createMessageIdNormalizer(
     preparedSources.map(({ sourceIndex }) => scopeResolver.resolve(sourceIndex))
   )
-  const dedupState = createMessageDedupState()
+  const dedupState = createMessageDedupState([], [], [], { preserveFallbackMultiplicity: true })
+  const isCoveredFallbackOccurrence = createFallbackOccurrenceTracker()
   let totalMessages = 0
 
   for (const { msg, sourceIndex, platform } of allMessages) {
     const messageScope = scopeResolver.resolve(sourceIndex)
     const senderPlatformId = normalizePlatformId(msg.senderPlatformId, platform, collidingIds)
-    const duplicate = registerMessageAndCheckDuplicate(
-      {
-        platformMessageId: normalizeMessageId(msg.platformMessageId, messageScope),
-        timestamp: msg.timestamp,
-        senderPlatformId,
-        type: msg.type,
-        content: msg.content ?? null,
-        replyToMessageId: normalizeMessageId(msg.replyToMessageId, messageScope),
-      },
-      dedupState
-    )
+    const dedupMessage = {
+      platformMessageId: normalizeMessageId(msg.platformMessageId, messageScope),
+      timestamp: msg.timestamp,
+      senderPlatformId,
+      type: msg.type,
+      content: msg.content ?? null,
+      replyToMessageId: normalizeMessageId(msg.replyToMessageId, messageScope),
+    }
+    const duplicate =
+      isCoveredFallbackOccurrence(dedupMessage, sourceIndex) ||
+      registerMessageAndCheckDuplicate(dedupMessage, dedupState)
     if (!duplicate) totalMessages++
   }
 
@@ -324,8 +357,9 @@ export function buildMergedOutput(
 
   // Streaming dedup: prefer stable platform message IDs and use the content
   // fingerprint only for messages that do not have one.
-  const dedupState = createMessageDedupState()
-  const fallbackOnlyMessageIndexes = new Map<string, number>()
+  const dedupState = createMessageDedupState([], [], [], { preserveFallbackMultiplicity: true })
+  const isCoveredFallbackOccurrence = createFallbackOccurrenceTracker()
+  const fallbackOnlyMessageIndexes = new Map<string, number[]>()
   const mergedMessages: ChatLabMergedMessage[] = []
 
   for (const { source, meta, sourceIndex } of metas) {
@@ -345,18 +379,20 @@ export function buildMergedOutput(
           replyToMessageId,
         }
         const fallbackKey = generateFallbackMessageKey(dedupMessage)
+        if (isCoveredFallbackOccurrence(dedupMessage, sourceIndex)) continue
         const shouldBackfillId = Boolean(
           platformMessageId &&
           !dedupState.platformMessageIds.has(platformMessageId) &&
-          dedupState.fallbackOnlyKeys.has(fallbackKey)
+          hasUnmatchedFallbackOnlyMessage(dedupState, fallbackKey)
         )
 
         if (registerMessageAndCheckDuplicate(dedupMessage, dedupState)) {
           if (shouldBackfillId) {
-            const retainedIndex = fallbackOnlyMessageIndexes.get(fallbackKey)
+            const retainedIndexes = fallbackOnlyMessageIndexes.get(fallbackKey)
+            const retainedIndex = retainedIndexes?.shift()
             if (retainedIndex !== undefined) {
               mergedMessages[retainedIndex].platformMessageId = platformMessageId
-              fallbackOnlyMessageIndexes.delete(fallbackKey)
+              if (retainedIndexes?.length === 0) fallbackOnlyMessageIndexes.delete(fallbackKey)
             }
           }
           continue
@@ -373,7 +409,11 @@ export function buildMergedOutput(
           content: msg.content,
           replyToMessageId,
         })
-        if (!platformMessageId) fallbackOnlyMessageIndexes.set(fallbackKey, retainedIndex)
+        if (!platformMessageId) {
+          const retainedIndexes = fallbackOnlyMessageIndexes.get(fallbackKey) ?? []
+          retainedIndexes.push(retainedIndex)
+          fallbackOnlyMessageIndexes.set(fallbackKey, retainedIndexes)
+        }
       }
     })
   }

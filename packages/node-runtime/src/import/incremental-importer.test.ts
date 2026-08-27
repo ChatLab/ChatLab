@@ -512,6 +512,60 @@ test('preserves canonical dedup semantics while checking existing database candi
   }
 })
 
+test('bridges stable IDs to repeated fallback-only occurrences one for one', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const dbPath = path.join(tempDir, 'session.db')
+  const filePath = path.join(tempDir, 'incoming.json')
+  seedSessionDb(dbPath)
+  seedExistingMessage(dbPath, {})
+
+  const seededDb = openBetterSqliteDatabase(dbPath, { nativeBinding })
+  const member = seededDb.prepare('SELECT id FROM member WHERE platform_id = ?').get('wxid_alice') as { id: number }
+  seededDb
+    .prepare('INSERT INTO message (sender_id, ts, type, content) VALUES (?, ?, ?, ?)')
+    .run(member.id, 1780330832, 0, 'same message')
+  seededDb.close()
+
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify({
+      weflow: { version: '1.0.0' },
+      session: { wxid: 'wxid_alice', displayName: 'Alice', type: '私聊' },
+      messages: ['msg-1', 'msg-2', 'msg-3'].map((platformMessageId, index) => ({
+        localId: index + 1,
+        platformMessageId,
+        createTime: 1780330832,
+        type: '文本消息',
+        content: 'same message',
+        senderUsername: 'wxid_alice',
+        senderDisplayName: 'Alice',
+      })),
+    })
+  )
+
+  const deps = createDeps(dbPath)
+  const analysis = await analyzeIncrementalImport('session', filePath, deps, { formatId: 'weflow' })
+  assert.equal(analysis.newMessageCount, 1)
+  assert.equal(analysis.duplicateCount, 2)
+
+  const result = await incrementalImport('session', filePath, deps, { formatId: 'weflow' })
+  assert.equal(result.success, true)
+  assert.equal(result.newMessageCount, 1)
+  assert.equal(result.batch?.duplicateCount, 2)
+
+  const db = openBetterSqliteDatabase(dbPath, { readonly: true, nativeBinding })
+  const rows = db.prepare('SELECT platform_message_id FROM message ORDER BY id').all() as Array<{
+    platform_message_id: string | null
+  }>
+  db.close()
+  assert.deepEqual(
+    rows.map((row) => row.platform_message_id),
+    [null, null, 'msg-3']
+  )
+})
+
 test('deduplicates repeated input across parser message batches', async (t) => {
   const tempDir = makeTempDir()
   t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
