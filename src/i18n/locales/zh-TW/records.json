@@ -1,6 +1,7 @@
 {
   "drawer": {
-    "title": "聊天紀錄檢視器"
+    "title": "聊天紀錄檢視器",
+    "resize": "調整聊天紀錄面板寬度"
   },
   "workspace": {
     "indexMissingTitle": "尚未建立可用的會話摘要索引",

@@ -16,6 +16,7 @@ export const useLayoutStore = defineStore(
     const screenCaptureImage = ref<string | null>(null)
     const showChatRecordDrawer = ref(false)
     const chatRecordQuery = ref<ChatRecordQuery | null>(null)
+    const chatRecordDrawerWidth = ref(750)
 
     const isToolsPanelLocked = ref(false)
     const isToolsPanelMini = ref(false)
@@ -117,6 +118,7 @@ export const useLayoutStore = defineStore(
       screenCaptureImage,
       showChatRecordDrawer,
       chatRecordQuery,
+      chatRecordDrawerWidth,
       showSettings,
       settingsTab,
       settingsSubTab,
@@ -142,6 +144,7 @@ export const useLayoutStore = defineStore(
           'isToolsPanelLocked',
           'isToolsPanelMini',
           'toolsPanelPosition',
+          'chatRecordDrawerWidth',
         ],
         storage: localStorage,
       },

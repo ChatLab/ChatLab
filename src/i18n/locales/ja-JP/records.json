@@ -1,6 +1,7 @@
 {
   "drawer": {
-    "title": "チャット履歴ビューア"
+    "title": "チャット履歴ビューア",
+    "resize": "チャット履歴パネルの幅を変更"
   },
   "workspace": {
     "indexMissingTitle": "会話要約インデックスがまだありません",
