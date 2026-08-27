@@ -40,6 +40,7 @@ export function useTimeSelect(route: RouteLocationNormalizedLoaded, router: Rout
 
   /** 可选年份列表（由 TimeSelect 通过 emit 设置，群聊洞察视图需要） */
   const availableYears = ref<number[]>([])
+  let lastNotifiedTimeRangeKey: string | null = null
 
   // ==================== 派生计算 ====================
 
@@ -119,11 +120,14 @@ export function useTimeSelect(route: RouteLocationNormalizedLoaded, router: Rout
     timeRangeValue,
     (val) => {
       if (!val || !currentSessionId.value) return
+      // 重新挂载 TimeSelect 会生成等价的新对象；仍保存 UI 状态，但不重复取消和加载同一范围。
+      const timeRangeKey = `${currentSessionId.value}:${val.startTs}:${val.endTs}`
+      timeStateCache.set(currentSessionId.value, val.state)
+      if (timeRangeKey === lastNotifiedTimeRangeKey) return
+      lastNotifiedTimeRangeKey = timeRangeKey
       // 新筛选生效前，作废上一批仍在途的分析请求：释放连接、避免过期结果回写。
       // 此 watch 在父页面 setup 阶段注册，早于子分析组件，确保子组件随后发起的新请求绑定新 epoch。
       abortAnalyticsRequests()
-      // 缓存当前时间筛选状态，供从其他页面返回时恢复
-      timeStateCache.set(currentSessionId.value, val.state)
       onTimeRangeChange?.()
     },
     { immediate: true }
@@ -133,6 +137,7 @@ export function useTimeSelect(route: RouteLocationNormalizedLoaded, router: Rout
 
   /** 切换会话时调用，清空时间范围状态 */
   function resetTimeRange() {
+    lastNotifiedTimeRangeKey = null
     timeRangeValue.value = null
     fullTimeRange.value = null
     availableYears.value = []

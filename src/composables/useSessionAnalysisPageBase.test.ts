@@ -293,6 +293,15 @@ test('returning to insights reuses unchanged analytics and reloads invalidated d
   assert.equal(analysisLoadCount, 1)
   assert.equal(page.isLoading.value, false)
 
+  page.timeRangeValue.value = {
+    ...page.timeRangeValue.value!,
+    state: { ...page.timeRangeValue.value!.state },
+  }
+  await flushPromises()
+
+  assert.equal(analysisLoadCount, 1)
+  assert.equal(page.isLoading.value, false)
+
   page.activeTab.value = 'ai-chat'
   await nextTick()
   page.activeTab.value = 'insights'
@@ -311,5 +320,14 @@ test('returning to insights reuses unchanged analytics and reloads invalidated d
   await flushPromises()
 
   assert.equal(analysisLoadCount, 2)
+  assert.equal(page.isLoading.value, false)
+
+  page.timeRangeValue.value = {
+    ...page.timeRangeValue.value!,
+    startTs: 3,
+  }
+  await flushPromises()
+
+  assert.equal(analysisLoadCount, 3)
   assert.equal(page.isLoading.value, false)
 })
