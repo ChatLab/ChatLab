@@ -243,6 +243,26 @@ describe('group relationship galaxy', () => {
     assert.deepEqual(first, second)
   })
 
+  it('keeps every message when identical timestamps cross a query batch boundary', () => {
+    raw.exec(`
+      WITH RECURSIVE messages(id) AS (
+        SELECT 1
+        UNION ALL
+        SELECT id + 1 FROM messages WHERE id < 20003
+      )
+      INSERT INTO message (id, sender_id, ts, type, content, platform_message_id, reply_to_message_id)
+      SELECT id, 1 + ((id - 1) % 4), 100, 0, 'same timestamp', 'same-ts-' || id, NULL
+      FROM messages;
+    `)
+
+    const result = getGroupRelationshipGalaxy(db)
+
+    assert.equal(
+      result.members.reduce((total, member) => total + member.messageCount, 0),
+      20_003
+    )
+  })
+
   it('returns an explicit empty graph when the range has fewer than two active members', () => {
     insertMessage(1, 1, 100, 'only owner', 'm1')
 

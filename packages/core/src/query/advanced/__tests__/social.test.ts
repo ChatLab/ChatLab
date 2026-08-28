@@ -7,7 +7,14 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import Database from 'better-sqlite3'
-import { accumulateCoOccurrencePairs, getLaughAnalysis, getMentionAnalysis } from '../social'
+import {
+  accumulateCoOccurrencePairBatches,
+  accumulateCoOccurrencePairs,
+  getClusterGraph,
+  getLaughAnalysis,
+  getMentionAnalysis,
+} from '../social'
+import type { ClusterGraphOptions, CoOccurrenceMessage, CoOccurrencePairStats } from '../social'
 import type { DatabaseAdapter, PreparedStatement, RunResult } from '../../../interfaces'
 
 class Statement implements PreparedStatement {
@@ -87,6 +94,48 @@ function createMentionDatabase(): Adapter {
   return new Adapter(database)
 }
 
+function legacyAccumulateCoOccurrencePairs(
+  messages: CoOccurrenceMessage[],
+  options: ClusterGraphOptions = {}
+): CoOccurrencePairStats[] {
+  const opts = { lookAhead: 3, decaySeconds: 120, topEdges: 100, ...options }
+  const rawScores = new Map<string, number>()
+  const counts = new Map<string, number>()
+  const latestTimestamps = new Map<string, number>()
+
+  for (let index = 0; index < messages.length - 1; index++) {
+    const anchor = messages[index]
+    const seenPartners = new Set<number>()
+    let partnersFound = 0
+    for (let nextIndex = index + 1; nextIndex < messages.length && partnersFound < opts.lookAhead; nextIndex++) {
+      const candidate = messages[nextIndex]
+      if (candidate.senderId === anchor.senderId || seenPartners.has(candidate.senderId)) continue
+      seenPartners.add(candidate.senderId)
+      partnersFound++
+      const decayWeight = Math.exp(-(candidate.ts - anchor.ts) / opts.decaySeconds)
+      const positionWeight = 1 - (partnersFound - 1) * 0.2
+      const key =
+        anchor.senderId < candidate.senderId
+          ? `${anchor.senderId}-${candidate.senderId}`
+          : `${candidate.senderId}-${anchor.senderId}`
+      rawScores.set(key, (rawScores.get(key) ?? 0) + decayWeight * positionWeight)
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+      latestTimestamps.set(key, Math.max(latestTimestamps.get(key) ?? 0, candidate.ts))
+    }
+  }
+
+  return [...rawScores].map(([key, rawScore]) => {
+    const [sourceId, targetId] = key.split('-').map(Number)
+    return {
+      sourceId,
+      targetId,
+      rawScore,
+      coOccurrenceCount: counts.get(key) ?? 0,
+      lastOccurrenceTs: latestTimestamps.get(key) ?? 0,
+    }
+  })
+}
+
 describe('social analysis', () => {
   it('returns an empty keyword analysis when no usable keywords are provided', () => {
     const database = createMentionDatabase()
@@ -142,6 +191,57 @@ describe('social analysis', () => {
     assert.ok(distantPair)
     assert.ok(closePair.rawScore > 0.6)
     assert.ok(distantPair.rawScore < 0.001)
+  })
+
+  it('preserves pair order and scores when a look-ahead window crosses batches', () => {
+    const messages = [
+      { senderId: 4, ts: 100 },
+      { senderId: 4, ts: 101 },
+      { senderId: 2, ts: 102 },
+      { senderId: 2, ts: 103 },
+      { senderId: 1, ts: 104 },
+      { senderId: 3, ts: 105 },
+      { senderId: 2, ts: 106 },
+      { senderId: 5, ts: 107 },
+      { senderId: 1, ts: 108 },
+    ]
+    const options = { lookAhead: 3, decaySeconds: 90 }
+
+    assert.deepEqual(
+      accumulateCoOccurrencePairBatches([messages.slice(0, 3), messages.slice(3, 5), messages.slice(5)], options),
+      legacyAccumulateCoOccurrencePairs(messages, options)
+    )
+  })
+
+  it('keeps large streamed aggregation identical to the in-memory algorithm', () => {
+    const senderPattern = [1, 1, 2, 3, 2, 4, 5]
+    const messages = Array.from({ length: 100_005 }, (_, index) => ({
+      senderId: senderPattern[index % senderPattern.length],
+      ts: 1_700_000_000 + index,
+    }))
+
+    assert.deepEqual(
+      accumulateCoOccurrencePairBatches(
+        [messages.slice(0, 20_000), messages.slice(20_000, 60_000), messages.slice(60_000)],
+        { lookAhead: 3, decaySeconds: 120 }
+      ),
+      accumulateCoOccurrencePairs(messages, { lookAhead: 3, decaySeconds: 120 })
+    )
+  })
+
+  it('keeps cluster graph message totals and member rankings after batched reads', () => {
+    const database = createMentionDatabase()
+
+    try {
+      const result = getClusterGraph(database)
+
+      assert.equal(result.stats.totalMessages, 6)
+      assert.equal(result.stats.totalMembers, 3)
+      assert.equal(result.stats.involvedMembers, 2)
+      assert.ok(result.links.length > 0)
+    } finally {
+      database.close()
+    }
   })
 
   it('returns only the two member rankings and total mention count', () => {
