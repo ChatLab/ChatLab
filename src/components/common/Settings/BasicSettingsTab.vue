@@ -17,9 +17,11 @@ const { t } = useI18n()
 
 withDefaults(
   defineProps<{
+    showDefaultSessionTab?: boolean
     showToolsPanel?: boolean
   }>(),
   {
+    showDefaultSessionTab: true,
     showToolsPanel: true,
   }
 )
@@ -253,13 +255,13 @@ const desktopCloseBehaviorOptions = computed(() => [
     </div>
 
     <!-- 偏好设置 -->
-    <div>
+    <div v-if="showDefaultSessionTab || (showToolsPanel && debugMode)">
       <h3 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
         <UIcon name="i-heroicons-adjustments-horizontal" class="h-4 w-4 text-purple-500" />
         {{ t('settings.basic.preferences.title') }}
       </h3>
       <div class="rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
-        <div class="flex items-center justify-between p-4">
+        <div v-if="showDefaultSessionTab" class="flex items-center justify-between p-4">
           <div class="flex-1 pr-4">
             <p class="text-sm font-medium text-gray-900 dark:text-white">
               {{ t('settings.basic.defaultTab.description') }}
@@ -269,7 +271,10 @@ const desktopCloseBehaviorOptions = computed(() => [
             <UTabs v-model="defaultSessionTab" size="sm" class="gap-0" :items="defaultTabOptions"></UTabs>
           </div>
         </div>
-        <div v-if="showToolsPanel && debugMode" class="border-t border-gray-200 dark:border-gray-700"></div>
+        <div
+          v-if="showDefaultSessionTab && showToolsPanel && debugMode"
+          class="border-t border-gray-200 dark:border-gray-700"
+        ></div>
         <div v-if="showToolsPanel && debugMode" class="flex items-center justify-between p-4">
           <div class="flex-1 pr-4">
             <p class="text-sm font-medium text-gray-900 dark:text-white">

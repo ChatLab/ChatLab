@@ -24,7 +24,7 @@ export function registerWebWasmAdapters(options: RegisterWebWasmAdaptersOptions)
   const createClient = options.createClient ?? createWebRuntimeClient
   const client = createClient({ onLog: reportLog, onWorkspaceChanged: options.onWorkspaceChanged })
 
-  // Web AI Runtime 与数据适配器复用同一个 Worker，避免打开第二份 OPFS 数据库句柄。
+  // Browser data and import adapters share one Worker and its OPFS workspace lease.
   options.register('browser-runtime-rpc', client)
   options.register('browser-runtime', new BrowserRuntimeAdapter(client))
   options.register('import', new BrowserImportAdapter(client))

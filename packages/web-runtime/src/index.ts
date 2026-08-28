@@ -28,10 +28,6 @@ export type {
   BrowserTimeFilter,
 } from './import/session-runtime'
 export { sessionDatabaseFilename } from './import/session-runtime'
-export { BrowserAIConversationRepository, WEB_AI_DATABASE_FILENAME, WEB_AI_SCHEMA } from './ai/conversation-repository'
-export { BrowserAIToolRuntime, WEB_AI_TOOL_NAMES } from './ai/tool-runtime'
-export { redactSensitiveText, redactMessages, sanitizeToolValue } from './ai/privacy'
-
 export function createWebRuntimeClient(options: WebRuntimeRpcClientOptions = {}): WebRuntimeRpcClient {
   if (typeof Worker !== 'function') {
     throw new Error('Web Workers are not available in this browser')
