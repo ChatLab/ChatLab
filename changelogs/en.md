@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.37.0 (2026-08-28)
+
+> Add cross-chat AI analysis and long-term memory, fix issues including import deduplication and failed AI replies, and improve Insights performance and the chat record viewer.<br/>Cross-chat analysis remains experimental due to limited testing and will continue to improve in future releases.
+
+### ✨ Features
+
+- Add a global AI chat for searching across contacts and groups, comparing activity and interactions, and viewing source evidence with direct navigation
+- Add long-term memory for managing preferences, details about yourself, contacts, and groups, with relevant entries loaded automatically for each question
+- Link long-term memories to source messages so AI-derived conclusions can be verified in the original conversation
+- Unify conversation lists, composers, and @ mention selection across global and per-chat AI conversations
+- Let users resize the chat record viewer by dragging and remember the chosen width
+- Move SQL Lab and debug tools into a unified More section on analysis pages
+- 【CLI】Support starting the Web service over a Unix Domain Socket
+
+### 🐛 Bug Fixes
+
+- Fix excessive deduplication when incrementally importing or merging WeFlow records and messages without stable IDs, preventing valid messages from being lost
+- Fix error state, conversation list, and follow-up issues after an AI reply fails
+- Prevent incomplete turns when saving or editing AI conversations, and allow editing only the latest user turn
+- Fix long-conversation compression losing message boundaries or links to memory sources
+- Fix AI services with the same configuration name loading the wrong credentials
+- Fix analysis pages reloading duplicate data or showing stale results after switching away and back
+- Improve time ranges, contact resolution, scan budgets, and truncation notices for cross-chat analysis
+
+### ⚡ Performance
+
+- Reduce peak memory allocation for session relationship graphs and the relationship galaxy on large datasets
+
 ## v0.36.2 (2026-08-20)
 
 > Improve AI chat process display and long-conversation performance, and show member avatars on group rankings.
