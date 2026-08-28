@@ -28,7 +28,7 @@ clb web --no-open   # Start API + Web UI without opening a browser
 clb web --headless  # Start the API without serving the Web UI (for scripts / AI Agents)
 ```
 
-Common options: `--port <port>` (default `3110`), `--host <address>`, and `--token <token>`. On macOS and Linux, use `--socket <path>` to listen on a Unix domain socket instead of a TCP port, for example `clb web --socket /tmp/chatlab.sock --no-open`. Access it with `curl --unix-socket /tmp/chatlab.sock http://localhost/api/v1/status` (with authentication) or place a reverse proxy in front of it.
+Common options: `--port <port>` (default `3110`), `--host <address>`, and `--token <token>`. On macOS and Linux, use `--socket <path>` to listen on a Unix domain socket instead of a TCP port, for example `clb web --socket /tmp/chatlab.sock --no-open`. Access it with `curl --unix-socket /tmp/chatlab.sock -H "Authorization: Bearer YOUR_TOKEN" http://localhost/api/v1/status` (replace `YOUR_TOKEN` with the token printed at startup) or place a reverse proxy in front of it.
 
 If the reverse proxy runs as a different Unix user, give its group access to the socket after ChatLab starts: `sudo chgrp <proxy-group> /tmp/chatlab.sock && sudo chmod 660 /tmp/chatlab.sock`. Reapply this after each restart, preferably with a service-manager post-start hook. No permission change is normally needed when ChatLab and the proxy run as the same user.
 

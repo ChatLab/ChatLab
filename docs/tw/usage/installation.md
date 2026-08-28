@@ -28,7 +28,7 @@ clb web --no-open   # 啟動 API + Web UI，但不自動開啟瀏覽器
 clb web --headless  # 僅啟動 API，不提供 Web UI（供腳本 / AI Agent 呼叫）
 ```
 
-常用選項：`--port <連接埠>`（預設 `3110`）、`--host <位址>`、`--token <令牌>`。在 macOS 和 Linux 上，可以使用 `--socket <路徑>` 監聽 Unix 網域通訊端而不占用 TCP 連接埠，例如 `clb web --socket /tmp/chatlab.sock --no-open`。可透過 `curl --unix-socket /tmp/chatlab.sock http://localhost/api/v1/status` 存取（需要驗證身分），或在其前方設定反向代理。
+常用選項：`--port <連接埠>`（預設 `3110`）、`--host <位址>`、`--token <令牌>`。在 macOS 和 Linux 上，可以使用 `--socket <路徑>` 監聽 Unix 網域通訊端而不占用 TCP 連接埠，例如 `clb web --socket /tmp/chatlab.sock --no-open`。可透過 `curl --unix-socket /tmp/chatlab.sock -H "Authorization: Bearer YOUR_TOKEN" http://localhost/api/v1/status` 存取（請將 `YOUR_TOKEN` 替換為啟動時顯示的令牌），或在其前方設定反向代理。
 
 如果反向代理以另一個 Unix 使用者執行，請在 ChatLab 啟動後為代理所屬群組授予通訊端存取權限：`sudo chgrp <代理群組> /tmp/chatlab.sock && sudo chmod 660 /tmp/chatlab.sock`。每次重新啟動後都需要再次套用，建議使用服務管理器的啟動後掛鉤。ChatLab 與代理以相同使用者執行時通常不需要修改權限。
 
