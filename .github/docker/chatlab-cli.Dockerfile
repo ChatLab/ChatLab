@@ -4,6 +4,10 @@ FROM node:24-bookworm-slim
 
 ARG CHATLAB_VERSION
 ENV CHATLAB_LOCAL_EMBEDDING_RUNTIME_DIR=/opt/chatlab/local-embedding
+ENV CHATLAB_NLP_DICT_DIR=/opt/chatlab/nlp
+
+ADD --checksum=sha256:139519822fe8ab9e10d9d07e68ea0451045380aedaf54ecc51e2a28c6b42a13f --chmod=0644 \
+    https://chatlab.fun/assets/nlp/zh-CN.dict /opt/chatlab/nlp/zh-CN.dict
 
 RUN test -n "$CHATLAB_VERSION" \
     && apt-get update \

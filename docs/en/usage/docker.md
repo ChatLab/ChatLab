@@ -13,6 +13,8 @@ ghcr.io/chatlab/chatlab-cli
 
 The official image already includes the runtime required by local embedding models. Enabling a local semantic index only downloads the selected model files; it does not install another ~370 MB of Node dependencies after the container starts.
 
+The image also stores the default Simplified Chinese segmentation dictionary under `/opt/chatlab/nlp` and points `CHATLAB_NLP_DICT_DIR` there, so first startup does not need to download it. An existing dictionary in the mounted ChatLab directory is preserved.
+
 ## Quick start
 
 ### Share data with Desktop and a local CLI (recommended)
