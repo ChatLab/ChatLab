@@ -310,6 +310,7 @@ export interface SelectedCoOccurrencePairStats extends CoOccurrencePairStats {
 
 const DEFAULT_CLUSTER_OPTIONS = { lookAhead: 3, decaySeconds: 120, topEdges: 100 }
 const DEFAULT_SELECTED_PROXIMITY_MAX_GAP_SECONDS = 1800
+const CO_OCCURRENCE_MESSAGE_BATCH_SIZE = 20_000
 
 function roundNum(value: number, digits = 4): number {
   const factor = 10 ** digits
@@ -325,44 +326,128 @@ export function accumulateCoOccurrencePairs(
   options?: ClusterGraphOptions
 ): CoOccurrencePairStats[] {
   const opts = { ...DEFAULT_CLUSTER_OPTIONS, ...options }
-  const pairRawScore = new Map<string, number>()
-  const pairCoOccurrence = new Map<string, number>()
-  const pairLastOccurrenceTs = new Map<string, number>()
+  const pairStatsBySource = new Map<number, Map<number, CoOccurrencePairStats>>()
+  const pairs: CoOccurrencePairStats[] = []
 
-  // 与小团体图保持同一口径：按消息顺序向后寻找不同发言人，并用时间衰减和位置权重累计关系强度。
-  for (let i = 0; i < messages.length - 1; i++) {
-    const anchor = messages[i]
+  for (let index = 0; index < messages.length - 1; index++) {
+    const anchor = messages[index]
     const seenPartners = new Set<number>()
     let partnersFound = 0
-    for (let j = i + 1; j < messages.length && partnersFound < opts.lookAhead; j++) {
-      const candidate = messages[j]
+    for (let nextIndex = index + 1; nextIndex < messages.length && partnersFound < opts.lookAhead; nextIndex++) {
+      const candidate = messages[nextIndex]
       if (candidate.senderId === anchor.senderId || seenPartners.has(candidate.senderId)) continue
       seenPartners.add(candidate.senderId)
       partnersFound++
-      const deltaSeconds = candidate.ts - anchor.ts
-      const decayWeight = Math.exp(-deltaSeconds / opts.decaySeconds)
+      const decayWeight = Math.exp(-(candidate.ts - anchor.ts) / opts.decaySeconds)
       const positionWeight = 1 - (partnersFound - 1) * 0.2
-      const weight = decayWeight * positionWeight
-      const key = clusterPairKey(anchor.senderId, candidate.senderId)
-      pairRawScore.set(key, (pairRawScore.get(key) || 0) + weight)
-      pairCoOccurrence.set(key, (pairCoOccurrence.get(key) || 0) + 1)
-      pairLastOccurrenceTs.set(key, Math.max(pairLastOccurrenceTs.get(key) ?? 0, candidate.ts))
+      applyCoOccurrencePair(
+        anchor.senderId,
+        candidate.senderId,
+        candidate.ts,
+        decayWeight * positionWeight,
+        pairStatsBySource,
+        pairs
+      )
     }
   }
 
+  return pairs
+}
+
+export function accumulateCoOccurrencePairBatches(
+  batches: Iterable<readonly CoOccurrenceMessage[]>,
+  options?: ClusterGraphOptions
+): CoOccurrencePairStats[] {
+  const senderChunks: Float64Array[] = []
+  const timestampChunks: Float64Array[] = []
+  let messageCount = 0
+
+  for (const batch of batches) {
+    if (batch.length === 0) continue
+    const senderIds = new Float64Array(batch.length)
+    const timestamps = new Float64Array(batch.length)
+    for (let index = 0; index < batch.length; index++) {
+      senderIds[index] = batch[index].senderId
+      timestamps[index] = batch[index].ts
+    }
+    senderChunks.push(senderIds)
+    timestampChunks.push(timestamps)
+    messageCount += batch.length
+  }
+
+  const senderIds = mergeNumberChunks(senderChunks, messageCount)
+  const timestamps = mergeNumberChunks(timestampChunks, messageCount)
+  senderChunks.length = 0
+  timestampChunks.length = 0
+  return accumulateCoOccurrenceColumns(senderIds, timestamps, options)
+}
+
+function mergeNumberChunks(chunks: Float64Array[], totalLength: number): Float64Array {
+  if (chunks.length === 1) return chunks[0]
+  const merged = new Float64Array(totalLength)
+  let offset = 0
+  for (const chunk of chunks) {
+    merged.set(chunk, offset)
+    offset += chunk.length
+  }
+  return merged
+}
+
+function accumulateCoOccurrenceColumns(
+  senderIds: Float64Array,
+  timestamps: Float64Array,
+  options?: ClusterGraphOptions
+): CoOccurrencePairStats[] {
+  const opts = { ...DEFAULT_CLUSTER_OPTIONS, ...options }
+  const lookAhead = Math.max(0, Math.ceil(opts.lookAhead))
+  const candidateIndexes = buildDistinctSpeakerLookAhead(senderIds.length, (index) => senderIds[index], lookAhead)
+  const pairStatsBySource = new Map<number, Map<number, CoOccurrencePairStats>>()
   const pairs: CoOccurrencePairStats[] = []
-  for (const [key, rawScore] of pairRawScore) {
-    const [sourceIdStr, targetIdStr] = key.split('-')
-    pairs.push({
-      sourceId: parseInt(sourceIdStr),
-      targetId: parseInt(targetIdStr),
-      rawScore,
-      coOccurrenceCount: pairCoOccurrence.get(key) || 0,
-      lastOccurrenceTs: pairLastOccurrenceTs.get(key) ?? 0,
-    })
+
+  for (let index = 0; index < senderIds.length - 1; index++) {
+    for (let partnerIndex = 0; partnerIndex < lookAhead; partnerIndex++) {
+      const candidateIndex = candidateIndexes[index * lookAhead + partnerIndex]
+      if (candidateIndex < 0) break
+      const decayWeight = Math.exp(-(timestamps[candidateIndex] - timestamps[index]) / opts.decaySeconds)
+      const positionWeight = 1 - partnerIndex * 0.2
+      applyCoOccurrencePair(
+        senderIds[index],
+        senderIds[candidateIndex],
+        timestamps[candidateIndex],
+        decayWeight * positionWeight,
+        pairStatsBySource,
+        pairs
+      )
+    }
   }
 
   return pairs
+}
+
+function applyCoOccurrencePair(
+  leftSenderId: number,
+  rightSenderId: number,
+  timestamp: number,
+  weight: number,
+  pairStatsBySource: Map<number, Map<number, CoOccurrencePairStats>>,
+  pairs: CoOccurrencePairStats[]
+): void {
+  const sourceId = Math.min(leftSenderId, rightSenderId)
+  const targetId = Math.max(leftSenderId, rightSenderId)
+  let pairStatsByTarget = pairStatsBySource.get(sourceId)
+  if (!pairStatsByTarget) {
+    pairStatsByTarget = new Map()
+    pairStatsBySource.set(sourceId, pairStatsByTarget)
+  }
+  let pair = pairStatsByTarget.get(targetId)
+  if (!pair) {
+    pair = { sourceId, targetId, rawScore: 0, coOccurrenceCount: 0, lastOccurrenceTs: 0 }
+    pairStatsByTarget.set(targetId, pair)
+    pairs.push(pair)
+  }
+  pair.rawScore += weight
+  pair.coOccurrenceCount++
+  pair.lastOccurrenceTs = Math.max(pair.lastOccurrenceTs, timestamp)
 }
 
 /**
@@ -379,7 +464,11 @@ export function accumulateSelectedCoOccurrencePairs(
   const maxAnchorsPerPair = Math.max(0, Math.floor(options?.maxAnchorsPerPair ?? 2))
   const maxGapSeconds = Math.max(0, options?.maxGapSeconds ?? DEFAULT_SELECTED_PROXIMITY_MAX_GAP_SECONDS)
   const selectedKeys = new Set(selectedPairs.map(([left, right]) => clusterPairKey(left, right)))
-  const candidateIndexes = buildDistinctSpeakerLookAhead(messages, lookAhead)
+  const candidateIndexes = buildDistinctSpeakerLookAhead(
+    messages.length,
+    (index) => messages[index].senderId,
+    lookAhead
+  )
   const stats = new Map<
     string,
     {
@@ -452,31 +541,35 @@ export function accumulateSelectedCoOccurrencePairs(
  * 反向扫描时，链表中只保留每位发言人在当前位置之后的首次出现，且按消息位置升序排列。
  * 因而每条消息只需读取链表头部的 lookAhead 个节点，避免双人长对话反复扫描到数组末尾。
  */
-function buildDistinctSpeakerLookAhead(messages: IdentifiedCoOccurrenceMessage[], lookAhead: number): Int32Array {
-  const candidateIndexes = new Int32Array(messages.length * lookAhead)
+function buildDistinctSpeakerLookAhead(
+  messageCount: number,
+  senderIdAt: (index: number) => number,
+  lookAhead: number
+): Int32Array {
+  const candidateIndexes = new Int32Array(messageCount * lookAhead)
   candidateIndexes.fill(-1)
-  if (lookAhead === 0 || messages.length === 0) return candidateIndexes
+  if (lookAhead === 0 || messageCount === 0) return candidateIndexes
 
-  const previousIndexes = new Int32Array(messages.length)
-  const nextIndexes = new Int32Array(messages.length)
+  const previousIndexes = new Int32Array(messageCount)
+  const nextIndexes = new Int32Array(messageCount)
   previousIndexes.fill(-1)
   nextIndexes.fill(-1)
   const activeIndexBySender = new Map<number, number>()
   let headIndex = -1
 
-  for (let index = messages.length - 1; index >= 0; index--) {
-    const anchor = messages[index]
+  for (let index = messageCount - 1; index >= 0; index--) {
+    const senderId = senderIdAt(index)
     let candidateIndex = headIndex
     let found = 0
     while (candidateIndex >= 0 && found < lookAhead) {
-      if (messages[candidateIndex].senderId !== anchor.senderId) {
+      if (senderIdAt(candidateIndex) !== senderId) {
         candidateIndexes[index * lookAhead + found] = candidateIndex
         found++
       }
       candidateIndex = nextIndexes[candidateIndex]
     }
 
-    const previousOccurrence = activeIndexBySender.get(anchor.senderId)
+    const previousOccurrence = activeIndexBySender.get(senderId)
     if (previousOccurrence !== undefined) {
       const previousIndex = previousIndexes[previousOccurrence]
       const nextIndex = nextIndexes[previousOccurrence]
@@ -489,7 +582,7 @@ function buildDistinctSpeakerLookAhead(messages: IdentifiedCoOccurrenceMessage[]
     nextIndexes[index] = headIndex
     if (headIndex >= 0) previousIndexes[headIndex] = index
     headIndex = index
-    activeIndexBySender.set(anchor.senderId, index)
+    activeIndexBySender.set(senderId, index)
   }
 
   return candidateIndexes
@@ -545,30 +638,24 @@ export function getClusterGraph(
   for (const m of members)
     memberInfo.set(m.id, { name: m.name, platformId: m.platformId, messageCount: m.messageCount })
 
-  const { clause, params } = buildTimeFilter(filter)
-  let whereClause = clause
-  if (whereClause.includes('WHERE')) {
-    whereClause += " AND COALESCE(m.account_name, '') != '系统消息'"
-  } else {
-    whereClause = " WHERE COALESCE(m.account_name, '') != '系统消息'"
-  }
+  const memberMsgCount = new Map<number, number>()
+  let totalMessages = 0
+  const trackedMessageBatches = (function* () {
+    for (const batch of queryClusterMessageBatches(db, filter)) {
+      for (const message of batch) {
+        memberMsgCount.set(message.senderId, (memberMsgCount.get(message.senderId) || 0) + 1)
+        totalMessages++
+      }
+      yield batch
+    }
+  })()
+  const coOccurrencePairs = accumulateCoOccurrencePairBatches(trackedMessageBatches, opts)
 
-  const messages = db
-    .prepare(
-      `SELECT msg.sender_id as senderId, msg.ts as ts FROM message msg JOIN member m ON msg.sender_id = m.id
-       ${whereClause} ORDER BY msg.ts ASC, msg.id ASC`
-    )
-    .all(...params) as Array<{ senderId: number; ts: number }>
-
-  if (messages.length < 2)
+  if (totalMessages < 2)
     return {
       ...emptyResult,
-      stats: { ...emptyResult.stats, totalMembers: members.length, totalMessages: messages.length },
+      stats: { ...emptyResult.stats, totalMembers: members.length, totalMessages },
     }
-
-  const memberMsgCount = new Map<number, number>()
-  for (const msg of messages) memberMsgCount.set(msg.senderId, (memberMsgCount.get(msg.senderId) || 0) + 1)
-  const totalMessages = messages.length
 
   const lookAheadFactor = opts.lookAhead * 0.8
   const rawEdges: Array<{
@@ -580,7 +667,7 @@ export function getClusterGraph(
     coOccurrenceCount: number
   }> = []
 
-  for (const pair of accumulateCoOccurrencePairs(messages, opts)) {
+  for (const pair of coOccurrencePairs) {
     const aId = pair.sourceId
     const bId = pair.targetId
     const aMsgCount = memberMsgCount.get(aId) || 0
@@ -617,7 +704,7 @@ export function getClusterGraph(
   if (keptEdges.length === 0)
     return {
       ...emptyResult,
-      stats: { ...emptyResult.stats, totalMembers: members.length, totalMessages: messages.length },
+      stats: { ...emptyResult.stats, totalMembers: members.length, totalMessages },
     }
 
   const involvedIds = new Set<number>()
@@ -684,10 +771,55 @@ export function getClusterGraph(
     communities: [],
     stats: {
       totalMembers: members.length,
-      totalMessages: messages.length,
+      totalMessages,
       involvedMembers: involvedIds.size,
       edgeCount: keptEdges.length,
       communityCount: 0,
     },
   }
+}
+
+function* queryClusterMessageBatches(
+  db: DatabaseAdapter,
+  filter?: TimeFilter
+): Generator<Array<{ senderId: number; ts: number }>> {
+  const { clause, params } = buildTimeFilter(filter, 'msg')
+  const systemMemberCondition = "COALESCE(m.account_name, '') != '系统消息'"
+  const firstWhere = appendSocialConditions(clause, [systemMemberCondition])
+  const nextWhere = appendSocialConditions(clause, [systemMemberCondition, '(msg.ts, msg.id) > (?, ?)'])
+  const firstPage = db.prepare(
+    `SELECT msg.id, msg.sender_id as senderId, msg.ts
+     FROM message msg JOIN member m ON msg.sender_id = m.id
+     ${firstWhere}
+     ORDER BY msg.ts ASC, msg.id ASC
+     LIMIT ?`
+  )
+  const nextPage = db.prepare(
+    `SELECT msg.id, msg.sender_id as senderId, msg.ts
+     FROM message msg JOIN member m ON msg.sender_id = m.id
+     ${nextWhere}
+     ORDER BY msg.ts ASC, msg.id ASC
+     LIMIT ?`
+  )
+
+  let rows = firstPage.all(...params, CO_OCCURRENCE_MESSAGE_BATCH_SIZE) as Array<{
+    id: number
+    senderId: number
+    ts: number
+  }>
+  while (rows.length > 0) {
+    yield rows
+    if (rows.length < CO_OCCURRENCE_MESSAGE_BATCH_SIZE) break
+    const last = rows[rows.length - 1]
+    rows = nextPage.all(...params, last.ts, last.id, CO_OCCURRENCE_MESSAGE_BATCH_SIZE) as Array<{
+      id: number
+      senderId: number
+      ts: number
+    }>
+  }
+}
+
+function appendSocialConditions(clause: string, conditions: string[]): string {
+  const existing = clause.trim().replace(/^WHERE\s+/i, '')
+  return `WHERE ${[existing, ...conditions].filter(Boolean).join(' AND ')}`
 }

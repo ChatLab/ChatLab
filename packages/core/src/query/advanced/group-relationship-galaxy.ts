@@ -11,7 +11,7 @@ import type { ContactMemberRef } from '../contact-queries'
 import { getNonSystemMembersForContacts } from '../contact-queries'
 import type { DatabaseAdapter } from '../../interfaces'
 import { buildTimeFilter, hasColumn, hasTable } from '../filters'
-import { accumulateCoOccurrencePairs } from './social'
+import { accumulateCoOccurrencePairBatches } from './social'
 
 export const GROUP_RELATIONSHIP_GALAXY_ALGORITHM_VERSION = 'group-relationship-galaxy-v1'
 
@@ -19,6 +19,7 @@ const REPLY_WEIGHT = 3
 const MENTION_WEIGHT = 2
 const CO_OCCURRENCE_COUNT_WEIGHT = 0.05
 const MIN_EDGE_WEIGHT = 0.000001
+const MESSAGE_BATCH_SIZE = 20_000
 const DEFAULT_LIMITS = {
   nodeLimit: 400,
   edgeLimit: 1200,
@@ -80,8 +81,10 @@ export function getGroupRelationshipGalaxy(
   const limits = normalizeLimits(options)
   const allMembers = getNonSystemMembersForContacts(db)
   const memberById = new Map(allMembers.map((member) => [member.id, member]))
-  const messageRows = queryRelationshipMessages(db, filter).filter((message) => memberById.has(message.senderId))
-  const activeMembers = buildActiveMembers(allMembers, messageRows)
+  const messageStats = new Map<number, { count: number; lastTs: number }>()
+  const messageBatches = filterRelationshipMessageBatches(db, filter, memberById, messageStats)
+  const coOccurrencePairs = accumulateCoOccurrencePairBatches(messageBatches)
+  const activeMembers = buildActiveMembers(allMembers, messageStats)
   const activeMemberById = new Map(activeMembers.map((member) => [member.id, member]))
 
   if (activeMembers.length < 2) {
@@ -89,7 +92,7 @@ export function getGroupRelationshipGalaxy(
   }
 
   const edgeByPair = new Map<string, EdgeAccumulator>()
-  for (const pair of accumulateCoOccurrencePairs(messageRows)) {
+  for (const pair of coOccurrencePairs) {
     if (!activeMemberById.has(pair.sourceId) || !activeMemberById.has(pair.targetId)) continue
     const edge = ensureEdge(edgeByPair, activeMemberById, pair.sourceId, pair.targetId)
     edge.coOccurrenceCount += pair.coOccurrenceCount
@@ -222,26 +225,62 @@ export function getGroupRelationshipGalaxy(
   }
 }
 
-function queryRelationshipMessages(db: DatabaseAdapter, filter?: TimeFilter): Array<{ senderId: number; ts: number }> {
+function* filterRelationshipMessageBatches(
+  db: DatabaseAdapter,
+  filter: TimeFilter | undefined,
+  memberById: Map<number, ContactMemberRef>,
+  messageStats: Map<number, { count: number; lastTs: number }>
+): Generator<Array<{ senderId: number; ts: number }>> {
+  for (const batch of queryRelationshipMessageBatches(db, filter)) {
+    const filtered: Array<{ senderId: number; ts: number }> = []
+    for (const message of batch) {
+      if (!memberById.has(message.senderId)) continue
+      const stats = messageStats.get(message.senderId) ?? { count: 0, lastTs: 0 }
+      stats.count++
+      stats.lastTs = Math.max(stats.lastTs, message.ts)
+      messageStats.set(message.senderId, stats)
+      filtered.push(message)
+    }
+    yield filtered
+  }
+}
+
+function* queryRelationshipMessageBatches(
+  db: DatabaseAdapter,
+  filter?: TimeFilter
+): Generator<Array<{ id: number; senderId: number; ts: number }>> {
   const { clause, params } = buildTimeFilter(filter, 'msg')
-  const where = appendConditions(clause, ['msg.type NOT IN (80, 81)'])
-  return db
-    .prepare(`SELECT msg.sender_id as senderId, msg.ts FROM message msg ${where} ORDER BY msg.ts ASC, msg.id ASC`)
-    .all(...params) as Array<{ senderId: number; ts: number }>
+  const conditions = ['msg.type NOT IN (80, 81)']
+  const firstPage = db.prepare(
+    `SELECT msg.id, msg.sender_id as senderId, msg.ts
+     FROM message msg ${appendConditions(clause, conditions)}
+     ORDER BY msg.ts ASC, msg.id ASC
+     LIMIT ?`
+  )
+  const nextPage = db.prepare(
+    `SELECT msg.id, msg.sender_id as senderId, msg.ts
+     FROM message msg ${appendConditions(clause, [...conditions, '(msg.ts, msg.id) > (?, ?)'])}
+     ORDER BY msg.ts ASC, msg.id ASC
+     LIMIT ?`
+  )
+
+  let rows = firstPage.all(...params, MESSAGE_BATCH_SIZE) as Array<{ id: number; senderId: number; ts: number }>
+  while (rows.length > 0) {
+    yield rows
+    if (rows.length < MESSAGE_BATCH_SIZE) break
+    const last = rows[rows.length - 1]
+    rows = nextPage.all(...params, last.ts, last.id, MESSAGE_BATCH_SIZE) as Array<{
+      id: number
+      senderId: number
+      ts: number
+    }>
+  }
 }
 
 function buildActiveMembers(
   allMembers: ContactMemberRef[],
-  messages: Array<{ senderId: number; ts: number }>
+  messageStats: Map<number, { count: number; lastTs: number }>
 ): ActiveMember[] {
-  const messageStats = new Map<number, { count: number; lastTs: number }>()
-  for (const message of messages) {
-    const stats = messageStats.get(message.senderId) ?? { count: 0, lastTs: 0 }
-    stats.count++
-    stats.lastTs = Math.max(stats.lastTs, message.ts)
-    messageStats.set(message.senderId, stats)
-  }
-
   const active = allMembers
     .filter((member) => messageStats.has(member.id))
     .map((member) => ({
