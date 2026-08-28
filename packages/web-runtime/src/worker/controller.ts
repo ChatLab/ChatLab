@@ -14,8 +14,6 @@ import { WebRuntimeError } from '../runtime-error'
 import { BrowserDatabaseRuntime, type DatabaseOpenStage } from '../sqlite/database-runtime'
 import { BrowserSessionRuntime } from '../import/session-runtime'
 import type { WorkspaceDatabasePort } from '../storage/workspace-database'
-import { BrowserAIConversationRepository } from '../ai/conversation-repository'
-import { BrowserAIToolRuntime } from '../ai/tool-runtime'
 
 export interface WorkerMessageSink {
   postMessage(message: RpcResponseEnvelope): void
@@ -61,24 +59,6 @@ export type WorkerSessionRuntime = Pick<
   | 'getTimeInvestment'
 >
 
-export type WorkerAIRepository = Pick<
-  BrowserAIConversationRepository,
-  | 'createConversation'
-  | 'listConversations'
-  | 'getConversation'
-  | 'renameConversation'
-  | 'deleteConversation'
-  | 'deleteBySession'
-  | 'getMessages'
-  | 'appendMessage'
-  | 'updateMessage'
-  | 'deleteMessage'
-  | 'getContextSummary'
-  | 'saveContextSummary'
->
-
-export type WorkerAIToolRuntime = Pick<BrowserAIToolRuntime, 'listTools' | 'execute'>
-
 export class WebRuntimeWorkerController {
   private readonly abortControllers = new Map<string, AbortController>()
   private readonly cancelled = new Set<string>()
@@ -89,9 +69,7 @@ export class WebRuntimeWorkerController {
     private readonly sink: WorkerMessageSink,
     private readonly databaseRuntime: WorkerDatabaseRuntime = new BrowserDatabaseRuntime(),
     private readonly capabilityDetector: () => BrowserCapabilityReport = detectBrowserCapabilities,
-    private readonly sessionRuntime: WorkerSessionRuntime = new BrowserSessionRuntime(databaseRuntime),
-    private readonly aiRepository: WorkerAIRepository = new BrowserAIConversationRepository(databaseRuntime),
-    private readonly aiToolRuntime: WorkerAIToolRuntime = new BrowserAIToolRuntime(databaseRuntime)
+    private readonly sessionRuntime: WorkerSessionRuntime = new BrowserSessionRuntime(databaseRuntime)
   ) {}
 
   handleMessage(value: unknown): void {
@@ -257,62 +235,11 @@ export class WebRuntimeWorkerController {
         return this.sessionRuntime.getSession(request.payload.sessionId)
       case 'session.delete': {
         this.assertSupportedBrowser()
-        const deleted = await this.sessionRuntime.deleteSession(request.payload.sessionId)
-        // 主会话可能已在上一次请求中删除；AI 清理必须保持可重试，避免残留不可见的对话数据。
-        const deletedAIConversations = await this.aiRepository.deleteBySession(request.payload.sessionId)
-        return { deleted: deleted || deletedAIConversations > 0 }
+        return { deleted: await this.sessionRuntime.deleteSession(request.payload.sessionId) }
       }
       case 'session.rename':
         this.assertSupportedBrowser()
         return { renamed: await this.sessionRuntime.renameSession(request.payload.sessionId, request.payload.name) }
-      case 'ai.conversation.create':
-        return this.aiRepository.createConversation(request.payload.sessionId, request.payload.title)
-      case 'ai.conversation.list':
-        return this.aiRepository.listConversations(request.payload.sessionId)
-      case 'ai.conversation.get':
-        return this.aiRepository.getConversation(request.payload.conversationId)
-      case 'ai.conversation.rename':
-        return {
-          renamed: await this.aiRepository.renameConversation(request.payload.conversationId, request.payload.title),
-        }
-      case 'ai.conversation.delete':
-        return { deleted: await this.aiRepository.deleteConversation(request.payload.conversationId) }
-      case 'ai.message.list':
-        return this.aiRepository.getMessages(request.payload.conversationId)
-      case 'ai.message.append':
-        return this.aiRepository.appendMessage(request.payload)
-      case 'ai.message.update':
-        await this.aiRepository.updateMessage(request.payload.messageId, request.payload.patch)
-        return { updated: true }
-      case 'ai.message.delete':
-        return { deleted: await this.aiRepository.deleteMessage(request.payload.messageId) }
-      case 'ai.context-summary.get':
-        return this.aiRepository.getContextSummary(request.payload.conversationId)
-      case 'ai.context-summary.save':
-        return this.aiRepository.saveContextSummary(request.payload)
-      case 'ai.tool.list':
-        return this.aiToolRuntime.listTools(request.payload.locale)
-      case 'ai.tool.execute': {
-        const startedAt = performance.now()
-        const result = await this.aiToolRuntime.execute(
-          request.payload.sessionId,
-          request.payload.name,
-          request.payload.input,
-          { locale: request.payload.locale, signal }
-        )
-        this.emitLog(request.id, {
-          level: 'debug',
-          scope: 'web-runtime',
-          message: 'Browser AI tool execution completed',
-          data: {
-            toolName: request.payload.name,
-            sessionId: request.payload.sessionId,
-            truncated: result.truncated === true,
-            durationMs: Math.round(performance.now() - startedAt),
-          },
-        })
-        return result
-      }
       case 'analysis.hourly': {
         this.assertSupportedBrowser()
         const startedAt = performance.now()
