@@ -359,6 +359,93 @@ describe('runAgentCore runtime contract', () => {
     )
   })
 
+  it('stops after one final-answer turn when the tool round limit is reached', async () => {
+    let providerCalls = 0
+    let handlerCalls = 0
+    const tool = createTool('lookup', async () => {
+      handlerCalls += 1
+      return { content: [{ type: 'text', text: 'tool result' }], details: null }
+    })
+    const toolCall = () =>
+      assistantMessage([{ type: 'toolCall', id: `tool-${providerCalls}`, name: 'lookup', arguments: {} }], {
+        stopReason: 'toolUse',
+      })
+
+    const result = await runAgentCore(
+      createOptions({
+        tools: [tool],
+        maxToolRounds: 1,
+        steerMessage: 'Finish now.',
+        streamFn: createScriptedStream([
+          () => {
+            providerCalls += 1
+            return toolCall()
+          },
+          (context) => {
+            providerCalls += 1
+            assert.deepEqual(context.tools, [])
+            return toolCall()
+          },
+          () => {
+            providerCalls += 1
+            return toolCall()
+          },
+          () => {
+            providerCalls += 1
+            return assistantMessage([{ type: 'text', text: 'Too late' }])
+          },
+        ]),
+      })
+    )
+
+    assert.deepEqual(
+      { providerCalls, handlerCalls, toolRounds: result.toolRounds },
+      { providerCalls: 2, handlerCalls: 1, toolRounds: 1 }
+    )
+  })
+
+  it('stops after the first turn when the tool round limit is zero', async () => {
+    let providerCalls = 0
+    let handlerCalls = 0
+    const tool = createTool('lookup', async () => {
+      handlerCalls += 1
+      return { content: [{ type: 'text', text: 'tool result' }], details: null }
+    })
+    const toolCall = () =>
+      assistantMessage([{ type: 'toolCall', id: `tool-${providerCalls}`, name: 'lookup', arguments: {} }], {
+        stopReason: 'toolUse',
+      })
+
+    const result = await runAgentCore(
+      createOptions({
+        tools: [tool],
+        maxToolRounds: 0,
+        streamFn: createScriptedStream([
+          (context) => {
+            providerCalls += 1
+            assert.deepEqual(context.tools, [])
+            return toolCall()
+          },
+          () => {
+            providerCalls += 1
+            return toolCall()
+          },
+        ]),
+      })
+    )
+
+    assert.deepEqual(
+      { providerCalls, handlerCalls, toolRounds: result.toolRounds },
+      { providerCalls: 1, handlerCalls: 0, toolRounds: 0 }
+    )
+    assert.deepEqual(
+      result.finalMessages.map((message) => message.role),
+      ['user', 'assistant', 'toolResult']
+    )
+    const finalMessage = result.finalMessages.at(-1)
+    assert.equal(finalMessage?.role === 'toolResult' && finalMessage.isError, true)
+  })
+
   it('forwards the stable AI conversation id as the provider session id', async () => {
     let capturedOptions: SimpleStreamOptions | undefined
 
