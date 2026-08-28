@@ -127,12 +127,11 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
       onConvertToLlm?.(filtered)
       return filtered
     },
-    prepareNextTurn: () =>
+    prepareNextTurnWithContext: ({ context }) =>
       hasReachedToolRoundLimit
         ? {
             context: {
-              systemPrompt,
-              messages: coreAgent.state.messages,
+              ...context,
               tools: [],
             },
           }
