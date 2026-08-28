@@ -213,6 +213,15 @@ describe('social analysis', () => {
     )
   })
 
+  it('caps oversized look-ahead values before allocating candidate indexes', () => {
+    const messages = Array.from({ length: 12 }, (_, index) => ({ senderId: index + 1, ts: 100 + index }))
+
+    assert.deepEqual(
+      accumulateCoOccurrencePairBatches([messages], { lookAhead: 100_000 }),
+      accumulateCoOccurrencePairBatches([messages], { lookAhead: 10 })
+    )
+  })
+
   it('keeps large streamed aggregation identical to the in-memory algorithm', () => {
     const senderPattern = [1, 1, 2, 3, 2, 4, 5]
     const messages = Array.from({ length: 100_005 }, (_, index) => ({
