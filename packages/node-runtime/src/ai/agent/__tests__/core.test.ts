@@ -282,6 +282,38 @@ describe('runAgentCore runtime contract', () => {
     )
   })
 
+  it('preserves explicit error flags returned by tools', async () => {
+    const events: AgentCoreEvent[] = []
+    const tool = createTool('failed_lookup', async () => ({
+      content: [{ type: 'text', text: 'lookup failed' }],
+      details: null,
+      isError: true,
+    }))
+
+    const result = await runAgentCore(
+      createOptions({
+        tools: [tool],
+        streamFn: createScriptedStream([
+          assistantMessage([{ type: 'toolCall', id: 'failed-lookup', name: 'failed_lookup', arguments: {} }], {
+            stopReason: 'toolUse',
+          }),
+          assistantMessage([{ type: 'text', text: 'Recovered' }]),
+        ]),
+        onEvent: (event) => events.push(event),
+      })
+    )
+    const toolEnd = events.find((event) => event.type === 'tool_end')
+    const toolResult = result.finalMessages.find((message) => message.role === 'toolResult')
+
+    assert.deepEqual(
+      {
+        event: toolEnd?.type === 'tool_end' ? toolEnd.isError : undefined,
+        transcript: toolResult?.role === 'toolResult' ? toolResult.isError : undefined,
+      },
+      { event: true, transcript: true }
+    )
+  })
+
   it('disables tools and injects the final-answer steer message at the tool round limit', async () => {
     let finalContext: Context | undefined
     const tool = createTool('lookup', async () => ({
