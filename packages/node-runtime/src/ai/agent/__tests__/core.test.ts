@@ -309,13 +309,21 @@ describe('runAgentCore runtime contract', () => {
     assert.equal(result.toolRounds, 1)
     assert.deepEqual(finalContext?.tools, [])
     assert.equal(
-      finalContext?.messages.some(
+      finalContext?.messages.filter(
         (message) =>
           message.role === 'user' &&
           Array.isArray(message.content) &&
           message.content.some((block) => block.type === 'text' && block.text === 'Finish now.')
-      ),
-      true
+      ).length,
+      1
+    )
+    assert.equal(
+      result.finalMessages.filter(
+        (message) =>
+          message.role === 'assistant' &&
+          message.content.some((block) => block.type === 'text' && block.text === 'Done')
+      ).length,
+      1
     )
   })
 
