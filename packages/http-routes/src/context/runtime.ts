@@ -14,4 +14,6 @@ export interface RuntimeRouteContext {
   runtimeIdentity?: RuntimeIdentity
   /** Native binding path for better-sqlite3 (CLI native copy / Electron-ABI desktop copy). */
   nativeBinding?: string
+  /** Read-only directory containing dictionaries bundled by the current runtime. */
+  bundledNlpDictDir?: string
 }

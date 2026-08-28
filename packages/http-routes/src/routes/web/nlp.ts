@@ -27,12 +27,15 @@ import {
 type NlpRouteContext = AnalyticsCacheContext & {
   pathProvider: Pick<PathProvider, 'getCacheDir' | 'getSystemDir'>
   dbManager: Pick<DatabaseManager, 'open'>
+  bundledNlpDictDir?: string
 }
 
 export function registerNlpRoutes(server: FastifyInstance, ctx: NlpRouteContext): void {
   const nlpDir = path.join(ctx.pathProvider.getSystemDir(), 'nlp')
   initNlpDir(nlpDir)
-  ensureDefaultDict(nlpDir).catch((err) => console.warn('[NLP] Auto-download zh-CN dict failed:', err))
+  ensureDefaultDict(nlpDir, ctx.bundledNlpDictDir).catch((err) =>
+    console.warn('[NLP] Initialize zh-CN dict failed:', err)
+  )
 
   server.get('/_web/nlp/pos-tags', async () => {
     return POS_TAG_DEFINITIONS

@@ -152,8 +152,20 @@ export function deleteDict(nlpDir: string, dictId: string): { success: boolean; 
 /**
  * 自动下载默认词库（应用启动时调用）
  */
-export async function ensureDefaultDict(nlpDir: string): Promise<void> {
+export async function ensureDefaultDict(nlpDir: string, bundledDictDir?: string): Promise<void> {
   if (isDictDownloaded(nlpDir, 'zh-CN')) return
+  if (bundledDictDir) {
+    const bundledPath = getDictFilePath(bundledDictDir, 'zh-CN')
+    if (fs.existsSync(bundledPath)) {
+      fs.mkdirSync(nlpDir, { recursive: true })
+      const filePath = getDictFilePath(nlpDir, 'zh-CN')
+      const tmpPath = filePath + '.tmp'
+      fs.copyFileSync(bundledPath, tmpPath)
+      fs.renameSync(tmpPath, filePath)
+      console.log('[NLP DictManager] Installed bundled zh-CN dictionary')
+      return
+    }
+  }
   console.log('[NLP DictManager] zh-CN dict not found, starting background download...')
   const result = await downloadDict(nlpDir, 'zh-CN')
   if (result.success) {

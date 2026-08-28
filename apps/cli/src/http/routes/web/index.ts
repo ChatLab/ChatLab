@@ -139,6 +139,7 @@ export function registerWebRoutes(
       runtimeIdentity: options?.runtimeIdentity,
       getVersion,
       nativeBinding: options?.nativeBinding,
+      bundledNlpDictDir: process.env.CHATLAB_NLP_DICT_DIR?.trim() || undefined,
       semanticIndexService,
       contactsService: options?.contactsService,
       globalInsightService: options?.globalInsightService,

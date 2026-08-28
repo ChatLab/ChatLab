@@ -12,6 +12,8 @@ ghcr.io/chatlab/chatlab-cli
 
 官方映像已內建本地向量模型所需的執行元件。啟用本地語意索引時，只需依照介面提示下載所選模型檔案，不會在容器啟動後再安裝約 370 MB 的 Node 相依套件。
 
+映像也將預設的簡體中文斷詞詞典存放在 `/opt/chatlab/nlp`，並透過 `CHATLAB_NLP_DICT_DIR` 指向該路徑，因此首次啟動時不需要下載。掛載的 ChatLab 目錄中既有的詞典會保留。
+
 ## 快速開始
 
 ### 與 Desktop / 本機 CLI 共用資料（建議）
