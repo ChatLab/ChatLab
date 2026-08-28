@@ -96,7 +96,8 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
   })()
 
   const finalThinkingLevel = resolvedThinkingLevel ?? (piModel.reasoning ? undefined : 'off')
-  let hasReachedToolRoundLimit = false
+  let hasReachedToolRoundLimit = maxToolRounds <= 0
+  let hasCompletedFinalAnswerTurn = false
 
   // DeepSeek-format APIs require reasoning_content on assistant messages that
   // precede tool results; build replay options so toPiHistoryMessages includes
@@ -129,6 +130,7 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
     },
     afterToolCall: async ({ result }) =>
       (result as { isError?: boolean }).isError === true ? { isError: true } : undefined,
+    shouldStopAfterTurn: async () => hasCompletedFinalAnswerTurn,
     prepareNextTurnWithContext: ({ context }) =>
       hasReachedToolRoundLimit
         ? {
@@ -219,9 +221,10 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
       })
     } else if (event.type === 'turn_end') {
       const hadToolCalls = event.toolResults.length > 0
-      if (hadToolCalls) {
+      const isFinalAnswerTurn = hasReachedToolRoundLimit
+      if (hadToolCalls && !hasReachedToolRoundLimit) {
         toolRounds += 1
-        if (!hasReachedToolRoundLimit && maxToolRounds > 0 && toolRounds >= maxToolRounds) {
+        if (maxToolRounds > 0 && toolRounds >= maxToolRounds) {
           hasReachedToolRoundLimit = true
           coreAgent.state.tools = []
           coreAgent.steer({
@@ -231,6 +234,7 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
           } as PiMessage)
         }
       }
+      if (isFinalAnswerTurn) hasCompletedFinalAnswerTurn = true
       onEvent({ type: 'turn_end', round: toolRounds, hadToolCalls })
     } else if (event.type === 'message_end') {
       if (event.message.role === 'assistant') {
