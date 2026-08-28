@@ -127,6 +127,8 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
       onConvertToLlm?.(filtered)
       return filtered
     },
+    afterToolCall: async ({ result }) =>
+      (result as { isError?: boolean }).isError === true ? { isError: true } : undefined,
     prepareNextTurnWithContext: ({ context }) =>
       hasReachedToolRoundLimit
         ? {
