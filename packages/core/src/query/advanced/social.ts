@@ -309,8 +309,21 @@ export interface SelectedCoOccurrencePairStats extends CoOccurrencePairStats {
 }
 
 const DEFAULT_CLUSTER_OPTIONS = { lookAhead: 3, decaySeconds: 120, topEdges: 100 }
+const MAX_CLUSTER_LOOK_AHEAD = 10
 const DEFAULT_SELECTED_PROXIMITY_MAX_GAP_SECONDS = 1800
 const CO_OCCURRENCE_MESSAGE_BATCH_SIZE = 20_000
+
+function resolveClusterOptions(options?: ClusterGraphOptions): Required<ClusterGraphOptions> {
+  const requestedLookAhead = options?.lookAhead ?? DEFAULT_CLUSTER_OPTIONS.lookAhead
+  const lookAhead = Number.isFinite(requestedLookAhead)
+    ? Math.min(MAX_CLUSTER_LOOK_AHEAD, Math.max(0, Math.ceil(requestedLookAhead)))
+    : DEFAULT_CLUSTER_OPTIONS.lookAhead
+  return {
+    lookAhead,
+    decaySeconds: options?.decaySeconds ?? DEFAULT_CLUSTER_OPTIONS.decaySeconds,
+    topEdges: options?.topEdges ?? DEFAULT_CLUSTER_OPTIONS.topEdges,
+  }
+}
 
 function roundNum(value: number, digits = 4): number {
   const factor = 10 ** digits
@@ -325,7 +338,7 @@ export function accumulateCoOccurrencePairs(
   messages: CoOccurrenceMessage[],
   options?: ClusterGraphOptions
 ): CoOccurrencePairStats[] {
-  const opts = { ...DEFAULT_CLUSTER_OPTIONS, ...options }
+  const opts = resolveClusterOptions(options)
   const pairStatsBySource = new Map<number, Map<number, CoOccurrencePairStats>>()
   const pairs: CoOccurrencePairStats[] = []
 
@@ -398,8 +411,8 @@ function accumulateCoOccurrenceColumns(
   timestamps: Float64Array,
   options?: ClusterGraphOptions
 ): CoOccurrencePairStats[] {
-  const opts = { ...DEFAULT_CLUSTER_OPTIONS, ...options }
-  const lookAhead = Math.max(0, Math.ceil(opts.lookAhead))
+  const opts = resolveClusterOptions(options)
+  const lookAhead = opts.lookAhead
   const candidateIndexes = buildDistinctSpeakerLookAhead(senderIds.length, (index) => senderIds[index], lookAhead)
   const pairStatsBySource = new Map<number, Map<number, CoOccurrencePairStats>>()
   const pairs: CoOccurrencePairStats[] = []
@@ -459,8 +472,8 @@ export function accumulateSelectedCoOccurrencePairs(
   selectedPairs: Array<readonly [number, number]>,
   options?: ClusterGraphOptions & { maxAnchorsPerPair?: number; maxGapSeconds?: number }
 ): SelectedCoOccurrencePairStats[] {
-  const opts = { ...DEFAULT_CLUSTER_OPTIONS, ...options }
-  const lookAhead = Math.max(0, Math.ceil(opts.lookAhead))
+  const opts = resolveClusterOptions(options)
+  const lookAhead = opts.lookAhead
   const maxAnchorsPerPair = Math.max(0, Math.floor(options?.maxAnchorsPerPair ?? 2))
   const maxGapSeconds = Math.max(0, options?.maxGapSeconds ?? DEFAULT_SELECTED_PROXIMITY_MAX_GAP_SECONDS)
   const selectedKeys = new Set(selectedPairs.map(([left, right]) => clusterPairKey(left, right)))
@@ -615,7 +628,7 @@ export function getClusterGraph(
   filter?: TimeFilter,
   options?: ClusterGraphOptions
 ): ClusterGraphData {
-  const opts = { ...DEFAULT_CLUSTER_OPTIONS, ...options }
+  const opts = resolveClusterOptions(options)
   const emptyResult: ClusterGraphData = {
     nodes: [],
     links: [],
