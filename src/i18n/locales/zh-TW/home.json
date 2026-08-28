@@ -121,7 +121,6 @@
     "title": "選擇要匯入的聊天",
     "scanning": "正在掃描聊天列表...",
     "scanFailed": "掃描失敗",
-    "retry": "重試",
     "selectAll": "全選",
     "chatCount": "共 {count} 個聊天",
     "selected": "已選 {count} 個",

@@ -6,7 +6,6 @@
     "searchPlaceholder": "搜尋成員",
     "noMatch": "沒有找到符合的成員",
     "empty": "暫無成員資料",
-    "loadError": "成員資料載入失敗，請重試",
     "later": "稍後",
     "notInConversation": "目前對話中沒有我",
     "save": "儲存",

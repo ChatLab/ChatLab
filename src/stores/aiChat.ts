@@ -712,14 +712,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     return true
   }
 
-  async function loadMoreSourceMessages(): Promise<void> {
-    // Agent 模式下暂不支持加载更多
-  }
-
-  async function updateMaxMessages(): Promise<void> {
-    // Agent 模式下由工具自行控制
-  }
-
   interface StreamBlockHelpers {
     updateAIMessage: (updates: Partial<ChatMessage>) => void
     appendTextToBlocks: (text: string) => void
@@ -2131,8 +2123,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     focusActiveTaskAIChat,
     resetToSelectorOnEnter,
     startNewAIChat,
-    loadMoreSourceMessages,
-    updateMaxMessages,
     sendMessage,
     editMessageAndRegenerate,
     stopGeneration,

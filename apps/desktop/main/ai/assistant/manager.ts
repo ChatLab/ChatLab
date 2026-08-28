@@ -16,7 +16,6 @@ import {
   type AssistantSummary,
   type AssistantInitResult,
   type AssistantSaveResult,
-  type BuiltinAssistantInfo,
   type AssistantManagerFs,
 } from '@openchatlab/node-runtime'
 import { getPathProvider } from '../../paths/provider'
@@ -80,18 +79,6 @@ export function getAssistantConfig(id: string): AssistantConfig | null {
 
 export function hasAssistant(id: string): boolean {
   return getManager().hasAssistant(id)
-}
-
-export function getBuiltinCatalog(): BuiltinAssistantInfo[] {
-  return getManager().getBuiltinCatalog()
-}
-
-export function importAssistant(builtinId: string): AssistantSaveResult {
-  return getManager().importAssistant(builtinId)
-}
-
-export function reimportAssistant(id: string): AssistantSaveResult {
-  return getManager().reimportAssistant(id)
 }
 
 export function updateAssistant(id: string, updates: Partial<AssistantConfig>): AssistantSaveResult {

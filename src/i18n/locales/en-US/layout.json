@@ -1,11 +1,8 @@
 {
   "brand": "ChatLab",
   "newAnalysis": "New Analysis",
-  "contacts": "Contacts",
   "relationships": "Relationships",
   "insight": "Footprint",
-  "tools": "Tools",
-  "chatHistory": "Chat History",
   "manage": "Manage",
   "noRecords": "No records",
   "sessionLoadFailed": "Couldn't load conversations",

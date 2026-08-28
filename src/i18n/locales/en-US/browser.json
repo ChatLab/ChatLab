@@ -4,10 +4,7 @@
   "noSignIn": "No sign-in",
   "localOnly": "Processed on this device",
   "noUpload": "Nothing uploaded",
-  "localOnlyDetail": "Data is stored in this browser's site storage. Clearing site data also removes imported sessions.",
   "exportGuide": "How to export chat history",
-  "initializing": "Preparing your local workspace",
-  "initializingDetail": "The first launch loads the SQLite runtime and opens browser storage.",
   "unsupported": {
     "title": "This browser cannot run the local edition",
     "description": "Use the latest Chrome, Edge, or another OPFS-capable browser, and open ChatLab through localhost or HTTPS.",

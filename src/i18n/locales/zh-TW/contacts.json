@@ -5,7 +5,6 @@
   "empty": "沒有符合的聯絡人",
   "emptyValue": "暫無",
   "search": "搜尋聯絡人",
-  "score": "分數 {value}",
   "timeRange": {
     "1y": "近1年",
     "2y": "近2年",
@@ -55,16 +54,11 @@
     "title": "聯絡人詳情",
     "score": "綜合分",
     "scoreHelp": "綜合分用於聯絡人排序。分數越高，代表互動訊號越強。",
-    "lastInteraction": "最近互動",
     "sources": "來源會話",
     "sourceType": {
       "private": "私聊",
       "group": "群聊"
-    },
-    "aliases": "別名",
-    "signals": "互動訊號",
-    "emptyTitle": "選擇一個聯絡人",
-    "emptyDescription": "點擊左側聯絡人後，這裡會顯示互動指標和來源會話。"
+    }
   },
   "metrics": {
     "privateMessages": "{count} 則私聊",
@@ -72,16 +66,12 @@
     "activeMonths": "活躍月份",
     "commonGroups": "共同群",
     "lastInteractionShort": "最近",
-    "groups": "{count} 個共同群",
     "coOccurrence": "同框次數",
     "replies": "回覆互動",
     "groupSignals": "{count} 次同框"
   },
   "stale": {
-    "title": "聯絡人資料可能已過期",
-    "message": "偵測到聊天庫發生變化，正在背景更新聯絡人。",
-    "inline": "聯絡人資料可能已過期。",
-    "later": "稍後"
+    "inline": "聯絡人資料可能已過期。"
   },
   "task": {
     "running": "正在計算聯絡人：{current} / {total} 個會話",
@@ -90,7 +80,6 @@
     "retry": "重試"
   },
   "toast": {
-    "recomputed": "聯絡人已重新計算",
     "recomputeStarted": "已開始在背景計算聯絡人",
     "recomputeFailed": "重新計算失敗",
     "markFriendSucceeded": "已標記為好友",

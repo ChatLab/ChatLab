@@ -53,7 +53,6 @@ export function useChatModals() {
 
   async function handleAssistantCreated(_id: string) {
     await assistantStore.loadAssistants()
-    await assistantStore.loadBuiltinCatalog()
   }
 
   async function handleAssistantConfigSaved() {

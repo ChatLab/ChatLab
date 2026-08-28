@@ -48,8 +48,7 @@
   "task": {
     "running": "Computing interaction graph: {current} / {total} sessions",
     "updating": "Relationship data may have changed. Recomputing.",
-    "failed": "Interaction graph computation failed",
-    "retry": "Retry"
+    "failed": "Interaction graph computation failed"
   },
   "searchResults": {
     "title": "Search results",
@@ -61,10 +60,8 @@
     "connectionScore": "Affinity"
   },
   "detail": {
-    "rank": "Rank",
     "score": "Score",
     "type": "Type",
-    "community": "Community",
     "lastInteraction": "Last interaction",
     "privateMessages": "Private messages",
     "groupMessages": "Group messages",

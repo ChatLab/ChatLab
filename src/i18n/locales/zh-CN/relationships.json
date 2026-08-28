@@ -48,8 +48,7 @@
   "task": {
     "running": "正在计算互动关系：{current} / {total} 个会话",
     "updating": "关系数据可能已更新，正在重新计算。",
-    "failed": "互动关系计算失败",
-    "retry": "重试"
+    "failed": "互动关系计算失败"
   },
   "searchResults": {
     "title": "搜索结果",
@@ -61,10 +60,8 @@
     "connectionScore": "关联度"
   },
   "detail": {
-    "rank": "排名",
     "score": "综合分",
     "type": "类型",
-    "community": "圈层",
     "lastInteraction": "最近互动",
     "privateMessages": "私聊消息",
     "groupMessages": "群聊消息",

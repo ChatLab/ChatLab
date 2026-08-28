@@ -70,16 +70,4 @@ export function registerAiAssistantRoutes(server: FastifyInstance, ctx: AiAssist
   server.post<{ Body: { rawMd: string } }>('/_web/ai/assistants/import', async (request) => {
     return mgr.importAssistantFromMd(request.body.rawMd)
   })
-
-  server.post<{ Body: { builtinId: string } }>('/_web/ai/assistants/import-builtin', async (request, reply) => {
-    const result = mgr.importAssistant(request.body.builtinId)
-    if (!result.success) return reply.code(400).send(result)
-    return result
-  })
-
-  server.post<{ Params: { id: string } }>('/_web/ai/assistants/:id/reimport', async (request, reply) => {
-    const result = mgr.reimportAssistant(request.params.id)
-    if (!result.success) return reply.code(400).send(result)
-    return result
-  })
 }

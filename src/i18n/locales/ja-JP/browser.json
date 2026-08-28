@@ -4,10 +4,7 @@
   "noSignIn": "ログイン不要",
   "localOnly": "この端末内だけで処理",
   "noUpload": "アップロードなし",
-  "localOnlyDetail": "データはこのブラウザのサイトストレージに保存されます。サイトデータを消去すると、取り込んだセッションも削除されます。",
   "exportGuide": "チャット履歴のエクスポート方法",
-  "initializing": "ローカルワークスペースを準備中",
-  "initializingDetail": "初回起動では SQLite ランタイムを読み込み、ブラウザストレージを開きます。",
   "unsupported": {
     "title": "このブラウザではローカル版を実行できません",
     "description": "最新版の Chrome、Edge、または OPFS 対応ブラウザを使用し、localhost か HTTPS で開いてください。",

@@ -48,8 +48,7 @@
   "task": {
     "running": "正在計算互動關係：{current} / {total} 個會話",
     "updating": "關係資料可能已更新，正在重新計算。",
-    "failed": "互動關係計算失敗",
-    "retry": "重試"
+    "failed": "互動關係計算失敗"
   },
   "searchResults": {
     "title": "搜尋結果",
@@ -61,10 +60,8 @@
     "connectionScore": "關聯度"
   },
   "detail": {
-    "rank": "排名",
     "score": "綜合分",
     "type": "類型",
-    "community": "圈層",
     "lastInteraction": "最近互動",
     "privateMessages": "私聊訊息",
     "groupMessages": "群聊訊息",

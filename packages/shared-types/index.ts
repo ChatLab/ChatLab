@@ -223,15 +223,6 @@ export interface AssistantSummary {
   supportedLocales?: string[]
 }
 
-export interface BuiltinAssistantInfo {
-  id: string
-  name: string
-  systemPrompt: string
-  applicableChatTypes?: ('group' | 'private')[]
-  supportedLocales?: string[]
-  imported: boolean
-}
-
 export interface AssistantUpgradeInfo {
   assistantId: string
   builtinId: string

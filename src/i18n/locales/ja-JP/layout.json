@@ -1,11 +1,8 @@
 {
   "brand": "ChatLab",
   "newAnalysis": "新しいチャットを分析",
-  "contacts": "連絡先",
   "relationships": "関係",
   "insight": "足跡",
-  "tools": "ツール",
-  "chatHistory": "チャット履歴",
   "manage": "管理",
   "noRecords": "記録がありません",
   "sessionLoadFailed": "チャット履歴を読み込めませんでした",

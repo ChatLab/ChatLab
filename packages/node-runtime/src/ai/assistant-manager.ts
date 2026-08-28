@@ -7,7 +7,7 @@
 import { parseAssistantFile, serializeAssistant } from './assistant-parser'
 import type { AssistantConfig, AssistantSummary } from './types'
 import { GENERAL_ASSISTANT_IDS } from '@openchatlab/shared-types'
-import type { AssistantUpgradeInfo, AssistantUpgradeResult, BuiltinAssistantInfo } from '@openchatlab/shared-types'
+import type { AssistantUpgradeInfo, AssistantUpgradeResult } from '@openchatlab/shared-types'
 
 // ==================== Result types ====================
 
@@ -298,41 +298,11 @@ export class AssistantManager {
     return this.cache.has(id)
   }
 
-  getBuiltinCatalog(): BuiltinAssistantInfo[] {
-    this.ensureInitialized()
-    return []
-  }
-
   isGeneralAssistant(id: string): boolean {
     return this.generalIds.includes(id)
   }
 
   // ==================== Import ====================
-
-  importAssistant(builtinId: string): AssistantSaveResult {
-    this.ensureInitialized()
-
-    const builtinConfig = this.getBuiltinConfig(builtinId)
-    if (!builtinConfig) return { success: false, error: `Builtin assistant not found: ${builtinId}` }
-
-    const existing = this.findByBuiltinId(builtinId)
-    if (existing) return { success: false, error: `Assistant already imported: ${builtinId}` }
-
-    return this.saveToDisk(this.withBuiltinTracking(builtinConfig))
-  }
-
-  reimportAssistant(id: string): AssistantSaveResult {
-    this.ensureInitialized()
-
-    const existing = this.cache.get(id)
-    if (!existing) return { success: false, error: `Assistant not found: ${id}` }
-    if (!existing.builtinId) return { success: false, error: 'Only imported builtin assistants can be reimported' }
-
-    const builtinConfig = this.getBuiltinConfig(existing.builtinId)
-    if (!builtinConfig) return { success: false, error: `Builtin template not found: ${existing.builtinId}` }
-
-    return this.saveToDisk(this.withBuiltinTracking(builtinConfig, existing.id))
-  }
 
   importAssistantFromMd(rawMd: string): AssistantSaveResult & { id?: string } {
     this.ensureInitialized()
@@ -453,10 +423,6 @@ export class AssistantManager {
   }
 
   // ==================== Internal ====================
-
-  private findByBuiltinId(builtinId: string): AssistantConfig | undefined {
-    return Array.from(this.cache.values()).find((c) => c.builtinId === builtinId)
-  }
 
   private saveToDisk(config: AssistantConfig): AssistantSaveResult {
     try {

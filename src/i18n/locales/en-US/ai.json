@@ -1,6 +1,5 @@
 {
   "tab": {
-    "chatExplorer": "Chat Explorer",
     "sqlLab": "SQL Lab"
   },
   "chat": {
@@ -229,8 +228,7 @@
       "keywords": "Keywords:",
       "empty": "No data",
       "emptyHint": "Related records will appear here after asking questions",
-      "totalRecords": "{count} records",
-      "loadMore": "Load More"
+      "totalRecords": "{count} records"
     },
     "evidence": {
       "title": "Evidence",
@@ -319,13 +317,10 @@
       }
     },
     "entityPicker": {
-      "title": "Select contacts or groups",
-      "add": "Select scope",
       "contacts": "Contacts",
       "groups": "Groups",
       "search": "Search names",
       "loadFailed": "Failed to load contacts",
-      "contactsPreparing": "The contact index is being prepared. Try again later or select a group first.",
       "empty": "No matching results"
     },
     "toast": {
