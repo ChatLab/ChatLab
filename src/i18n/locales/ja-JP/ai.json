@@ -1,6 +1,5 @@
 {
   "tab": {
-    "chatExplorer": "対話で探索",
     "sqlLab": "SQL ラボ"
   },
   "chat": {
@@ -229,8 +228,7 @@
       "keywords": "キーワード:",
       "empty": "データがありません",
       "emptyHint": "質問を送信すると、関連する記録がここに表示されます",
-      "totalRecords": "全 {count} 件の記録",
-      "loadMore": "さらに読み込む"
+      "totalRecords": "全 {count} 件の記録"
     },
     "evidence": {
       "title": "根拠",
@@ -319,13 +317,10 @@
       }
     },
     "entityPicker": {
-      "title": "連絡先またはグループを選択",
-      "add": "対象を選択",
       "contacts": "連絡先",
       "groups": "グループ",
       "search": "名前を検索",
       "loadFailed": "連絡先を読み込めませんでした",
-      "contactsPreparing": "連絡先インデックスを準備中です。後で再試行するか、先にグループを選択してください。",
       "empty": "一致する結果がありません"
     },
     "toast": {

@@ -121,7 +121,6 @@
     "title": "选择要导入的聊天",
     "scanning": "正在扫描聊天列表...",
     "scanFailed": "扫描失败",
-    "retry": "重试",
     "selectAll": "全选",
     "chatCount": "共 {count} 个聊天",
     "selected": "已选 {count} 个",

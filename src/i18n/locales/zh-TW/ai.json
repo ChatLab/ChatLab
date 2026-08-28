@@ -1,6 +1,5 @@
 {
   "tab": {
-    "chatExplorer": "對話式探索",
     "sqlLab": "SQL 實驗室"
   },
   "chat": {
@@ -229,8 +228,7 @@
       "keywords": "關鍵字:",
       "empty": "暫無資料",
       "emptyHint": "傳送問題後，相關紀錄會顯示在這裡",
-      "totalRecords": "共 {count} 筆紀錄",
-      "loadMore": "載入更多"
+      "totalRecords": "共 {count} 筆紀錄"
     },
     "evidence": {
       "title": "依據證據",
@@ -319,13 +317,10 @@
       }
     },
     "entityPicker": {
-      "title": "選擇聯絡人或群聊",
-      "add": "選擇對象",
       "contacts": "聯絡人",
       "groups": "群聊",
       "search": "搜尋名稱",
       "loadFailed": "聯絡人載入失敗",
-      "contactsPreparing": "聯絡人索引正在準備，可稍後重試或先選擇群聊",
       "empty": "沒有符合的結果"
     },
     "toast": {

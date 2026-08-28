@@ -5,7 +5,6 @@
   "empty": "No matching contacts",
   "emptyValue": "None",
   "search": "Search contacts",
-  "score": "Score {value}",
   "timeRange": {
     "1y": "1Y",
     "2y": "2Y",
@@ -55,16 +54,11 @@
     "title": "Contact details",
     "score": "Score",
     "scoreHelp": "The score is used to sort contacts. A higher score means stronger interaction signals.",
-    "lastInteraction": "Last interaction",
     "sources": "Source chats",
     "sourceType": {
       "private": "Private",
       "group": "Group"
-    },
-    "aliases": "Aliases",
-    "signals": "Interaction signals",
-    "emptyTitle": "Select a contact",
-    "emptyDescription": "Choose a contact on the left to view interaction metrics and source chats."
+    }
   },
   "metrics": {
     "privateMessages": "{count} private messages",
@@ -72,16 +66,12 @@
     "activeMonths": "Active months",
     "commonGroups": "Common groups",
     "lastInteractionShort": "Recent",
-    "groups": "{count} common groups",
     "coOccurrence": "Co-occurrences",
     "replies": "Replies",
     "groupSignals": "{count} co-occurrences"
   },
   "stale": {
-    "title": "Contacts may be stale",
-    "message": "Chat data changed. Contacts are updating in the background.",
-    "inline": "Contacts may be stale.",
-    "later": "Later"
+    "inline": "Contacts may be stale."
   },
   "task": {
     "running": "Computing contacts: {current} / {total} sessions",
@@ -90,7 +80,6 @@
     "retry": "Retry"
   },
   "toast": {
-    "recomputed": "Contacts recomputed",
     "recomputeStarted": "Started computing contacts in the background",
     "recomputeFailed": "Recompute failed",
     "markFriendSucceeded": "Marked as friend",

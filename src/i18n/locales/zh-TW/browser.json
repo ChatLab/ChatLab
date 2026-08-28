@@ -4,10 +4,7 @@
   "noSignIn": "無需登入",
   "localOnly": "僅在本機處理",
   "noUpload": "資料不上傳",
-  "localOnlyDetail": "資料保存在目前瀏覽器的網站儲存空間。清除網站資料也會刪除已匯入的對話。",
   "exportGuide": "如何匯出聊天記錄",
-  "initializing": "正在準備本機工作區",
-  "initializingDetail": "首次啟動需要載入 SQLite 執行環境並開啟瀏覽器儲存空間。",
   "unsupported": {
     "title": "目前瀏覽器無法執行本機版",
     "description": "請使用最新版 Chrome、Edge 或其他支援 OPFS 的瀏覽器，並透過 localhost 或 HTTPS 開啟。",

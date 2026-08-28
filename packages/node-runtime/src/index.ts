@@ -209,13 +209,7 @@ export type { AuthProfileLlmConfigStoreDeps, CreateLlmRuntimeStoresOptions, LlmR
 
 // Assistant Manager
 export { AssistantManager } from './ai'
-export type {
-  AssistantInitResult,
-  AssistantSaveResult,
-  BuiltinAssistantInfo,
-  AssistantManagerFs,
-  AssistantManagerDeps,
-} from './ai'
+export type { AssistantInitResult, AssistantSaveResult, AssistantManagerFs, AssistantManagerDeps } from './ai'
 
 // Compression
 export type { CompressionConfig, CompressionResult, CompressionLogger, CompressionLlmAdapter } from './ai'

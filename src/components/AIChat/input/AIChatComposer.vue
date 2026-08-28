@@ -181,10 +181,6 @@ function clear() {
   setText('')
 }
 
-function syncHeight() {
-  // The contenteditable surface grows through CSS and scrolls after reaching its max height.
-}
-
 function preventHoverSelection(event: Event) {
   if (event.target instanceof Element && event.target.closest('[role="option"]')) {
     event.stopPropagation()
@@ -253,7 +249,7 @@ watch(
   }
 )
 
-defineExpose({ focus, setText, clear, syncHeight })
+defineExpose({ focus, setText, clear })
 </script>
 
 <template>

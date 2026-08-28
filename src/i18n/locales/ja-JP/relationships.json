@@ -48,8 +48,7 @@
   "task": {
     "running": "交流関係を計算中：{current} / {total} セッション",
     "updating": "関係データが更新された可能性があります。再計算中です。",
-    "failed": "交流関係の計算に失敗しました",
-    "retry": "再試行"
+    "failed": "交流関係の計算に失敗しました"
   },
   "searchResults": {
     "title": "検索結果",
@@ -61,10 +60,8 @@
     "connectionScore": "関連度"
   },
   "detail": {
-    "rank": "順位",
     "score": "スコア",
     "type": "種類",
-    "community": "コミュニティ",
     "lastInteraction": "最終交流",
     "privateMessages": "個別メッセージ",
     "groupMessages": "グループメッセージ",

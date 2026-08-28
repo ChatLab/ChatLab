@@ -73,8 +73,6 @@ export function useAIChat(
       aiChatStore.editMessageAndRegenerate(chatKey, messageId, content),
     loadAIChat: (aiChatId: string) => aiChatStore.loadAIChat(chatKey, aiChatId),
     startNewAIChat: (welcomeMessage?: string) => aiChatStore.startNewAIChat(chatKey, welcomeMessage),
-    loadMoreSourceMessages: () => aiChatStore.loadMoreSourceMessages(),
-    updateMaxMessages: () => aiChatStore.updateMaxMessages(),
     stopGeneration: () => aiChatStore.stopGeneration(chatKey),
     selectAssistantForSession: (assistantId: string) => aiChatStore.selectAssistantForSession(chatKey, assistantId),
   }

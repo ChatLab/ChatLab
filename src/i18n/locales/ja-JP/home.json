@@ -121,7 +121,6 @@
     "title": "インポートするチャットを選択",
     "scanning": "チャットリストをスキャン中...",
     "scanFailed": "スキャンに失敗しました",
-    "retry": "リトライ",
     "selectAll": "すべて選択",
     "chatCount": "全 {count} 件のチャット",
     "selected": "{count} 件を選択中",

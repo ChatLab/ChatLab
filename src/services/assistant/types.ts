@@ -3,7 +3,6 @@ import type {
   AssistantSummary,
   AssistantUpgradeInfo,
   AssistantUpgradeResult,
-  BuiltinAssistantInfo,
 } from '@openchatlab/shared-types'
 
 export type {
@@ -11,7 +10,6 @@ export type {
   AssistantSummary,
   AssistantUpgradeInfo,
   AssistantUpgradeResult,
-  BuiltinAssistantInfo,
 } from '@openchatlab/shared-types'
 
 export interface AssistantServiceAdapter {
@@ -24,8 +22,5 @@ export interface AssistantServiceAdapter {
   getUpgradeInfo(id: string): Promise<AssistantUpgradeInfo | null>
   upgradeWithBackup(id: string, backupName: string): Promise<AssistantUpgradeResult>
   importFromMd(rawMd: string): Promise<{ success: boolean; error?: string }>
-  importBuiltin(builtinId: string): Promise<{ success: boolean; error?: string }>
-  reimport(id: string): Promise<{ success: boolean; error?: string }>
-  getBuiltinCatalog(): Promise<BuiltinAssistantInfo[]>
   getBuiltinToolCatalog(): Promise<Array<{ name: string; category: 'core' | 'analysis' }>>
 }

@@ -66,8 +66,6 @@ const {
   editMessageAndRegenerate,
   loadAIChat,
   startNewAIChat,
-  loadMoreSourceMessages,
-  updateMaxMessages,
   stopGeneration,
   selectAssistantForSession,
 } = useAIChat(
@@ -243,9 +241,6 @@ async function checkLLMConfig() {
 // 刷新配置状态（供外部调用）
 async function refreshConfig() {
   await checkLLMConfig()
-  if (hasLLMConfig.value) {
-    await updateMaxMessages()
-  }
 }
 
 // 暴露方法供父组件调用
@@ -429,11 +424,6 @@ function toggleSourcePanel() {
   isSourcePanelCollapsed.value = !isSourcePanelCollapsed.value
 }
 
-// 加载更多数据源
-async function handleLoadMore() {
-  await loadMoreSourceMessages()
-}
-
 // 选择对话
 async function handleSelectAIChat(convId: string) {
   await loadAIChat(convId)
@@ -463,7 +453,6 @@ function handleStop() {
 
 // 初始化
 checkLLMConfig()
-updateMaxMessages()
 onMounted(() => void checkAssistantUpgrade())
 
 watch(
@@ -711,7 +700,6 @@ watch(
             :is-collapsed="isSourcePanelCollapsed"
             class="h-full"
             @toggle="toggleSourcePanel"
-            @load-more="handleLoadMore"
           />
         </div>
       </Transition>

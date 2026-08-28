@@ -121,7 +121,6 @@
     "title": "Select chats to import",
     "scanning": "Scanning chat list...",
     "scanFailed": "Scan failed",
-    "retry": "Retry",
     "selectAll": "Select all",
     "chatCount": "{count} chats",
     "selected": "{count} selected",

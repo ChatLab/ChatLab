@@ -20,7 +20,6 @@ const props = defineProps<{
 // Emits
 const emit = defineEmits<{
   toggle: []
-  loadMore: []
 }>()
 
 // 格式化时间
@@ -110,14 +109,11 @@ function highlightKeywords(text: string): string {
         </div>
       </div>
 
-      <!-- 底部统计 & 加载更多 -->
+      <!-- 底部统计 -->
       <div v-if="messages.length > 0" class="border-t border-gray-200 px-4 py-2 dark:border-gray-800">
-        <div class="flex items-center justify-between">
-          <span class="text-xs text-gray-500">
-            {{ t('ai.chat.dataSource.totalRecords', { count: messages.length }) }}
-          </span>
-          <UButton size="xs" variant="ghost" @click="emit('loadMore')">{{ t('ai.chat.dataSource.loadMore') }}</UButton>
-        </div>
+        <span class="text-xs text-gray-500">
+          {{ t('ai.chat.dataSource.totalRecords', { count: messages.length }) }}
+        </span>
       </div>
     </template>
 

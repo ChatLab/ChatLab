@@ -16,7 +16,6 @@ export type {
   AssistantSummary,
   AssistantUpgradeInfo,
   AssistantUpgradeResult,
-  BuiltinAssistantInfo,
 } from '@openchatlab/shared-types'
 export type { SkillDef, SkillSummary } from './types'
 export { parseAssistantFile, serializeAssistant } from './assistant-parser'
