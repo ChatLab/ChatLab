@@ -193,7 +193,7 @@ export function computePeopleRelationshipsSnapshot(
   options: ComputePeopleRelationshipsSnapshotOptions
 ): PeopleRelationshipsSnapshot {
   const startedAt = options.now?.() ?? Date.now()
-  const sessionIds = options.adapter.listSessionIds()
+  const sessionIds = options.adapter.listSessionCandidateIds?.() ?? options.adapter.listSessionIds()
   const limits = normalizeLimits(options.limits)
   const factsCache = options.factsCacheDir ? createFactsCacheContext(options.factsCacheDir) : null
   const timeRange = resolvePeopleRelationshipsTimeRange(
@@ -437,6 +437,7 @@ function computePeopleRelationships(options: {
       diagnostics.skippedFailedSessions++
       appLogger.error('people-relationships', `failed to process people relationship session: ${sessionId}`, error)
     } finally {
+      options.adapter.closeSession(sessionId)
       processedSessions++
       options.onProgress?.({ processedSessions, totalSessions: options.sessionIds.length, currentSessionId: sessionId })
     }
@@ -477,6 +478,8 @@ function findGlobalLatestMessageTs(
         `failed to inspect people relationship session range: ${sessionId}`,
         error
       )
+    } finally {
+      adapter.closeSession(sessionId)
     }
   }
   return latest

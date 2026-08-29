@@ -599,11 +599,22 @@ test('starts a background task when snapshot is missing and returns task state i
   try {
     let runnerCalls = 0
     let releaseRunner!: (snapshot: PeopleRelationshipsSnapshot) => void
+    let runnerSignature = ''
+    const baseAdapter = makeAdapter()
+    const adapter: SessionRuntimeAdapter = {
+      ...baseAdapter,
+      listSessionIds: () => {
+        throw new Error('relationship service must use database candidates')
+      },
+      listSessionCandidateIds: () => ['session-a', 'session-b'],
+      getDbPath: (sessionId) => path.join('/tmp', `chatlab-${sessionId}.db`),
+    }
     const service = createPeopleRelationshipsService({
-      adapter: makeAdapter(),
+      adapter,
       systemDir: dir,
-      runner: () => {
+      runner: ({ signature }) => {
         runnerCalls++
+        runnerSignature = signature
         return new Promise<PeopleRelationshipsSnapshot>((resolve) => {
           releaseRunner = resolve
         })
@@ -615,8 +626,12 @@ test('starts a background task when snapshot is missing and returns task state i
 
     assert.equal(response.cache.status, 'missing')
     assert.equal(response.task?.status, 'running')
+    assert.equal(response.task?.totalSessions, 2)
     assert.equal(runnerCalls, 1)
-    releaseRunner(makeSnapshot(makeFreshSignature()))
+    releaseRunner({
+      ...makeSnapshot(runnerSignature),
+      workerStats: { durationMs: 1, totalSessions: 2, processedSessions: 2, skippedFailedSessions: 0 },
+    })
     await new Promise((resolve) => setTimeout(resolve, 0))
     await service.close()
   } finally {
