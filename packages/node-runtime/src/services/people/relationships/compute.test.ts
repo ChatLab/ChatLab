@@ -72,6 +72,7 @@ class TestEnv {
 
     this.adapter = {
       listSessionIds: () => [...this.dbPaths.keys()],
+      listSessionCandidateIds: () => [...this.dbPaths.keys()],
       openReadonly: (id) => open(id, true),
       openWritable: (id) => open(id, false),
       closeSession: () => {},
@@ -188,6 +189,64 @@ function makeGraphEdge(sourceKey: string, targetKey: string, weight: number): Pe
     visibility: weight >= 8 ? 2 : 1,
   }
 }
+
+test('processes database candidates without retaining all session connections', (t) => {
+  const env = new TestEnv()
+  t.after(() => env.cleanup())
+
+  for (const id of ['private-a', 'private-b']) {
+    env.seed({
+      id,
+      platform: 'weixin',
+      type: 'private',
+      ownerId: 'owner',
+      members: [
+        { id: 1, platformId: 'owner', accountName: 'Me' },
+        { id: 2, platformId: `friend-${id}`, accountName: `Friend ${id}` },
+      ],
+      messages: [
+        { id: 1, senderId: 1, ts: 1704103200 },
+        { id: 2, senderId: 2, ts: 1704103201 },
+      ],
+    })
+  }
+
+  const baseAdapter = env.adapter
+  const activeDbs = new Map<string, DatabaseAdapter>()
+  const closedSessionIds = new Set<string>()
+  let maxActiveDbs = 0
+  const adapter: SessionRuntimeAdapter = {
+    ...baseAdapter,
+    listSessionIds: () => {
+      throw new Error('relationship computation must use database candidates')
+    },
+    openReadonly: (sessionId) => {
+      const db = baseAdapter.openReadonly(sessionId)
+      if (db) {
+        activeDbs.set(sessionId, db)
+        maxActiveDbs = Math.max(maxActiveDbs, activeDbs.size)
+      }
+      return db
+    },
+    closeSession: (sessionId) => {
+      const db = activeDbs.get(sessionId)
+      if (db) db.close()
+      activeDbs.delete(sessionId)
+      closedSessionIds.add(sessionId)
+    },
+  }
+
+  const snapshot = computePeopleRelationshipsSnapshot({
+    adapter,
+    signature: 'sig-candidates',
+    timeRangePreset: 'all',
+  })
+
+  assert.equal(snapshot.workerStats.totalSessions, 2)
+  assert.equal(maxActiveDbs, 1)
+  assert.equal(activeDbs.size, 0)
+  assert.deepEqual([...closedSessionIds].sort(), ['private-a', 'private-b'])
+})
 
 test('computes a cropped relationship galaxy from private contacts and group interaction edges', (t) => {
   const env = new TestEnv()

@@ -186,6 +186,7 @@ class DefaultPeopleRelationshipsService implements PeopleRelationshipsService {
   private ensureTaskStarted(signature: string, timeRangePreset: ContactsTimeRangePreset): void {
     if (this.inFlight) return
 
+    const sessionIds = this.deps.adapter.listSessionCandidateIds?.() ?? this.deps.adapter.listSessionIds()
     const taskId = `people_relationships_${this.now()}_${Math.random().toString(36).slice(2)}`
     this.task = {
       id: taskId,
@@ -193,7 +194,7 @@ class DefaultPeopleRelationshipsService implements PeopleRelationshipsService {
       startedAt: this.now(),
       finishedAt: null,
       processedSessions: 0,
-      totalSessions: this.deps.adapter.listSessionIds().length,
+      totalSessions: sessionIds.length,
       timeRangePreset,
     }
 
