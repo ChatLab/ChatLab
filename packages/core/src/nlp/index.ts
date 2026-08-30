@@ -27,6 +27,7 @@ export { CHINESE_STOPWORDS, ENGLISH_STOPWORDS, JAPANESE_STOPWORDS, getStopwords,
 export {
   cleanText,
   isMediaPlaceholderContent,
+  isSystemMessageContent,
   isValidWord,
   stripMediaPlaceholders,
   stripVoiceTranscriptionPrefix,

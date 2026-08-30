@@ -298,6 +298,7 @@ export {
   getStopwords,
   isStopword,
   cleanText,
+  isSystemMessageContent,
   isValidWord,
 } from './nlp'
 export type {

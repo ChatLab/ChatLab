@@ -1,5 +1,13 @@
 import type { DatabaseAdapter } from '../interfaces'
-import { cleanText, isStopword, isValidWord, type WordFrequencyParams, type WordFrequencyResult } from '../nlp'
+import { MessageType } from '@openchatlab/shared-types'
+import {
+  cleanText,
+  isStopword,
+  isSystemMessageContent,
+  isValidWord,
+  type WordFrequencyParams,
+  type WordFrequencyResult,
+} from '../nlp'
 import { buildExcludeKeywordsConditions } from './message-sql'
 
 function tokenize(text: string, locale: string): string[] {
@@ -34,7 +42,7 @@ export function getBrowserWordFrequency(db: DatabaseAdapter, params: WordFrequen
   } = params
   const conditions = [
     "COALESCE(m.account_name, '') != '系统消息'",
-    'msg.type = 0',
+    `msg.type IN (${MessageType.TEXT}, ${MessageType.EMOJI})`,
     'msg.content IS NOT NULL',
     "TRIM(msg.content) != ''",
   ]
@@ -66,10 +74,11 @@ export function getBrowserWordFrequency(db: DatabaseAdapter, params: WordFrequen
        WHERE ${conditions.join(' AND ')}`
     )
     .all(...queryParams) as Array<{ content: string }>
+  const analyzableMessages = messages.filter((message) => !isSystemMessageContent(message.content))
   const excludedWords = new Set(excludeWords.map((word) => word.trim().toLocaleLowerCase(locale)).filter(Boolean))
   const frequencies = new Map<string, number>()
 
-  for (const message of messages) {
+  for (const message of analyzableMessages) {
     for (const rawWord of tokenize(message.content, locale)) {
       const word = rawWord.toLocaleLowerCase(locale)
       if (excludedWords.has(word)) continue
@@ -92,7 +101,7 @@ export function getBrowserWordFrequency(db: DatabaseAdapter, params: WordFrequen
       percentage: rankedTotal > 0 ? Math.round((count / rankedTotal) * 10_000) / 100 : 0,
     })),
     totalWords,
-    totalMessages: messages.length,
+    totalMessages: analyzableMessages.length,
     uniqueWords: filteredFrequencies.length,
   }
 }

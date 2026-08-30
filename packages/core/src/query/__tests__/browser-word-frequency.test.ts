@@ -138,6 +138,29 @@ describe('getBrowserWordFrequency', () => {
     assert.ok(!words.includes('voice'))
   })
 
+  it('excludes explicit system notifications from word frequency', () => {
+    const insert = raw.prepare('INSERT INTO message (id, sender_id, ts, type, content) VALUES (?, ?, ?, ?, ?)')
+    insert.run(8, 1, 800, 0, '[系统] 对方赞了你分享的 systemnoise')
+    insert.run(9, 1, 900, 0, '[系统] 对方赞了你分享的 systemnoise')
+    insert.run(10, 1, 1000, 5, '[强壮]')
+    insert.run(11, 1, 1100, 0, '[分享内容] share_noise')
+    insert.run(12, 1, 1200, 0, '[分享内容] share_noise')
+
+    const result = getBrowserWordFrequency(database, {
+      sessionId: 'session-one',
+      locale: 'en-US',
+      topN: 20,
+      minCount: 1,
+      posFilterMode: 'all',
+      enableStopwords: false,
+    })
+
+    const words = result.words.map((word) => word.word)
+    assert.ok(!words.includes('systemnoise'))
+    assert.ok(!words.includes('share_noise'))
+    assert.equal(result.totalMessages, 4)
+  })
+
   it('applies member, time, excluded-word, and excluded-message filters', () => {
     const result = getBrowserWordFrequency(database, {
       sessionId: 'session-one',

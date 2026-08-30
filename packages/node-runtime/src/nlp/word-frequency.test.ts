@@ -112,4 +112,26 @@ describe('computeWordFrequency excludeKeywords pushdown', () => {
     })
     assert.equal(wildcard.totalMessages, 3)
   })
+
+  it('excludes explicit system notifications while keeping emoji messages eligible', () => {
+    const insert = raw.prepare('INSERT INTO message (id, sender_id, ts, type, content) VALUES (?, ?, ?, ?, ?)')
+    insert.run(4, 1, 4000, 0, '[系统] 你赞了对方分享的 systemnoise')
+    insert.run(5, 1, 5000, 0, '[系统] 你赞了对方分享的 systemnoise')
+    insert.run(6, 1, 6000, 5, '[强壮]')
+    insert.run(7, 1, 7000, 0, '[分享内容] share_noise')
+    insert.run(8, 1, 8000, 0, '[分享内容] share_noise')
+
+    const result = computeWordFrequency(db, {
+      sessionId: 's1',
+      locale: 'en-US',
+      minCount: 1,
+      posFilterMode: 'all',
+      enableStopwords: false,
+    })
+
+    const words = result.words.map((word) => word.word)
+    assert.ok(!words.includes('systemnoise'))
+    assert.ok(!words.includes('share_noise'))
+    assert.equal(result.totalMessages, 4)
+  })
 })
