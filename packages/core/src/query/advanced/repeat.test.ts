@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import Database from 'better-sqlite3'
+import { MessageType } from '@openchatlab/shared-types'
 import type { DatabaseAdapter, PreparedStatement, RunResult } from '../../interfaces'
 import { getLanguagePreferenceAnalysis } from './languagePreference'
 import { getCatchphraseAnalysis } from './repeat'
@@ -91,6 +92,7 @@ interface CatchphraseFixture {
   memberId: number
   content: string
   count: number
+  type?: number
 }
 
 function createCatchphraseDb(fixtures: CatchphraseFixture[]): DatabaseAdapter {
@@ -114,11 +116,17 @@ function createCatchphraseDb(fixtures: CatchphraseFixture[]): DatabaseAdapter {
       (2, 'bob', 'Bob', NULL);
   `)
 
-  const insert = database.prepare('INSERT INTO message (id, sender_id, ts, type, content) VALUES (?, ?, ?, 0, ?)')
+  const insert = database.prepare('INSERT INTO message (id, sender_id, ts, type, content) VALUES (?, ?, ?, ?, ?)')
   let messageId = 1
   for (const fixture of fixtures) {
     for (let index = 0; index < fixture.count; index += 1) {
-      insert.run(messageId, fixture.memberId, 1_700_000_000 + messageId, fixture.content)
+      insert.run(
+        messageId,
+        fixture.memberId,
+        1_700_000_000 + messageId,
+        fixture.type ?? MessageType.TEXT,
+        fixture.content
+      )
       messageId += 1
     }
   }
@@ -194,6 +202,24 @@ describe('getCatchphraseAnalysis', () => {
     assert.deepEqual(result.members[0]?.catchphrases, [{ content: '同一句测试转写', count: 2 }])
     db.close()
   })
+
+  it('filters explicit system notifications but keeps emoji labels', () => {
+    const db = createCatchphraseDb([
+      { memberId: 1, content: '[系统] 对方赞了你分享的 图文', count: 4 },
+      { memberId: 1, content: '[系统] 你赞了对方分享的 视频', count: 3 },
+      { memberId: 1, content: '[分享内容]', count: 5 },
+      { memberId: 1, content: '[强壮]', count: 4, type: MessageType.EMOJI },
+      { memberId: 1, content: '[躺平]', count: 3, type: MessageType.TEXT },
+    ])
+
+    const result = getCatchphraseAnalysis(db)
+
+    assert.deepEqual(result.members[0]?.catchphrases, [
+      { content: '[强壮]', count: 4 },
+      { content: '[躺平]', count: 3 },
+    ])
+    db.close()
+  })
 })
 
 describe('getLanguagePreferenceAnalysis', () => {
@@ -235,5 +261,27 @@ describe('getLanguagePreferenceAnalysis', () => {
       alice?.topWords.some((word: { word: string }) => word.word === 'sample'),
       true
     )
+  })
+
+  it('filters system notifications while retaining bracketed emoji phrases', () => {
+    const db = createRowsDb([
+      { memberId: 1, name: 'Alice', content: '[系统] 对方赞了你分享的 图文' },
+      { memberId: 1, name: 'Alice', content: '[系统] 对方赞了你分享的 图文' },
+      { memberId: 1, name: 'Alice', content: '[分享内容] share_noise' },
+      { memberId: 1, name: 'Alice', content: '[分享内容] share_noise' },
+      { memberId: 1, name: 'Alice', content: '[强壮]' },
+      { memberId: 1, name: 'Alice', content: '[强壮]' },
+      { memberId: 1, name: 'Alice', content: '[躺平]' },
+      { memberId: 1, name: 'Alice', content: '[躺平]' },
+    ])
+
+    const result = getLanguagePreferenceAnalysis(db, { locale: 'zh-CN' })
+    const alice = result.members.find((member: { name: string }) => member.name === 'Alice')
+
+    assert.equal(alice?.totalMessages, 4)
+    assert.deepEqual(alice?.catchphrases, [
+      { content: '[强壮]', count: 2 },
+      { content: '[躺平]', count: 2 },
+    ])
   })
 })

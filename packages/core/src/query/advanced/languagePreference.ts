@@ -5,9 +5,9 @@
  * 调用方负责提供对应平台的实现（Electron / Server 用 jieba，浏览器可降级）。
  */
 
-import type { TimeFilter } from '@openchatlab/shared-types'
+import { MessageType, type TimeFilter } from '@openchatlab/shared-types'
 import type { DatabaseAdapter } from '../../interfaces'
-import { stripMediaPlaceholders, stripVoiceTranscriptionPrefix } from '../../nlp'
+import { isSystemMessageContent, stripMediaPlaceholders, stripVoiceTranscriptionPrefix } from '../../nlp'
 import { buildTimeFilter } from '../filters'
 import { isSystemPlaceholderContent } from './text-filters'
 
@@ -45,6 +45,7 @@ const RE_EMOJI =
   /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu
 const RE_PUNCTUATION = /[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~，。！？、；：""''（）【】《》…—～·\s]/g
 const RE_PURE_NUMBER = /^\d+$/
+const LANGUAGE_ANALYSIS_MESSAGE_TYPES = [MessageType.TEXT, MessageType.EMOJI].join(', ')
 
 function cleanTextForNlp(text: string): string {
   return stripMediaPlaceholders(text)
@@ -88,8 +89,7 @@ export function getLanguagePreferenceAnalysis(db: DatabaseAdapter, params: Langu
 
   const { clause, params: filterParams } = buildTimeFilter(timeFilter)
   let whereClause = clause
-  const textFilter =
-    " COALESCE(m.account_name, '') != '系统消息' AND msg.type = 0 AND msg.content IS NOT NULL AND LENGTH(TRIM(msg.content)) >= 2"
+  const textFilter = ` COALESCE(m.account_name, '') != '系统消息' AND msg.type IN (${LANGUAGE_ANALYSIS_MESSAGE_TYPES}) AND msg.content IS NOT NULL AND LENGTH(TRIM(msg.content)) >= 2`
   if (whereClause.includes('WHERE')) {
     whereClause += ' AND ' + textFilter
   } else {
@@ -108,7 +108,7 @@ export function getLanguagePreferenceAnalysis(db: DatabaseAdapter, params: Langu
   const memberMessages = new Map<number, { name: string; messages: string[] }>()
   for (const row of rows) {
     const content = stripVoiceTranscriptionPrefix(row.content)
-    if (!content || isSystemPlaceholderContent(content)) continue
+    if (!content || isSystemMessageContent(content) || isSystemPlaceholderContent(content)) continue
 
     let entry = memberMessages.get(row.memberId)
     if (!entry) {

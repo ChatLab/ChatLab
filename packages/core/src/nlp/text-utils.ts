@@ -23,6 +23,8 @@ const VOICE_TRANSCRIPTION_PREFIX_REGEX = new RegExp(
   `^\\s*\\[(?:语音|Voice|Audio)${MEDIA_PLACEHOLDER_DURATION_PATTERN}\\]\\s*`,
   'i'
 )
+const SYSTEM_MESSAGE_PREFIX_REGEX =
+  /^\s*(?:\[(?:系统(?:消息)?|分享内容|system(?:\s+message)?)\]|【(?:系统(?:消息)?|分享内容|system(?:\s+message)?)】)\s*/iu
 const BRACKET_EMOJI_PLACEHOLDER_REGEX =
   /(?:\[|【)([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Letter}\p{Number}_-]{1,16})(?:\]|】)/gu
 const CJK_TEXT_REGEX = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u
@@ -139,6 +141,11 @@ export function stripMediaPlaceholders(text: string): string {
 /** Return the transcribed text after a leading voice-message label. */
 export function stripVoiceTranscriptionPrefix(text: string): string {
   return text.replace(VOICE_TRANSCRIPTION_PREFIX_REGEX, '').trim()
+}
+
+/** Identify an explicit system/share marker without classifying bracketed emoji labels as system text. */
+export function isSystemMessageContent(text: string): boolean {
+  return SYSTEM_MESSAGE_PREFIX_REGEX.test(text)
 }
 
 /** Whether the complete value is a media placeholder rather than message text. */

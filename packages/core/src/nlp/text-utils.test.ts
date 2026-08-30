@@ -1,6 +1,11 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { cleanText, isMediaPlaceholderContent, stripVoiceTranscriptionPrefix } from './text-utils'
+import {
+  cleanText,
+  isMediaPlaceholderContent,
+  isSystemMessageContent,
+  stripVoiceTranscriptionPrefix,
+} from './text-utils'
 
 describe('cleanText', () => {
   const cases = [
@@ -31,5 +36,23 @@ describe('cleanText', () => {
   it('recognizes duration-bearing media-only content as a placeholder', () => {
     assert.equal(isMediaPlaceholderContent('[语音 3秒]'), true)
     assert.equal(isMediaPlaceholderContent('[语音 3秒] 有转写内容'), false)
+  })
+
+  it('recognizes explicit system markers without treating bracketed emoji labels as system text', () => {
+    const cases = [
+      ['[系统] 对方赞了你分享的 图文', true],
+      ['【系统消息】你赞了对方分享的视频', true],
+      ['[System Message] shared a post', true],
+      ['[分享内容]', true],
+      ['【分享内容】', true],
+      ['[强壮]', false],
+      ['[躺平]', false],
+      ['[分享]', false],
+      ['我说“[系统]”这个词', false],
+    ] as const
+
+    for (const [input, expected] of cases) {
+      assert.equal(isSystemMessageContent(input), expected, input)
+    }
   })
 })

@@ -2,9 +2,9 @@
  * 口头禅分析模块（平台无关）
  */
 
-import type { TimeFilter } from '@openchatlab/shared-types'
+import { MessageType, type TimeFilter } from '@openchatlab/shared-types'
 import type { DatabaseAdapter } from '../../interfaces'
-import { stripVoiceTranscriptionPrefix } from '../../nlp'
+import { isSystemMessageContent, stripVoiceTranscriptionPrefix } from '../../nlp'
 import { buildTimeFilter } from '../filters'
 import { isSystemPlaceholderContent } from './text-filters'
 
@@ -18,6 +18,7 @@ const VOICE_TRANSCRIPTION_SQL = `
         TRIM(msg.content) LIKE '[Audio] %' OR
         TRIM(msg.content) LIKE '[Audio %] %'
       `
+const CATCHPHRASE_MESSAGE_TYPES = [MessageType.TEXT, MessageType.EMOJI].join(', ')
 
 export interface CatchphraseItem {
   content: string
@@ -40,11 +41,9 @@ export function getCatchphraseAnalysis(db: DatabaseAdapter, filter?: TimeFilter)
 
   let whereClause = clause
   if (whereClause.includes('WHERE')) {
-    whereClause +=
-      " AND COALESCE(m.account_name, '') != '系统消息' AND msg.type = 0 AND msg.content IS NOT NULL AND LENGTH(TRIM(msg.content)) >= 2"
+    whereClause += ` AND COALESCE(m.account_name, '') != '系统消息' AND msg.type IN (${CATCHPHRASE_MESSAGE_TYPES}) AND msg.content IS NOT NULL AND LENGTH(TRIM(msg.content)) >= 2`
   } else {
-    whereClause =
-      " WHERE COALESCE(m.account_name, '') != '系统消息' AND msg.type = 0 AND msg.content IS NOT NULL AND LENGTH(TRIM(msg.content)) >= 2"
+    whereClause = ` WHERE COALESCE(m.account_name, '') != '系统消息' AND msg.type IN (${CATCHPHRASE_MESSAGE_TYPES}) AND msg.content IS NOT NULL AND LENGTH(TRIM(msg.content)) >= 2`
   }
 
   const rows = db
@@ -77,7 +76,7 @@ export function getCatchphraseAnalysis(db: DatabaseAdapter, filter?: TimeFilter)
 
   for (const row of rows) {
     const content = stripVoiceTranscriptionPrefix(row.content)
-    if (!content || isSystemPlaceholderContent(content)) continue
+    if (!content || isSystemMessageContent(content) || isSystemPlaceholderContent(content)) continue
 
     if (!memberMap.has(row.memberId)) {
       memberMap.set(row.memberId, {

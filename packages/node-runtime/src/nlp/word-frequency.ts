@@ -5,7 +5,8 @@
  * 供 Electron worker 和 Server HTTP 路由共用。
  */
 
-import { buildExcludeKeywordsConditions, type DatabaseAdapter } from '@openchatlab/core'
+import { buildExcludeKeywordsConditions, isSystemMessageContent, type DatabaseAdapter } from '@openchatlab/core'
+import { MessageType } from '@openchatlab/shared-types'
 import type {
   SupportedLocale,
   DictType,
@@ -44,7 +45,7 @@ function buildMessageQuery(
   }
 
   conditions.push("COALESCE(m.account_name, '') != '系统消息'")
-  conditions.push('msg.type = 0')
+  conditions.push(`msg.type IN (${MessageType.TEXT}, ${MessageType.EMOJI})`)
   conditions.push('msg.content IS NOT NULL')
   conditions.push("TRIM(msg.content) != ''")
 
@@ -83,7 +84,12 @@ export function computeWordFrequency(db: DatabaseAdapter, params: WordFrequencyP
     return { words: [], totalWords: 0, totalMessages: 0, uniqueWords: 0 }
   }
 
-  const texts = messages.map((m) => m.content)
+  const analyzableMessages = messages.filter((message) => !isSystemMessageContent(message.content))
+  if (analyzableMessages.length === 0) {
+    return { words: [], totalWords: 0, totalMessages: 0, uniqueWords: 0 }
+  }
+
+  const texts = analyzableMessages.map((m) => m.content)
 
   const segmentOptions = {
     minLength: minWordLength,
@@ -124,7 +130,7 @@ export function computeWordFrequency(db: DatabaseAdapter, params: WordFrequencyP
   return {
     words,
     totalWords: result.totalWords,
-    totalMessages: messages.length,
+    totalMessages: analyzableMessages.length,
     uniqueWords: result.uniqueWords,
     posTagStats,
   }
