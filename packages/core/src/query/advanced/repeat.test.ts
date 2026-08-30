@@ -170,6 +170,30 @@ describe('getCatchphraseAnalysis', () => {
     )
     db.close()
   })
+
+  it('shows voice transcriptions without the duration label', () => {
+    const db = createCatchphraseDb([
+      { memberId: 1, content: '[语音 3秒] 测试转写内容', count: 3 },
+      { memberId: 1, content: '[语音 2秒]', count: 5 },
+    ])
+
+    const result = getCatchphraseAnalysis(db)
+
+    assert.deepEqual(result.members[0]?.catchphrases, [{ content: '测试转写内容', count: 3 }])
+    db.close()
+  })
+
+  it('aggregates the same transcription when voice durations differ', () => {
+    const db = createCatchphraseDb([
+      { memberId: 1, content: '[语音 2秒] 同一句测试转写', count: 1 },
+      { memberId: 1, content: '[语音 3秒] 同一句测试转写', count: 1 },
+    ])
+
+    const result = getCatchphraseAnalysis(db)
+
+    assert.deepEqual(result.members[0]?.catchphrases, [{ content: '同一句测试转写', count: 2 }])
+    db.close()
+  })
 })
 
 describe('getLanguagePreferenceAnalysis', () => {
@@ -187,5 +211,29 @@ describe('getLanguagePreferenceAnalysis', () => {
     assert.equal(result.members[0]?.name, 'Bob')
     assert.equal(result.members[0]?.totalMessages, 2)
     assert.deepEqual(result.members[0]?.catchphrases, [{ content: 'noted', count: 2 }])
+  })
+
+  it('uses voice transcription text for language analysis instead of the duration label', () => {
+    const db = createRowsDb([
+      { memberId: 1, name: 'Alice', content: '[Voice 3s] sample transcript' },
+      { memberId: 1, name: 'Alice', content: '[Voice 3s] sample transcript' },
+      { memberId: 1, name: 'Alice', content: '[语音 2秒]' },
+      { memberId: 2, name: 'Bob', content: '普通文本' },
+      { memberId: 2, name: 'Bob', content: '普通文本' },
+    ])
+
+    const result = getLanguagePreferenceAnalysis(db, { locale: 'en-US' })
+    const alice = result.members.find((member: { name: string }) => member.name === 'Alice')
+
+    assert.equal(alice?.totalMessages, 2)
+    assert.deepEqual(alice?.catchphrases, [{ content: 'sample transcript', count: 2 }])
+    assert.equal(
+      alice?.topWords.some((word: { word: string }) => word.word === 'voice'),
+      false
+    )
+    assert.equal(
+      alice?.topWords.some((word: { word: string }) => word.word === 'sample'),
+      true
+    )
   })
 })

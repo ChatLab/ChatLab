@@ -84,6 +84,45 @@ test('ChatLab JSONL emits message batches and progress while reading', async () 
   }
 })
 
+test('preserves a duration-bearing voice transcription in the parsed message content', async () => {
+  const root = makeTempDir()
+  const filePath = path.join(root, 'voice-transcription.jsonl')
+  const transcription = '[语音 3秒] 这是测试语音内容。'
+  fs.writeFileSync(
+    filePath,
+    [
+      JSON.stringify({
+        _type: 'header',
+        chatlab: { version: '0.0.2', exportedAt: 1711468800 },
+        meta: { name: 'Voice transcription', platform: 'douyin', type: 'private' },
+      }),
+      JSON.stringify({ _type: 'member', platformId: 'member-1', accountName: 'Alice' }),
+      JSON.stringify({
+        _type: 'message',
+        sender: 'member-1',
+        accountName: 'Alice',
+        timestamp: 1711468800,
+        type: MessageType.TEXT,
+        content: transcription,
+        platformMessageId: 'voice-1',
+      }),
+    ].join('\n') + '\n',
+    'utf-8'
+  )
+
+  try {
+    const messages: Array<{ type: number; content: string | null }> = []
+    for await (const event of parseFileWithFormat('chatlab-jsonl', { filePath })) {
+      if (event.type === 'messages') {
+        messages.push(...event.data.map(({ type, content }) => ({ type, content })))
+      }
+    }
+    assert.deepEqual(messages, [{ type: MessageType.TEXT, content: transcription }])
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test('directory entry detection accepts a top-level ChatLab JSONL file', () => {
   const root = makeTempDir()
   const filePath = path.join(root, 'chat.jsonl')

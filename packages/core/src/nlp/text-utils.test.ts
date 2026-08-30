@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { cleanText } from './text-utils'
+import { cleanText, isMediaPlaceholderContent, stripVoiceTranscriptionPrefix } from './text-utils'
 
 describe('cleanText', () => {
   const cases = [
@@ -22,4 +22,14 @@ describe('cleanText', () => {
       assert.equal(cleanText(input), expected)
     })
   }
+
+  it('removes duration-bearing voice labels while retaining the transcription', () => {
+    assert.equal(cleanText('[语音 3秒] 这是测试语音内容。'), '这是测试语音内容')
+    assert.equal(stripVoiceTranscriptionPrefix('[语音 3秒] 这是测试语音内容。'), '这是测试语音内容。')
+  })
+
+  it('recognizes duration-bearing media-only content as a placeholder', () => {
+    assert.equal(isMediaPlaceholderContent('[语音 3秒]'), true)
+    assert.equal(isMediaPlaceholderContent('[语音 3秒] 有转写内容'), false)
+  })
 })

@@ -4,8 +4,20 @@
 
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { DatabaseAdapter } from '../../interfaces'
+import { stripVoiceTranscriptionPrefix } from '../../nlp'
 import { buildTimeFilter } from '../filters'
 import { isSystemPlaceholderContent } from './text-filters'
+
+// Keep one-off voice transcription rows in the grouped query so JavaScript can
+// normalize away duration labels before applying the repeated-phrase threshold.
+const VOICE_TRANSCRIPTION_SQL = `
+        TRIM(msg.content) LIKE '[语音] %' OR
+        TRIM(msg.content) LIKE '[语音 %] %' OR
+        TRIM(msg.content) LIKE '[Voice] %' OR
+        TRIM(msg.content) LIKE '[Voice %] %' OR
+        TRIM(msg.content) LIKE '[Audio] %' OR
+        TRIM(msg.content) LIKE '[Audio %] %'
+      `
 
 export interface CatchphraseItem {
   content: string
@@ -48,7 +60,7 @@ export function getCatchphraseAnalysis(db: DatabaseAdapter, filter?: TimeFilter)
       JOIN member m ON msg.sender_id = m.id
       ${whereClause}
       GROUP BY m.id, TRIM(msg.content)
-      HAVING COUNT(*) >= 2
+      HAVING COUNT(*) >= 2 OR (${VOICE_TRANSCRIPTION_SQL})
       ORDER BY m.id, count DESC
       `
     )
@@ -61,9 +73,11 @@ export function getCatchphraseAnalysis(db: DatabaseAdapter, filter?: TimeFilter)
   }>
 
   const memberMap = new Map<number, MemberCatchphrase>()
+  const phraseMaps = new Map<number, Map<string, CatchphraseItem>>()
 
   for (const row of rows) {
-    if (isSystemPlaceholderContent(row.content)) continue
+    const content = stripVoiceTranscriptionPrefix(row.content)
+    if (!content || isSystemPlaceholderContent(content)) continue
 
     if (!memberMap.has(row.memberId)) {
       memberMap.set(row.memberId, {
@@ -74,13 +88,23 @@ export function getCatchphraseAnalysis(db: DatabaseAdapter, filter?: TimeFilter)
       })
     }
 
-    const member = memberMap.get(row.memberId)!
-    if (member.catchphrases.length < 100) {
-      member.catchphrases.push({ content: row.content, count: row.count })
+    let phrases = phraseMaps.get(row.memberId)
+    if (!phrases) {
+      phrases = new Map<string, CatchphraseItem>()
+      phraseMaps.set(row.memberId, phrases)
     }
+    const existing = phrases.get(content)
+    if (existing) existing.count += Number(row.count)
+    else phrases.set(content, { content, count: Number(row.count) })
   }
 
   const members = Array.from(memberMap.values())
+  for (const member of members) {
+    member.catchphrases = [...(phraseMaps.get(member.memberId)?.values() ?? [])]
+      .filter((item) => item.count >= 2)
+      .sort((a, b) => b.count - a.count || a.content.localeCompare(b.content))
+      .slice(0, 100)
+  }
   members.sort((a, b) => {
     const countDifference = (b.catchphrases[0]?.count ?? 0) - (a.catchphrases[0]?.count ?? 0)
     return countDifference || a.memberId - b.memberId

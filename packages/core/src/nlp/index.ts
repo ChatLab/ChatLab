@@ -24,4 +24,10 @@ export { POS_TAG_DEFINITIONS, MEANINGFUL_POS_TAGS } from './pos-tags'
 
 export { CHINESE_STOPWORDS, ENGLISH_STOPWORDS, JAPANESE_STOPWORDS, getStopwords, isStopword } from './stopwords'
 
-export { cleanText, isValidWord } from './text-utils'
+export {
+  cleanText,
+  isMediaPlaceholderContent,
+  isValidWord,
+  stripMediaPlaceholders,
+  stripVoiceTranscriptionPrefix,
+} from './text-utils'
