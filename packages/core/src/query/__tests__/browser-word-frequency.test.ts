@@ -119,6 +119,25 @@ describe('getBrowserWordFrequency', () => {
     assert.equal(result.uniqueWords, 2)
   })
 
+  it('keeps voice transcription words but removes the duration label', () => {
+    const insert = raw.prepare('INSERT INTO message (id, sender_id, ts, type, content) VALUES (?, ?, ?, ?, ?)')
+    insert.run(6, 1, 600, 0, '[Voice 3s] sample transcript')
+    insert.run(7, 1, 700, 0, '[Voice 3s] sample transcript')
+
+    const result = getBrowserWordFrequency(database, {
+      sessionId: 'session-one',
+      locale: 'en-US',
+      topN: 20,
+      minCount: 2,
+      posFilterMode: 'all',
+      enableStopwords: false,
+    })
+
+    const words = result.words.map((word) => word.word)
+    assert.ok(words.includes('sample'))
+    assert.ok(!words.includes('voice'))
+  })
+
   it('applies member, time, excluded-word, and excluded-message filters', () => {
     const result = getBrowserWordFrequency(database, {
       sessionId: 'session-one',

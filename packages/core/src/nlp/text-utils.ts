@@ -8,8 +8,21 @@ const PUNCTUATION_REGEX = /[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~，。！？、�
 const URL_REGEX = /https?:\/\/[^\s]+/g
 const MENTION_REGEX = /@[^\s@]+/g
 const PURE_NUMBER_REGEX = /^\d+$/
-const SYSTEM_PLACEHOLDER_REGEX =
-  /\[(?:图片|视频|语音|文件|动画表情|表情|链接|位置|名片|红包|转账|音乐|Image|Video|Voice|File|Sticker|Link)\]/gi
+const MEDIA_PLACEHOLDER_NAME_PATTERN =
+  '(?:图片|视频|语音|文件|动画表情|表情|链接|位置|地理位置|名片|红包|转账|音乐|Image|Photo|Video|Voice|Audio|File|Sticker|Link|Location)'
+const MEDIA_PLACEHOLDER_DURATION_PATTERN = '(?:\\s+\\d+(?:\\.\\d+)?\\s*(?:秒|s))?'
+const SYSTEM_PLACEHOLDER_REGEX = new RegExp(
+  `\\[${MEDIA_PLACEHOLDER_NAME_PATTERN}${MEDIA_PLACEHOLDER_DURATION_PATTERN}\\]`,
+  'gi'
+)
+const MEDIA_PLACEHOLDER_ONLY_REGEX = new RegExp(
+  `^\\[${MEDIA_PLACEHOLDER_NAME_PATTERN}${MEDIA_PLACEHOLDER_DURATION_PATTERN}\\]$`,
+  'i'
+)
+const VOICE_TRANSCRIPTION_PREFIX_REGEX = new RegExp(
+  `^\\s*\\[(?:语音|Voice|Audio)${MEDIA_PLACEHOLDER_DURATION_PATTERN}\\]\\s*`,
+  'i'
+)
 const BRACKET_EMOJI_PLACEHOLDER_REGEX =
   /(?:\[|【)([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Letter}\p{Number}_-]{1,16})(?:\]|】)/gu
 const CJK_TEXT_REGEX = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u
@@ -116,6 +129,21 @@ export function cleanText(text: string): string {
     .replace(PUNCTUATION_REGEX, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+/** Remove media placeholders, including duration-bearing labels such as `[语音 3秒]`. */
+export function stripMediaPlaceholders(text: string): string {
+  return text.replace(SYSTEM_PLACEHOLDER_REGEX, ' ')
+}
+
+/** Return the transcribed text after a leading voice-message label. */
+export function stripVoiceTranscriptionPrefix(text: string): string {
+  return text.replace(VOICE_TRANSCRIPTION_PREFIX_REGEX, '').trim()
+}
+
+/** Whether the complete value is a media placeholder rather than message text. */
+export function isMediaPlaceholderContent(text: string): boolean {
+  return MEDIA_PLACEHOLDER_ONLY_REGEX.test(text.trim())
 }
 
 /**

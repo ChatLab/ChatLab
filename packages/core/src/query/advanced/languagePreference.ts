@@ -7,6 +7,7 @@
 
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { DatabaseAdapter } from '../../interfaces'
+import { stripMediaPlaceholders, stripVoiceTranscriptionPrefix } from '../../nlp'
 import { buildTimeFilter } from '../filters'
 import { isSystemPlaceholderContent } from './text-filters'
 
@@ -46,7 +47,7 @@ const RE_PUNCTUATION = /[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~，。！？、；�
 const RE_PURE_NUMBER = /^\d+$/
 
 function cleanTextForNlp(text: string): string {
-  return text
+  return stripMediaPlaceholders(text)
     .replace(RE_URL, ' ')
     .replace(RE_MENTION, ' ')
     .replace(RE_EMOJI, ' ')
@@ -106,14 +107,15 @@ export function getLanguagePreferenceAnalysis(db: DatabaseAdapter, params: Langu
 
   const memberMessages = new Map<number, { name: string; messages: string[] }>()
   for (const row of rows) {
-    if (isSystemPlaceholderContent(row.content)) continue
+    const content = stripVoiceTranscriptionPrefix(row.content)
+    if (!content || isSystemPlaceholderContent(content)) continue
 
     let entry = memberMessages.get(row.memberId)
     if (!entry) {
       entry = { name: row.name, messages: [] }
       memberMessages.set(row.memberId, entry)
     }
-    entry.messages.push(row.content)
+    entry.messages.push(content)
   }
 
   const isChinese = locale.startsWith('zh')

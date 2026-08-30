@@ -1,3 +1,5 @@
+import { isMediaPlaceholderContent } from '../../nlp'
+
 const SYSTEM_PLACEHOLDER_CONTENTS = new Set([
   '[图片]',
   '[视频]',
@@ -24,5 +26,6 @@ const SYSTEM_PLACEHOLDER_CONTENTS = new Set([
 ])
 
 export function isSystemPlaceholderContent(content: string): boolean {
-  return SYSTEM_PLACEHOLDER_CONTENTS.has(content.trim())
+  const trimmed = content.trim()
+  return SYSTEM_PLACEHOLDER_CONTENTS.has(trimmed) || isMediaPlaceholderContent(trimmed)
 }
