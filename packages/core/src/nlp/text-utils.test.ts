@@ -18,6 +18,10 @@ describe('cleanText', () => {
     ['removes bracketed chat emoji placeholders before tokenization', '今天[破涕为笑][微笑][呲牙]很好', '今天 很好'],
     ['removes unknown short bracketed emoji placeholders', '收到[旺柴]马上来', '收到 马上来'],
     ['removes mapped emoji placeholders with variation selectors', '送你[爱心][太阳]', '送你'],
+    ['removes exact bracketed Douyin emoji codes', '太累了[躺平]，一起[强壮]', '太累了 一起'],
+    ['removes full-width bracketed emoji codes', '【微笑】收到', '收到'],
+    ['removes non-CJK Douyin emoji codes as emoji', '真的[V5]呀[666]', '真的 呀'],
+    ['removes collected Douyin emoji codes in mixed text', '发一个[kisskiss]给你', '发一个 给你'],
     ['keeps ordinary non-bracketed words', '破涕为笑 微笑 呲牙', '破涕为笑 微笑 呲牙'],
     ['keeps non-CJK bracketed words as regular text', 'please check [report]', 'please check report'],
   ] as const

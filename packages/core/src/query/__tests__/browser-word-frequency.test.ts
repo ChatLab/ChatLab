@@ -161,6 +161,26 @@ describe('getBrowserWordFrequency', () => {
     assert.equal(result.totalMessages, 4)
   })
 
+  it('treats Douyin emoji codes as emoji instead of words', () => {
+    const insert = raw.prepare('INSERT INTO message (id, sender_id, ts, type, content) VALUES (?, ?, ?, ?, ?)')
+    insert.run(13, 1, 1300, 0, '[kisskiss]')
+    insert.run(14, 1, 1400, 5, '[V5]')
+
+    const result = getBrowserWordFrequency(database, {
+      sessionId: 'session-one',
+      locale: 'en-US',
+      topN: 20,
+      minCount: 1,
+      posFilterMode: 'all',
+      enableStopwords: false,
+    })
+
+    const words = result.words.map((word) => word.word)
+    assert.ok(!words.includes('kisskiss'))
+    assert.ok(!words.includes('v5'))
+    assert.equal(result.totalMessages, 5)
+  })
+
   it('applies member, time, excluded-word, and excluded-message filters', () => {
     const result = getBrowserWordFrequency(database, {
       sessionId: 'session-one',

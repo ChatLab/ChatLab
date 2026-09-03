@@ -134,4 +134,24 @@ describe('computeWordFrequency excludeKeywords pushdown', () => {
     assert.ok(!words.includes('share_noise'))
     assert.equal(result.totalMessages, 4)
   })
+
+  it('treats Douyin emoji codes as emoji instead of vocabulary', () => {
+    const insert = raw.prepare('INSERT INTO message (id, sender_id, ts, type, content) VALUES (?, ?, ?, ?, ?)')
+    insert.run(4, 1, 4000, 0, '[kisskiss]')
+    insert.run(5, 1, 5000, 5, '[V5]')
+
+    const result = computeWordFrequency(db, {
+      sessionId: 's1',
+      locale: 'en-US',
+      minCount: 1,
+      posFilterMode: 'all',
+      enableStopwords: false,
+    })
+
+    const words = result.words.map((word) => word.word)
+    assert.ok(!words.includes('kisskiss'))
+    assert.ok(!words.includes('v5'))
+    // Emoji messages stay eligible for analysis; they only contribute no words.
+    assert.equal(result.totalMessages, 5)
+  })
 })
