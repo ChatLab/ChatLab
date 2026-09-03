@@ -7,7 +7,7 @@
 
 import { MessageType, type TimeFilter } from '@openchatlab/shared-types'
 import type { DatabaseAdapter } from '../../interfaces'
-import { isSystemMessageContent, stripMediaPlaceholders, stripVoiceTranscriptionPrefix } from '../../nlp'
+import { cleanText, isSystemMessageContent, stripVoiceTranscriptionPrefix } from '../../nlp'
 import { buildTimeFilter } from '../filters'
 import { isSystemPlaceholderContent } from './text-filters'
 
@@ -39,23 +39,8 @@ const ADJ_TAGS = new Set(['a', 'an', 'ad', 'ag'])
 const ADV_TAGS = new Set(['d'])
 const MODAL_TAGS = new Set(['y', 'e'])
 
-const RE_URL = /https?:\/\/[^\s]+/g
-const RE_MENTION = /@[^\s@]+/g
-const RE_EMOJI =
-  /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu
-const RE_PUNCTUATION = /[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~，。！？、；：""''（）【】《》…—～·\s]/g
 const RE_PURE_NUMBER = /^\d+$/
 const LANGUAGE_ANALYSIS_MESSAGE_TYPES = [MessageType.TEXT, MessageType.EMOJI].join(', ')
-
-function cleanTextForNlp(text: string): string {
-  return stripMediaPlaceholders(text)
-    .replace(RE_URL, ' ')
-    .replace(RE_MENTION, ' ')
-    .replace(RE_EMOJI, ' ')
-    .replace(RE_PUNCTUATION, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
 
 function countMatches(text: string, regex: RegExp): number {
   regex.lastIndex = 0
@@ -144,7 +129,7 @@ export function getLanguagePreferenceAnalysis(db: DatabaseAdapter, params: Langu
 
       if (trimmed.length >= 2) phraseFreq.set(trimmed, (phraseFreq.get(trimmed) || 0) + 1)
 
-      const cleaned = cleanTextForNlp(content)
+      const cleaned = cleanText(content)
       if (!cleaned) continue
 
       if (isChinese && nlpProvider) {

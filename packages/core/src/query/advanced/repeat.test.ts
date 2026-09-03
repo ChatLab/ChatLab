@@ -298,4 +298,22 @@ describe('getLanguagePreferenceAnalysis', () => {
       { content: '[躺平]', count: 2 },
     ])
   })
+
+  it('keeps emoji codes as phrases but excludes them from vocabulary', () => {
+    const db = createRowsDb([
+      { memberId: 1, name: 'Alice', content: '[微笑]' },
+      { memberId: 1, name: 'Alice', content: '[微笑]' },
+      { memberId: 1, name: 'Alice', content: '[V5]' },
+      { memberId: 1, name: 'Alice', content: '[V5]' },
+    ])
+
+    const result = getLanguagePreferenceAnalysis(db, { locale: 'zh-CN' })
+    const alice = result.members[0]
+
+    assert.deepEqual(alice?.catchphrases, [
+      { content: '[微笑]', count: 2 },
+      { content: '[V5]', count: 2 },
+    ])
+    assert.ok((alice?.topWords ?? []).every((word: { word: string }) => !['微笑', 'v5'].includes(word.word)))
+  })
 })
