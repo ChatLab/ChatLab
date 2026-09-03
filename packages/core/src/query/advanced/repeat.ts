@@ -109,5 +109,5 @@ export function getCatchphraseAnalysis(db: DatabaseAdapter, filter?: TimeFilter)
     return countDifference || a.memberId - b.memberId
   })
 
-  return { members }
+  return { members: members.filter((member) => member.catchphrases.length > 0) }
 }

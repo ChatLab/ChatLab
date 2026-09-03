@@ -203,6 +203,20 @@ describe('getCatchphraseAnalysis', () => {
     db.close()
   })
 
+  it('omits members whose normalized voice phrases never repeat', (t) => {
+    const db = createCatchphraseDb([
+      { memberId: 1, content: '[语音 3秒] 只转写一次', count: 1 },
+      { memberId: 2, content: '收到', count: 3 },
+    ])
+    t.after(() => db.close())
+
+    assert.deepEqual(
+      getCatchphraseAnalysis(db).members.map((member) => member.memberId),
+      [2]
+    )
+    assert.deepEqual(getCatchphraseAnalysis(db, { memberId: 1 }), { members: [] })
+  })
+
   it('filters explicit system notifications but keeps emoji labels', () => {
     const db = createCatchphraseDb([
       { memberId: 1, content: '[系统] 对方赞了你分享的 图文', count: 4 },
