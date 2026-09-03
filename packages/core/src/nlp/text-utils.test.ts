@@ -22,6 +22,8 @@ describe('cleanText', () => {
     ['removes full-width bracketed emoji codes', '【微笑】收到', '收到'],
     ['removes non-CJK Douyin emoji codes as emoji', '真的[V5]呀[666]', '真的 呀'],
     ['removes collected Douyin emoji codes in mixed text', '发一个[kisskiss]给你', '发一个 给你'],
+    ['removes UniEmoji platform emoji codes', 'B站[doge][滑稽]和[yeah]', 'B站 和'],
+    ['removes short latin platform emoji codes', '收到[emm]', '收到'],
     ['keeps ordinary non-bracketed words', '破涕为笑 微笑 呲牙', '破涕为笑 微笑 呲牙'],
     ['keeps non-CJK bracketed words as regular text', 'please check [report]', 'please check report'],
   ] as const
