@@ -5,13 +5,20 @@ import twChangelogs from '../../../changelogs/tw.json'
 
 export type ChangelogChangeType = 'feat' | 'fix' | 'refactor' | 'docs' | 'chore' | 'style' | 'ci'
 
+export interface StructuredChangelogChangeItem {
+  text: string
+  contributors?: string[]
+}
+
+export type ChangelogChangeItem = string | StructuredChangelogChangeItem
+
 export interface ChangelogItem {
   version: string
   date: string
   summary: string
   changes: {
     type: ChangelogChangeType
-    items: string[]
+    items: ChangelogChangeItem[]
   }[]
 }
 
@@ -24,6 +31,18 @@ const BUNDLED_CHANGELOGS: Record<string, ChangelogItem[]> = {
 
 export function normalizeChangelogVersion(version?: string | null) {
   return version ? version.trim().replace(/^v/i, '') : null
+}
+
+export function getChangelogItemText(item: ChangelogChangeItem) {
+  return typeof item === 'string' ? item : item.text
+}
+
+export function getChangelogItemContributors(item: ChangelogChangeItem) {
+  return typeof item === 'string' ? [] : (item.contributors ?? [])
+}
+
+export function getGithubContributorUrl(login: string) {
+  return `https://github.com/${encodeURIComponent(login)}`
 }
 
 export function getBundledChangelogs(locale: string): ChangelogItem[] {

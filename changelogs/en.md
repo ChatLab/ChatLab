@@ -10,17 +10,17 @@
 - Add long-term memory for managing preferences, details about yourself, contacts, and groups, with relevant entries loaded automatically for each question
 - Link long-term memories to source messages so AI-derived conclusions can be verified in the original conversation
 - Unify conversation lists, composers, and @ mention selection across global and per-chat AI conversations
-- Let users resize the chat record viewer by dragging and remember the chosen width
+- Let users resize the chat record viewer by dragging and remember the chosen width (by [@KokerZhou](https://github.com/KokerZhou))
 - Move SQL Lab and debug tools into a unified More section on analysis pages
-- 【CLI】Support starting the Web service over a Unix Domain Socket
+- 【CLI】Support starting the Web service over a Unix Domain Socket (by [@KokerZhou](https://github.com/KokerZhou))
 
 ### 🐛 Bug Fixes
 
 - Fix excessive deduplication when incrementally importing or merging WeFlow records and messages without stable IDs, preventing valid messages from being lost
-- Fix error state, conversation list, and follow-up issues after an AI reply fails
-- Prevent incomplete turns when saving or editing AI conversations, and allow editing only the latest user turn
-- Fix long-conversation compression losing message boundaries or links to memory sources
-- Fix AI services with the same configuration name loading the wrong credentials
+- Fix error state, conversation list, and follow-up issues after an AI reply fails (by [@Sanssssssssssssssss](https://github.com/Sanssssssssssssssss))
+- Prevent incomplete turns when saving or editing AI conversations, and allow editing only the latest user turn (by [@Sanssssssssssssssss](https://github.com/Sanssssssssssssssss))
+- Fix long-conversation compression losing message boundaries or links to memory sources (by [@Sanssssssssssssssss](https://github.com/Sanssssssssssssssss))
+- Fix AI services with the same configuration name loading the wrong credentials (by [@Sanssssssssssssssss](https://github.com/Sanssssssssssssssss))
 - Fix analysis pages reloading duplicate data or showing stale results after switching away and back
 - Improve time ranges, contact resolution, scan budgets, and truncation notices for cross-chat analysis
 
@@ -41,7 +41,7 @@
 
 ### 🐛 Bug Fixes
 
-- Turn folder import into a dedicated button so it no longer competes with file selection
+- Turn folder import into a dedicated button so it no longer competes with file selection (by [@kongjiyu](https://github.com/kongjiyu))
 
 ### ⚡ Performance
 
@@ -109,7 +109,7 @@
 
 - Fix QQ automatic import matching and member mapping when UID/UIN values change, owner metadata is missing, or sessions have been merged, preventing duplicate sessions and incorrect member identities
 - Prevent merge imports from incorrectly removing messages when platform message IDs conflict or private-chat identity is incomplete, while preserving valid owner and session identity metadata
-- Fix request handling, rapid switching, and multi-color mode in dynamic keyword rankings, preventing stale results and crashes caused by unknown types
+- Fix request handling, rapid switching, and multi-color mode in dynamic keyword rankings, preventing stale results and crashes caused by unknown types (by [@kelaocai](https://github.com/kelaocai))
 - Unify loading transitions across Insights, and restore annual activity calendar colors and relationship view controls
 
 ### ⚡ Performance
@@ -125,7 +125,7 @@
 - Use the Rust native parser for QQ Shuakami and QQ Chat Exporter imports to improve reliability with large exports
 - Add safe concurrent scheduling for multi-file imports, preventing concurrent writes to the same session while reporting per-file progress and failures
 - Add privacy-preserving anonymous product analytics that only report allowlisted environment and feature usage events
-- 【CLI Web】Install the local semantic-index runtime on first use, while keeping it preinstalled in the Docker image
+- 【CLI Web】Install the local semantic-index runtime on first use, while keeping it preinstalled in the Docker image (by [@kelaocai](https://github.com/kelaocai))
 
 ### 🐛 Bug Fixes
 
@@ -183,18 +183,18 @@
 ### 🐛 Bug Fixes
 
 - Fix concurrent OPFS access, overview filter race conditions, word frequency totals, and relationship analysis filters in the browser app
-- Bundle frontend icons locally to remove the runtime dependency on external icon services
+- Bundle frontend icons locally to remove the runtime dependency on external icon services (by [@KokerZhou](https://github.com/KokerZhou))
 - Align ChatLab JSONL auto-detection with format validation and reject unresolved owner metadata
 - 【Desktop】Prevent migrations from deleting the active data directory and reject nested or equivalent legacy and active data paths
-- 【CLI】Persist user data and system state in Docker deployments, and bind published ports to localhost by default
+- 【CLI】Persist user data and system state in Docker deployments, and bind published ports to localhost by default (by [@KokerZhou](https://github.com/KokerZhou))
 
 ### 📝 Documentation
 
-- Add a Docker deployment guide and clarify the benefits of AI analysis and local data privacy
+- Add a Docker deployment guide and clarify the benefits of AI analysis and local data privacy (by [@KokerZhou](https://github.com/KokerZhou))
 
 ### 👷 CI
 
-- Publish ChatLab CLI Docker images for amd64 and arm64
+- Publish ChatLab CLI Docker images for amd64 and arm64 (by [@KokerZhou](https://github.com/KokerZhou))
 
 ## v0.32.0 (2026-07-18)
 
@@ -202,14 +202,14 @@
 
 ### ✨ Features
 
-- 【Desktop】Add an app lock with password protection, immediate locking, a startup unlock prompt, and automatic locking after inactivity
+- 【Desktop】Add an app lock with password protection, immediate locking, a startup unlock prompt, and automatic locking after inactivity (by [@xyz-225648](https://github.com/xyz-225648))
 
 ### 🐛 Bug Fixes
 
 - Keep old data after migrating the data directory and prompt for manual cleanup, preventing source files from being deleted during migrations or retries
 - Process large ChatLab JSONL files in streaming batches to prevent import freezes and preserve member avatars in merged imports
 - Unify multi-file batch imports across Desktop and CLI Web with sequential progress, cancellation, and result summaries
-- 【Desktop】Add failed-attempt limits, cooldowns, and startup state protection to the app lock so refreshes or restarts cannot bypass it
+- 【Desktop】Add failed-attempt limits, cooldowns, and startup state protection to the app lock so refreshes or restarts cannot bypass it (by [@xyz-225648](https://github.com/xyz-225648))
 
 ## v0.31.3 (2026-07-17)
 
@@ -253,7 +253,7 @@
 
 - Align validation, deduplication, member inference, and dry-run results for Push imports across runtimes
 - Keep backfilled chat history in chronological order using timestamps and message IDs
-- Fix QCE / QQ Chat Exporter private chats being detected as groups and creating a phantom “0” member
+- Fix QCE / QQ Chat Exporter private chats being detected as groups and creating a phantom “0” member (by [@shuakami](https://github.com/shuakami))
 
 ## v0.31.0 (2026-07-13)
 
@@ -271,7 +271,7 @@
 
 - Fix ChatLab JSON exports so they can be imported again while preserving member, owner, and alias metadata
 - Improve automatic incremental import deduplication, mixed message identity handling, and ChatLab reimport disambiguation
-- Support bracketed timestamps and dotted AM/PM markers in WhatsApp TXT parsing
+- Support bracketed timestamps and dotted AM/PM markers in WhatsApp TXT parsing (by [@hh7418695](https://github.com/hh7418695))
 
 ### ♻️ Refactoring
 
@@ -314,7 +314,7 @@
 - Fix CSV export failures in SQL Lab
 - Preserve avatars when importing JSONL and other streamed member data, including incremental avatar imports
 - Open AI logs through the shared route so local CLI Web and Desktop behave consistently
-- Refresh the overview identity card when the selected time range changes
+- Refresh the overview identity card when the selected time range changes (by [@qikairo7](https://github.com/qikairo7))
 
 ### 📝 Documentation
 
@@ -445,8 +445,8 @@
 ### 🐛 Bug Fixes
 
 - Fix multi-keyword message search
-- Fix UX regression in word cloud dictionary loading
-- Fix ranking label formatting and emoji cleanup
+- Fix UX regression in word cloud dictionary loading (by [@qikairo7](https://github.com/qikairo7))
+- Fix ranking label formatting and emoji cleanup (by [@qikairo7](https://github.com/qikairo7))
 - Add missing i18n text for the v8 database migration
 - [CLI] Fix missing session context forwarding and preprocessing in the tool adapter
 
@@ -466,8 +466,8 @@
 
 ### 🐛 Bug Fixes
 
-- Fix catchphrase stats including platform reply message placeholders
-- Fix word cloud text including media placeholders
+- Fix catchphrase stats including platform reply message placeholders (by [@qikairo7](https://github.com/qikairo7))
+- Fix word cloud text including media placeholders (by [@qikairo7](https://github.com/qikairo7))
 - Fix language-preference and word-frequency caches not being invalidated when the Jieba custom dictionary changes
 - Fix time-sensitive analytics cache entries not expiring daily
 - Fix timeline panel default scroll position and session jump not working
@@ -555,7 +555,7 @@
 - Fix assistant messages not filling the full chat area width
 - Improve the visual layout of the analysis plan generation block
 - Fix thinking-level selection not persisting across restarts
-- Fix JSONL timestamp normalization causing incremental import failures
+- Fix JSONL timestamp normalization causing incremental import failures (by [@cnYui](https://github.com/cnYui))
 - Desktop: Fix `execute_sql` tool not being registered in the desktop tool registry
 
 ### test
@@ -600,8 +600,8 @@
 
 ### ✨ Features
 
-- Add a slash-activated AI chart runtime that can generate and render ECharts charts in conversations
-- Improve the AI chart result experience with clearer rendering states and support for more chart types
+- Add a slash-activated AI chart runtime that can generate and render ECharts charts in conversations (by [@CEQ151](https://github.com/CEQ151))
+- Improve the AI chart result experience with clearer rendering states and support for more chart types (by [@CEQ151](https://github.com/CEQ151))
 
 ### 🐛 Bug Fixes
 
@@ -609,7 +609,7 @@
 - Fix preset question chips and sidebar elements stacking incorrectly
 - CLI Web: Fix incomplete cleanup of the development backend lifecycle
 - Desktop: Register the chart tool for automatic skills so chart skills can run correctly
-- Desktop: Refresh the Windows title bar overlay cache after theme changes and smooth its display
+- Desktop: Refresh the Windows title bar overlay cache after theme changes and smooth its display (by [@CEQ151](https://github.com/CEQ151))
 
 ### ♻️ Refactoring
 
@@ -666,7 +666,7 @@
 
 - Fix multiple edge cases in data directory and database migrations to prevent missing legacy columns or failed reads after path changes
 - Fix legacy data migration prompts appearing incorrectly when no legacy data exists or after directory changes
-- Fix sidebar message counts not refreshing after incremental imports
+- Fix sidebar message counts not refreshing after incremental imports (by [@CEQ151](https://github.com/CEQ151))
 - Fix sidebar collapsed state being lost after refresh because it was stored only in sessionStorage
 - Fix fetch-models and validate buttons not being enabled when editing AI settings with a saved key
 - Fix stability issues in shared AI SSE streaming
@@ -717,7 +717,7 @@
 
 ### ✨ Features
 
-- Add a Fork button to AI replies to branch the conversation from any point into an independent session
+- Add a Fork button to AI replies to branch the conversation from any point into an independent session (by [@CEQ151](https://github.com/CEQ151))
 - Add a per-model thinking level selector in the status bar, with the choice remembered per model slot
 - Extend thinking level controls with default and auto options, covering Kimi, Doubao, Gemini, and more model families
 - Split the message analysis view into Type Analysis and Time Analysis tabs, each with enriched statistical insight cards
@@ -900,7 +900,7 @@
 
 - Fix Web-mode issues around session indexes, CORS proxying, demo safeguards, and runtime errors
 - Fix the app version showing as empty in Web mode
-- Fix AI Agent evidence retrieval, Web event streaming, and error formatting issues
+- Fix AI Agent evidence retrieval, Web event streaming, and error formatting issues (by [@CEQ151](https://github.com/CEQ151))
 - Fix inconsistencies between sync display and import logic
 - Fix ESM module resolution in CLI development mode
 - Fix cases where the CLI could not find existing desktop data after installation
@@ -990,7 +990,7 @@
 
 ### ✨ Features
 
-- Add session type filtering and selection when subscribing to sessions.
+- Add session type filtering and selection when subscribing to sessions. (by [@xunchahaha](https://github.com/xunchahaha))
 - Add paginated remote session discovery with on-demand loading.
 - Allow each data source to configure how many messages are fetched per request.
 
@@ -1147,7 +1147,7 @@
 ### 🐛 Bug Fixes
 
 - Fix inconsistency between WhatsApp time-parsing regex rules and line-matching regex rules.
-- Fix compatibility issues when parsing WhatsApp 12-hour time formats and NNBSP characters.
+- Fix compatibility issues when parsing WhatsApp 12-hour time formats and NNBSP characters. (by [@kongjiyu](https://github.com/kongjiyu))
 
 ### 🔧 Chores
 
@@ -1210,7 +1210,7 @@
 - Improve AI chat styling and overall interaction flow.
 - Add FTS5 full-text search support with a quick search tool.
 - Trim search parameters in selected tools to reduce token usage.
-- Add an E2E testing framework for Electron apps with port management and instance isolation.
+- Add an E2E testing framework for Electron apps with port management and instance isolation. (by [@l17728](https://github.com/l17728))
 
 ### 🐛 Bug Fixes
 
@@ -1223,7 +1223,7 @@
 
 ### test
 
-- Add reusable smoke-test coverage for the E2E app launcher.
+- Add reusable smoke-test coverage for the E2E app launcher. (by [@l17728](https://github.com/l17728))
 
 ### 📝 Documentation
 
@@ -1274,7 +1274,7 @@
 
 ### 🐛 Bug Fixes
 
-- Fix false positives in message deduplication and unify empty-string deduplication behavior
+- Fix false positives in message deduplication and unify empty-string deduplication behavior (by [@lnexin](https://github.com/lnexin))
 - Fix AI conversation flow issues and frontend type-check errors
 - Add a fallback default assistant for edge cases
 - Fix daily message trends not rendering
@@ -1333,7 +1333,7 @@
 
 - Add a chat-history preprocessing pipeline.
 - Add preprocessing settings UI and configuration management.
-- Add session-based context timelines and runtime status for the Agent.
+- Add session-based context timelines and runtime status for the Agent. (by [@n-WN](https://github.com/n-WN))
 - Add an AI debug mode with improved log observability.
 
 ### 🐛 Bug Fixes
@@ -1413,7 +1413,7 @@
 ### 🐛 Bug Fixes
 
 - Fix inaccurate session index generation scope after incremental updates (fix #79).
-- Fix non-chat SQLite files being incorrectly processed during migration and session scanning.
+- Fix non-chat SQLite files being incorrectly processed during migration and session scanning. (by [@n-WN](https://github.com/n-WN))
 
 ### ♻️ Refactoring
 
@@ -1437,7 +1437,7 @@
 
 ### 🐛 Bug Fixes
 
-- Fix parsing issues for LINE chat logs.
+- Fix parsing issues for LINE chat logs. (by [@haotien91](https://github.com/haotien91))
 
 ### 📝 Documentation
 
@@ -1449,9 +1449,9 @@
 
 ### ✨ Features
 
-- Add a data directory location setting
+- Add a data directory location setting (by [@xunchahaha](https://github.com/xunchahaha))
 - Optimize data directory migration logic
-- Add a confirmation dialog for directory switching
+- Add a confirmation dialog for directory switching (by [@xunchahaha](https://github.com/xunchahaha))
 - Improve parser logic (WeFlow / Echotrace)
 
 ### 🐛 Bug Fixes
@@ -1459,12 +1459,12 @@
 - Fix crashes on Windows when custom filtering processes large message volumes
 - Fix conversations ending early when third-party relay APIs call tool_call
 - Fix some WhatsApp chat logs not being detected correctly
-- Fix manage page header stacking above settings
+- Fix manage page header stacking above settings (by [@xunchahaha](https://github.com/xunchahaha))
 
 ### ♻️ Refactoring
 
 - Refactor session query module
-- Improve migration logging
+- Improve migration logging (by [@xunchahaha](https://github.com/xunchahaha))
 
 ## v0.9.2 (2026-02-02)
 
@@ -1603,7 +1603,7 @@
 - Support incremental import
 - Support batch import
 - Style improvements
-- Support native window controls and theme sync on Windows (#31)
+- Support native window controls and theme sync on Windows (#31) (by [@JiQingzhe2004](https://github.com/JiQingzhe2004))
 
 ### 🔧 Chores
 
@@ -1697,7 +1697,7 @@
 - Support proxy configuration (resolve #7)
 - Improve AI model UI interactions
 - Add API tutorial for user configuration
-- Add two free GLM models; add Doubao provider and latest models
+- Add two free GLM models; add Doubao provider and latest models (by [@JiQingzhe2004](https://github.com/JiQingzhe2004))
 - AI replies no longer output think content
 
 ## v0.1.3 (2025-12-25)
