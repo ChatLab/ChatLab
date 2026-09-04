@@ -1,5 +1,19 @@
 # 更新日誌
 
+## v0.37.1 (2026-09-04)
+
+> 新增貢獻者署名，改善 Docker 啟動，並修正 AI 工具迴圈、文字統計與關係圖資源占用問題。
+
+### ✨ 新功能
+
+- 語言偏好、詞頻與口頭禪分析支援讀取語音轉寫內容 (by [@babybitter](https://github.com/babybitter))
+- 【CLI】Docker 映像檔內建預設中文斷詞詞典，首次啟動不再需要下載 (by [@KokerZhou](https://github.com/KokerZhou))
+
+### 🐛 修復
+
+- 修正 AI 工具呼叫達到回合上限後可能重複產生最終回覆、工具錯誤被記為成功，以及上下文內容重複寫入的問題 (by [@Sanssssssssssssssss](https://github.com/Sanssssssssssssssss))
+- 修正系統通知和分享預留文字被納入詞頻、語言偏好與口頭禪統計的問題，並保留使用者的表情符號內容 (by [@babybitter](https://github.com/babybitter))
+
 ## v0.37.0 (2026-08-28)
 
 > 新增跨對話 AI 分析與長期記憶，修正匯入去重、AI 回覆失敗等多項問題，並改善洞察效能與聊天記錄檢視體驗。<br/>目前跨對話分析的測試仍不完整，屬於實驗性功能，後續版本將持續改善。

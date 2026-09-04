@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.37.1 (2026-09-04)
+
+> Add contributor attribution, improve Docker startup, and fix AI tool loops, text statistics, and relationship graph resource usage.
+
+### ✨ Features
+
+- Include voice transcriptions in language preference, word frequency, and catchphrase analysis (by [@babybitter](https://github.com/babybitter))
+- 【CLI】Bundle the default Chinese NLP dictionary in Docker images to avoid downloading it on first startup (by [@KokerZhou](https://github.com/KokerZhou))
+
+### 🐛 Bug Fixes
+
+- Fix duplicate final responses after AI tool calls reach the turn limit, tool errors recorded as successful, and duplicated context writes (by [@Sanssssssssssssssss](https://github.com/Sanssssssssssssssss))
+- Exclude system notifications and share placeholders from word frequency, language preference, and catchphrase statistics while preserving user emoji content (by [@babybitter](https://github.com/babybitter))
+
 ## v0.37.0 (2026-08-28)
 
 > Add cross-chat AI analysis and long-term memory, fix issues including import deduplication and failed AI replies, and improve Insights performance and the chat record viewer.<br/>Cross-chat analysis remains experimental due to limited testing and will continue to improve in future releases.

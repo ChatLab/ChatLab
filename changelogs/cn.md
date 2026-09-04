@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.37.1 (2026-09-04)
+
+> 新增贡献者署名，优化 Docker 启动，并修复 AI 工具循环、文本统计和关系图资源占用。
+
+### ✨ 新功能
+
+- 语言偏好、词频和口头禅分析支持读取语音转写内容 (by [@babybitter](https://github.com/babybitter))
+- 【CLI】Docker 镜像内置默认中文分词词典，首次启动无需下载 (by [@KokerZhou](https://github.com/KokerZhou))
+
+### 🐛 修复
+
+- 修复 AI 工具调用达到轮次上限后可能重复生成最终回答、工具错误被记为成功及上下文重复写入的问题 (by [@Sanssssssssssssssss](https://github.com/Sanssssssssssssssss))
+- 修复系统通知和分享占位污染词频、语言偏好与口头禅统计，并保留用户表情内容 (by [@babybitter](https://github.com/babybitter))
+
 ## v0.37.0 (2026-08-28)
 
 > 新增跨对话 AI 分析与长期记忆，修复导入去重、AI回复失败等大量问题，并优化洞察性能和聊天记录查看体验。<br/>目前的跨对话分析测试不足，仍然为实验性功能，后续版本会继续优化和完善。
