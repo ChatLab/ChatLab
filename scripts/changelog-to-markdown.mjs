@@ -26,14 +26,14 @@ const LOCALES = [
 
 /** type → 各语言的标题（含 emoji）。缺失 type 回退为原始字符串，兼容未来扩展。 */
 const TYPE_LABELS = {
-  feat:     { cn: '✨ 新功能',         en: '✨ Features',        tw: '✨ 新功能',         ja: '✨ 新機能' },
-  fix:      { cn: '🐛 修复',           en: '🐛 Bug Fixes',       tw: '🐛 修復',           ja: '🐛 バグ修正' },
-  refactor: { cn: '♻️ 重构',           en: '♻️ Refactoring',     tw: '♻️ 重構',           ja: '♻️ リファクタリング' },
-  perf:     { cn: '⚡ 性能',           en: '⚡ Performance',      tw: '⚡ 效能',           ja: '⚡ パフォーマンス' },
-  docs:     { cn: '📝 文档',           en: '📝 Documentation',   tw: '📝 文件',           ja: '📝 ドキュメント' },
-  style:    { cn: '💄 样式',           en: '💄 Styles',          tw: '💄 樣式',           ja: '💄 スタイル' },
-  ci:       { cn: '👷 CI',             en: '👷 CI',               tw: '👷 CI',             ja: '👷 CI' },
-  chore:    { cn: '🔧 杂项',           en: '🔧 Chores',          tw: '🔧 雜項',           ja: '🔧 雑務' },
+  feat: { cn: '✨ 新功能', en: '✨ Features', tw: '✨ 新功能', ja: '✨ 新機能' },
+  fix: { cn: '🐛 修复', en: '🐛 Bug Fixes', tw: '🐛 修復', ja: '🐛 バグ修正' },
+  refactor: { cn: '♻️ 重构', en: '♻️ Refactoring', tw: '♻️ 重構', ja: '♻️ リファクタリング' },
+  perf: { cn: '⚡ 性能', en: '⚡ Performance', tw: '⚡ 效能', ja: '⚡ パフォーマンス' },
+  docs: { cn: '📝 文档', en: '📝 Documentation', tw: '📝 文件', ja: '📝 ドキュメント' },
+  style: { cn: '💄 样式', en: '💄 Styles', tw: '💄 樣式', ja: '💄 スタイル' },
+  ci: { cn: '👷 CI', en: '👷 CI', tw: '👷 CI', ja: '👷 CI' },
+  chore: { cn: '🔧 杂项', en: '🔧 Chores', tw: '🔧 雜項', ja: '🔧 雑務' },
 }
 
 // ── 渲染函数 ────────────────────────────────────────────────────────────────
@@ -44,6 +44,16 @@ const TYPE_LABELS = {
  * @param {string} langKey - 'cn' | 'en' | 'tw' | 'ja'（用于 type 标题查表）
  * @param {Array} entries - changelog 数组
  */
+function renderChangelogItem(item) {
+  if (typeof item === 'string') return item
+
+  const contributors = Array.isArray(item.contributors) ? item.contributors : []
+  if (contributors.length === 0) return item.text
+
+  const links = contributors.map((login) => `[@${login}](https://github.com/${encodeURIComponent(login)})`).join(', ')
+  return `${item.text} (by ${links})`
+}
+
 function renderMarkdown(h1, langKey, entries) {
   const lines = [`# ${h1}`, '']
 
@@ -66,7 +76,7 @@ function renderMarkdown(h1, langKey, entries) {
         lines.push(`### ${label}`)
         lines.push('')
         for (const item of items) {
-          lines.push(`- ${item}`)
+          lines.push(`- ${renderChangelogItem(item)}`)
         }
         lines.push('')
       }
@@ -83,7 +93,7 @@ let hasError = false
 
 for (const { key, h1 } of LOCALES) {
   const jsonPath = resolve(ROOT, 'changelogs', `${key}.json`)
-  const mdPath   = resolve(ROOT, 'changelogs', `${key}.md`)
+  const mdPath = resolve(ROOT, 'changelogs', `${key}.md`)
 
   let entries
   try {

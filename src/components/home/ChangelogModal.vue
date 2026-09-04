@@ -8,8 +8,11 @@ import { getChangeTypeConfig } from './changelogTypeConfig'
 import { usePlatformService } from '@/services'
 import CaptureButton from '@/components/common/CaptureButton.vue'
 import {
+  getChangelogItemContributors,
+  getChangelogItemText,
   getBundledChangelogs,
   getBundledLatestVersion,
+  getGithubContributorUrl,
   hasBundledChangelogVersion,
   isBundledLatestVersion,
   normalizeChangelogVersion,
@@ -370,7 +373,26 @@ defineExpose({ open, openWithData, close, fetchChangelogs, getLatestVersion, che
                           class="relative text-sm text-gray-600 dark:text-gray-400"
                         >
                           <span class="absolute -left-4 top-2 h-1.5 w-1.5 rounded-full bg-gray-300 dark:bg-gray-600" />
-                          {{ item }}
+                          <span>{{ getChangelogItemText(item) }}</span>
+                          <span v-if="getChangelogItemContributors(item).length" class="ml-1.5 inline-flex flex-wrap">
+                            <span>(by&nbsp;</span>
+                            <template
+                              v-for="(contributor, contributorIndex) in getChangelogItemContributors(item)"
+                              :key="contributor"
+                            >
+                              <span v-if="contributorIndex > 0">,&nbsp;</span>
+                              <a
+                                :href="getGithubContributorUrl(contributor)"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="font-medium text-primary-600 transition-colors hover:text-primary-700 hover:underline dark:text-primary-400 dark:hover:text-primary-300"
+                                @click.stop
+                              >
+                                @{{ contributor }}
+                              </a>
+                            </template>
+                            <span>)</span>
+                          </span>
                         </li>
                       </ul>
                     </div>

@@ -11,19 +11,37 @@
           "Add long-term memory for managing preferences, details about yourself, contacts, and groups, with relevant entries loaded automatically for each question",
           "Link long-term memories to source messages so AI-derived conclusions can be verified in the original conversation",
           "Unify conversation lists, composers, and @ mention selection across global and per-chat AI conversations",
-          "Let users resize the chat record viewer by dragging and remember the chosen width",
+          {
+            "text": "Let users resize the chat record viewer by dragging and remember the chosen width",
+            "contributors": ["KokerZhou"]
+          },
           "Move SQL Lab and debug tools into a unified More section on analysis pages",
-          "【CLI】Support starting the Web service over a Unix Domain Socket"
+          {
+            "text": "【CLI】Support starting the Web service over a Unix Domain Socket",
+            "contributors": ["KokerZhou"]
+          }
         ]
       },
       {
         "type": "fix",
         "items": [
           "Fix excessive deduplication when incrementally importing or merging WeFlow records and messages without stable IDs, preventing valid messages from being lost",
-          "Fix error state, conversation list, and follow-up issues after an AI reply fails",
-          "Prevent incomplete turns when saving or editing AI conversations, and allow editing only the latest user turn",
-          "Fix long-conversation compression losing message boundaries or links to memory sources",
-          "Fix AI services with the same configuration name loading the wrong credentials",
+          {
+            "text": "Fix error state, conversation list, and follow-up issues after an AI reply fails",
+            "contributors": ["Sanssssssssssssssss"]
+          },
+          {
+            "text": "Prevent incomplete turns when saving or editing AI conversations, and allow editing only the latest user turn",
+            "contributors": ["Sanssssssssssssssss"]
+          },
+          {
+            "text": "Fix long-conversation compression losing message boundaries or links to memory sources",
+            "contributors": ["Sanssssssssssssssss"]
+          },
+          {
+            "text": "Fix AI services with the same configuration name loading the wrong credentials",
+            "contributors": ["Sanssssssssssssssss"]
+          },
           "Fix analysis pages reloading duplicate data or showing stale results after switching away and back",
           "Improve time ranges, contact resolution, scan budgets, and truncation notices for cross-chat analysis"
         ]
@@ -52,7 +70,12 @@
       },
       {
         "type": "fix",
-        "items": ["Turn folder import into a dedicated button so it no longer competes with file selection"]
+        "items": [
+          {
+            "text": "Turn folder import into a dedicated button so it no longer competes with file selection",
+            "contributors": ["kongjiyu"]
+          }
+        ]
       },
       {
         "type": "perf",
@@ -147,7 +170,10 @@
         "items": [
           "Fix QQ automatic import matching and member mapping when UID/UIN values change, owner metadata is missing, or sessions have been merged, preventing duplicate sessions and incorrect member identities",
           "Prevent merge imports from incorrectly removing messages when platform message IDs conflict or private-chat identity is incomplete, while preserving valid owner and session identity metadata",
-          "Fix request handling, rapid switching, and multi-color mode in dynamic keyword rankings, preventing stale results and crashes caused by unknown types",
+          {
+            "text": "Fix request handling, rapid switching, and multi-color mode in dynamic keyword rankings, preventing stale results and crashes caused by unknown types",
+            "contributors": ["kelaocai"]
+          },
           "Unify loading transitions across Insights, and restore annual activity calendar colors and relationship view controls"
         ]
       },
@@ -170,7 +196,10 @@
           "Use the Rust native parser for QQ Shuakami and QQ Chat Exporter imports to improve reliability with large exports",
           "Add safe concurrent scheduling for multi-file imports, preventing concurrent writes to the same session while reporting per-file progress and failures",
           "Add privacy-preserving anonymous product analytics that only report allowlisted environment and feature usage events",
-          "【CLI Web】Install the local semantic-index runtime on first use, while keeping it preinstalled in the Docker image"
+          {
+            "text": "【CLI Web】Install the local semantic-index runtime on first use, while keeping it preinstalled in the Docker image",
+            "contributors": ["kelaocai"]
+          }
         ]
       },
       {
@@ -253,19 +282,35 @@
         "type": "fix",
         "items": [
           "Fix concurrent OPFS access, overview filter race conditions, word frequency totals, and relationship analysis filters in the browser app",
-          "Bundle frontend icons locally to remove the runtime dependency on external icon services",
+          {
+            "text": "Bundle frontend icons locally to remove the runtime dependency on external icon services",
+            "contributors": ["KokerZhou"]
+          },
           "Align ChatLab JSONL auto-detection with format validation and reject unresolved owner metadata",
           "【Desktop】Prevent migrations from deleting the active data directory and reject nested or equivalent legacy and active data paths",
-          "【CLI】Persist user data and system state in Docker deployments, and bind published ports to localhost by default"
+          {
+            "text": "【CLI】Persist user data and system state in Docker deployments, and bind published ports to localhost by default",
+            "contributors": ["KokerZhou"]
+          }
         ]
       },
       {
         "type": "docs",
-        "items": ["Add a Docker deployment guide and clarify the benefits of AI analysis and local data privacy"]
+        "items": [
+          {
+            "text": "Add a Docker deployment guide and clarify the benefits of AI analysis and local data privacy",
+            "contributors": ["KokerZhou"]
+          }
+        ]
       },
       {
         "type": "ci",
-        "items": ["Publish ChatLab CLI Docker images for amd64 and arm64"]
+        "items": [
+          {
+            "text": "Publish ChatLab CLI Docker images for amd64 and arm64",
+            "contributors": ["KokerZhou"]
+          }
+        ]
       }
     ]
   },
@@ -277,7 +322,10 @@
       {
         "type": "feat",
         "items": [
-          "【Desktop】Add an app lock with password protection, immediate locking, a startup unlock prompt, and automatic locking after inactivity"
+          {
+            "text": "【Desktop】Add an app lock with password protection, immediate locking, a startup unlock prompt, and automatic locking after inactivity",
+            "contributors": ["xyz-225648"]
+          }
         ]
       },
       {
@@ -286,7 +334,10 @@
           "Keep old data after migrating the data directory and prompt for manual cleanup, preventing source files from being deleted during migrations or retries",
           "Process large ChatLab JSONL files in streaming batches to prevent import freezes and preserve member avatars in merged imports",
           "Unify multi-file batch imports across Desktop and CLI Web with sequential progress, cancellation, and result summaries",
-          "【Desktop】Add failed-attempt limits, cooldowns, and startup state protection to the app lock so refreshes or restarts cannot bypass it"
+          {
+            "text": "【Desktop】Add failed-attempt limits, cooldowns, and startup state protection to the app lock so refreshes or restarts cannot bypass it",
+            "contributors": ["xyz-225648"]
+          }
         ]
       }
     ]
@@ -349,7 +400,10 @@
         "items": [
           "Align validation, deduplication, member inference, and dry-run results for Push imports across runtimes",
           "Keep backfilled chat history in chronological order using timestamps and message IDs",
-          "Fix QCE / QQ Chat Exporter private chats being detected as groups and creating a phantom “0” member"
+          {
+            "text": "Fix QCE / QQ Chat Exporter private chats being detected as groups and creating a phantom “0” member",
+            "contributors": ["shuakami"]
+          }
         ]
       }
     ]
@@ -374,7 +428,10 @@
         "items": [
           "Fix ChatLab JSON exports so they can be imported again while preserving member, owner, and alias metadata",
           "Improve automatic incremental import deduplication, mixed message identity handling, and ChatLab reimport disambiguation",
-          "Support bracketed timestamps and dotted AM/PM markers in WhatsApp TXT parsing"
+          {
+            "text": "Support bracketed timestamps and dotted AM/PM markers in WhatsApp TXT parsing",
+            "contributors": ["hh7418695"]
+          }
         ]
       },
       {
@@ -435,7 +492,10 @@
           "Fix CSV export failures in SQL Lab",
           "Preserve avatars when importing JSONL and other streamed member data, including incremental avatar imports",
           "Open AI logs through the shared route so local CLI Web and Desktop behave consistently",
-          "Refresh the overview identity card when the selected time range changes"
+          {
+            "text": "Refresh the overview identity card when the selected time range changes",
+            "contributors": ["qikairo7"]
+          }
         ]
       },
       {
@@ -606,8 +666,14 @@
         "type": "fix",
         "items": [
           "Fix multi-keyword message search",
-          "Fix UX regression in word cloud dictionary loading",
-          "Fix ranking label formatting and emoji cleanup",
+          {
+            "text": "Fix UX regression in word cloud dictionary loading",
+            "contributors": ["qikairo7"]
+          },
+          {
+            "text": "Fix ranking label formatting and emoji cleanup",
+            "contributors": ["qikairo7"]
+          },
           "Add missing i18n text for the v8 database migration",
           "[CLI] Fix missing session context forwarding and preprocessing in the tool adapter"
         ]
@@ -634,8 +700,14 @@
       {
         "type": "fix",
         "items": [
-          "Fix catchphrase stats including platform reply message placeholders",
-          "Fix word cloud text including media placeholders",
+          {
+            "text": "Fix catchphrase stats including platform reply message placeholders",
+            "contributors": ["qikairo7"]
+          },
+          {
+            "text": "Fix word cloud text including media placeholders",
+            "contributors": ["qikairo7"]
+          },
           "Fix language-preference and word-frequency caches not being invalidated when the Jieba custom dictionary changes",
           "Fix time-sensitive analytics cache entries not expiring daily",
           "Fix timeline panel default scroll position and session jump not working",
@@ -744,7 +816,10 @@
           "Fix assistant messages not filling the full chat area width",
           "Improve the visual layout of the analysis plan generation block",
           "Fix thinking-level selection not persisting across restarts",
-          "Fix JSONL timestamp normalization causing incremental import failures",
+          {
+            "text": "Fix JSONL timestamp normalization causing incremental import failures",
+            "contributors": ["cnYui"]
+          },
           "Desktop: Fix `execute_sql` tool not being registered in the desktop tool registry"
         ]
       },
@@ -803,8 +878,14 @@
       {
         "type": "feat",
         "items": [
-          "Add a slash-activated AI chart runtime that can generate and render ECharts charts in conversations",
-          "Improve the AI chart result experience with clearer rendering states and support for more chart types"
+          {
+            "text": "Add a slash-activated AI chart runtime that can generate and render ECharts charts in conversations",
+            "contributors": ["CEQ151"]
+          },
+          {
+            "text": "Improve the AI chart result experience with clearer rendering states and support for more chart types",
+            "contributors": ["CEQ151"]
+          }
         ]
       },
       {
@@ -814,7 +895,10 @@
           "Fix preset question chips and sidebar elements stacking incorrectly",
           "CLI Web: Fix incomplete cleanup of the development backend lifecycle",
           "Desktop: Register the chart tool for automatic skills so chart skills can run correctly",
-          "Desktop: Refresh the Windows title bar overlay cache after theme changes and smooth its display"
+          {
+            "text": "Desktop: Refresh the Windows title bar overlay cache after theme changes and smooth its display",
+            "contributors": ["CEQ151"]
+          }
         ]
       },
       {
@@ -889,7 +973,10 @@
         "items": [
           "Fix multiple edge cases in data directory and database migrations to prevent missing legacy columns or failed reads after path changes",
           "Fix legacy data migration prompts appearing incorrectly when no legacy data exists or after directory changes",
-          "Fix sidebar message counts not refreshing after incremental imports",
+          {
+            "text": "Fix sidebar message counts not refreshing after incremental imports",
+            "contributors": ["CEQ151"]
+          },
           "Fix sidebar collapsed state being lost after refresh because it was stored only in sessionStorage",
           "Fix fetch-models and validate buttons not being enabled when editing AI settings with a saved key",
           "Fix stability issues in shared AI SSE streaming",
@@ -956,7 +1043,10 @@
       {
         "type": "feat",
         "items": [
-          "Add a Fork button to AI replies to branch the conversation from any point into an independent session",
+          {
+            "text": "Add a Fork button to AI replies to branch the conversation from any point into an independent session",
+            "contributors": ["CEQ151"]
+          },
           "Add a per-model thinking level selector in the status bar, with the choice remembered per model slot",
           "Extend thinking level controls with default and auto options, covering Kimi, Doubao, Gemini, and more model families",
           "Split the message analysis view into Type Analysis and Time Analysis tabs, each with enriched statistical insight cards",
@@ -1184,7 +1274,10 @@
         "items": [
           "Fix Web-mode issues around session indexes, CORS proxying, demo safeguards, and runtime errors",
           "Fix the app version showing as empty in Web mode",
-          "Fix AI Agent evidence retrieval, Web event streaming, and error formatting issues",
+          {
+            "text": "Fix AI Agent evidence retrieval, Web event streaming, and error formatting issues",
+            "contributors": ["CEQ151"]
+          },
           "Fix inconsistencies between sync display and import logic",
           "Fix ESM module resolution in CLI development mode",
           "Fix cases where the CLI could not find existing desktop data after installation",
@@ -1299,7 +1392,10 @@
       {
         "type": "feat",
         "items": [
-          "Add session type filtering and selection when subscribing to sessions.",
+          {
+            "text": "Add session type filtering and selection when subscribing to sessions.",
+            "contributors": ["xunchahaha"]
+          },
           "Add paginated remote session discovery with on-demand loading.",
           "Allow each data source to configure how many messages are fetched per request."
         ]
@@ -1503,7 +1599,10 @@
         "type": "fix",
         "items": [
           "Fix inconsistency between WhatsApp time-parsing regex rules and line-matching regex rules.",
-          "Fix compatibility issues when parsing WhatsApp 12-hour time formats and NNBSP characters."
+          {
+            "text": "Fix compatibility issues when parsing WhatsApp 12-hour time formats and NNBSP characters.",
+            "contributors": ["kongjiyu"]
+          }
         ]
       },
       {
@@ -1584,7 +1683,10 @@
           "Improve AI chat styling and overall interaction flow.",
           "Add FTS5 full-text search support with a quick search tool.",
           "Trim search parameters in selected tools to reduce token usage.",
-          "Add an E2E testing framework for Electron apps with port management and instance isolation."
+          {
+            "text": "Add an E2E testing framework for Electron apps with port management and instance isolation.",
+            "contributors": ["l17728"]
+          }
         ]
       },
       {
@@ -1600,7 +1702,12 @@
       },
       {
         "type": "test",
-        "items": ["Add reusable smoke-test coverage for the E2E app launcher."]
+        "items": [
+          {
+            "text": "Add reusable smoke-test coverage for the E2E app launcher.",
+            "contributors": ["l17728"]
+          }
+        ]
       },
       {
         "type": "docs",
@@ -1662,7 +1769,10 @@
       {
         "type": "fix",
         "items": [
-          "Fix false positives in message deduplication and unify empty-string deduplication behavior",
+          {
+            "text": "Fix false positives in message deduplication and unify empty-string deduplication behavior",
+            "contributors": ["lnexin"]
+          },
           "Fix AI conversation flow issues and frontend type-check errors",
           "Add a fallback default assistant for edge cases",
           "Fix daily message trends not rendering"
@@ -1729,7 +1839,10 @@
         "items": [
           "Add a chat-history preprocessing pipeline.",
           "Add preprocessing settings UI and configuration management.",
-          "Add session-based context timelines and runtime status for the Agent.",
+          {
+            "text": "Add session-based context timelines and runtime status for the Agent.",
+            "contributors": ["n-WN"]
+          },
           "Add an AI debug mode with improved log observability."
         ]
       },
@@ -1836,7 +1949,10 @@
         "type": "fix",
         "items": [
           "Fix inaccurate session index generation scope after incremental updates (fix #79).",
-          "Fix non-chat SQLite files being incorrectly processed during migration and session scanning."
+          {
+            "text": "Fix non-chat SQLite files being incorrectly processed during migration and session scanning.",
+            "contributors": ["n-WN"]
+          }
         ]
       },
       {
@@ -1866,7 +1982,12 @@
       },
       {
         "type": "fix",
-        "items": ["Fix parsing issues for LINE chat logs."]
+        "items": [
+          {
+            "text": "Fix parsing issues for LINE chat logs.",
+            "contributors": ["haotien91"]
+          }
+        ]
       },
       {
         "type": "docs",
@@ -1882,9 +2003,15 @@
       {
         "type": "feat",
         "items": [
-          "Add a data directory location setting",
+          {
+            "text": "Add a data directory location setting",
+            "contributors": ["xunchahaha"]
+          },
           "Optimize data directory migration logic",
-          "Add a confirmation dialog for directory switching",
+          {
+            "text": "Add a confirmation dialog for directory switching",
+            "contributors": ["xunchahaha"]
+          },
           "Improve parser logic (WeFlow / Echotrace)"
         ]
       },
@@ -1894,12 +2021,21 @@
           "Fix crashes on Windows when custom filtering processes large message volumes",
           "Fix conversations ending early when third-party relay APIs call tool_call",
           "Fix some WhatsApp chat logs not being detected correctly",
-          "Fix manage page header stacking above settings"
+          {
+            "text": "Fix manage page header stacking above settings",
+            "contributors": ["xunchahaha"]
+          }
         ]
       },
       {
         "type": "refactor",
-        "items": ["Refactor session query module", "Improve migration logging"]
+        "items": [
+          "Refactor session query module",
+          {
+            "text": "Improve migration logging",
+            "contributors": ["xunchahaha"]
+          }
+        ]
       }
     ]
   },
@@ -2079,7 +2215,10 @@
           "Support incremental import",
           "Support batch import",
           "Style improvements",
-          "Support native window controls and theme sync on Windows (#31)"
+          {
+            "text": "Support native window controls and theme sync on Windows (#31)",
+            "contributors": ["JiQingzhe2004"]
+          }
         ]
       },
       {
@@ -2197,7 +2336,10 @@
           "Support proxy configuration (resolve #7)",
           "Improve AI model UI interactions",
           "Add API tutorial for user configuration",
-          "Add two free GLM models; add Doubao provider and latest models",
+          {
+            "text": "Add two free GLM models; add Doubao provider and latest models",
+            "contributors": ["JiQingzhe2004"]
+          },
           "AI replies no longer output think content"
         ]
       }
