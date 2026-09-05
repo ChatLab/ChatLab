@@ -26,7 +26,7 @@ npm install -g chatlab-cli
 npx skills add ChatLab/ChatLab --skill chatlab-import -g
 ```
 
-各语言共用同一个技能，可以直接用中文提出需求。曾安装 `chatlab-import-cn` 时，请先保留自定义改动，再安装上面的统一版本，并通过原安装工具移除旧入口，避免重复显示。
+各语言共用同一个技能，可以直接用中文提出需求。`chatlab-import-cn` 作为已弃用的兼容入口保留，确保 ChatLab v0.31.1 至 v0.37.1 首页中的旧安装命令继续有效；其正文也使用英文，回答遵循用户语言。曾安装旧入口时，请先保留自定义改动，再安装上面的统一版本，并通过原安装工具移除旧入口，避免重复显示。
 
 然后直接告诉 Agent：
 

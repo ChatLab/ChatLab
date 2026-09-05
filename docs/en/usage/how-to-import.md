@@ -26,7 +26,7 @@ npm install -g chatlab-cli
 npx skills add ChatLab/ChatLab --skill chatlab-import -g
 ```
 
-The same skill works across languages; ask in your preferred language.
+The same skill works across languages; ask in your preferred language. The deprecated `chatlab-import-cn` entry remains available for installation commands shown in ChatLab v0.31.1 through v0.37.1. Its instructions are also in English, and responses follow your language. If you already installed it, preserve any custom changes, install the unified skill above, then remove the old entry with your original installation tool to avoid duplicates.
 
 Then ask the agent:
 
