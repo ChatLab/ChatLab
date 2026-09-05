@@ -1,21 +1,15 @@
 ---
 name: chatlab-convert
-description: Convert unsupported local chat exports into validated ChatLab JSONL or JSON by inspecting their structure, writing and running a local Node.js or Python converter, and verifying record counts before import. Use when ChatLab cannot recognize a CSV, HTML, TXT, XML, SQLite/database, vendor-specific JSON/JSONL, archive, or other chat export format, or when a user asks an agent to adapt an unknown chat format for ChatLab.
+description: Convert unsupported local chat exports into validated ChatLab JSONL or JSON with a reproducible local script. Use for unknown-format adaptation, not analysis or direct import of already supported files.
 ---
 
 # ChatLab Convert
 
 Convert an unsupported local export without modifying the source. Prefer a reproducible script and a validated JSONL result over a one-off rewritten file.
 
-Install this skill with:
-
-```bash
-npx skills add ChatLab/ChatLab --skill chatlab-convert -g
-```
-
 ## Non-negotiable rules
 
-- Keep every source file read-only. Write scripts, samples, extracted archives, and output to a separate sibling directory.
+- Keep every source file read-only. Write scripts, samples, extracted archives, and output to a separate working directory, using the user's output location when specified.
 - Keep chat data local. Do not upload it, send it to a network service, or dump message bodies into model-visible terminal output.
 - Inspect structure first: keys, column names, value types, counts, timestamp shapes, and masked samples. Replace message text in diagnostic output with its type and length.
 - Never silently skip a malformed or unsupported source record. Fail with its source row/index, or preserve it as message type `99` and count the mapping explicitly.
@@ -26,7 +20,7 @@ npx skills add ChatLab/ChatLab --skill chatlab-convert -g
 
 ### 1. Confirm the source and CLI
 
-Resolve the exact source path. If several files could be the export, ask the user instead of guessing. Quote paths in every command.
+Resolve the source from the request and conversation; ask only if it remains ambiguous. Quote paths in every command. Check available capabilities once, reusing results within the task.
 
 ```bash
 clb --help
@@ -35,18 +29,11 @@ clb formats
 clb import "/absolute/path/to/source" --dry-run --json
 ```
 
-If the dry run recognizes the source, do not convert it. Use `chatlab-import` for the supported file.
+If the dry run recognizes the source, report that conversion is unnecessary. Import only if requested, using `chatlab-import` when available or the preview/write steps below.
 
-If `clb` is missing, or the installed version has no `validate` command:
+If `clb validate` is unavailable, continue with `scripts/validate-chatlab.mjs` without pausing conversion to propose installation. The bundled validator needs Node.js 22.19 or later. An older CLI may still support `formats` and import dry-run; use the capabilities it actually provides. If no CLI is available, state that native format support and import readiness could not be checked.
 
-1. Tell the user that ChatLab CLI was not detected but conversion can continue with this Skill's bundled strict validator.
-2. Recommend installing or updating the CLI, and obtain permission before running `npm install -g chatlab-cli@latest`.
-3. If the user skips installation, installation fails, or the network is unavailable, continue with `scripts/validate-chatlab.mjs`.
-4. Skip `clb formats` and the source dry run, and state that native ChatLab support for the source format could not be checked.
-
-The bundled validator requires Node.js 22.19 or later. If `node --version` is also unavailable, the converter may still be written, but mark the result as “not yet validated” and guide the user to install Node.js and `chatlab-cli`. Do not install either without permission.
-
-Do not replace either the CLI validator or bundled strict validator with visual inspection.
+If neither strict validator can run, finish the converter where possible and report the output as unvalidated. Do not replace strict validation with visual inspection. Request installation authorization only when a missing runtime or CLI blocks the requested outcome.
 
 ### 2. Inspect without exposing content
 
@@ -64,7 +51,7 @@ For an archive, extract into the separate working directory and reject entries t
 
 ### 3. Define the mapping
 
-Read [references/chatlab-format.md](references/chatlab-format.md) completely before writing the converter. Record the mapping from source fields to ChatLab fields, including:
+Read the field contract and chosen output format in [references/chatlab-format.md](references/chatlab-format.md) before writing the converter. Record the mapping from source fields to ChatLab fields, including:
 
 - conversation boundaries and group/private type;
 - stable member identity and owner identity;
@@ -80,11 +67,7 @@ One ChatLab file represents one conversation. If the source contains multiple co
 
 Prefer JSONL. Use JSON only for a small, naturally structured export where holding the full result in memory is clearly safe.
 
-Choose the simplest installed runtime:
-
-- Node.js for JSON, JSONL, HTML, and JavaScript-shaped exports;
-- Python for CSV, SQLite, XML, encoding-heavy text, and tabular data;
-- shell for file discovery and command composition only.
+Use the simplest suitable installed Node.js or Python runtime; the source format does not mandate a particular language.
 
 The converter must:
 
@@ -101,7 +84,7 @@ Default `skipped` to zero. Mapping an unknown message to type `99` is preservati
 
 ### 5. Prove a small sample
 
-Run the converter on a bounded local sample or sample mode first. With the CLI available, validate that output with:
+For a large file or uncertain mapping, run a bounded local sample first. A small input can be converted and validated in full directly. With the CLI available, validate that output with:
 
 ```bash
 clb validate "/absolute/path/to/sample.jsonl" --json
@@ -136,14 +119,6 @@ Keep the result levels distinct:
 - **Import validated**: format validation passed and `clb import --dry-run --json` also returns `ok: true`.
 
 Without the CLI, report only “format validated.” Tell the user they can install the CLI later to run the dry-run or drag the result into ChatLab. Do not claim import validation passed.
-
-Require all of the following before calling the result fully import validated:
-
-- strict validation returns `ok: true`;
-- the import dry run returns `ok: true`;
-- converter output message count equals the validator message count;
-- source message count equals output message count plus explicitly accepted skipped records;
-- no source parse error was hidden.
 
 ### 7. Import only when requested
 

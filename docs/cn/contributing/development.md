@@ -26,20 +26,20 @@ pnpm install
 
 ## 本地运行
 
-| 命令 | 用途 |
-| --- | --- |
-| `pnpm dev` | 交互式选择 Desktop、CLI Web、CLI Web 的 API Server、Web WASM 或文档站开发目标 |
-| `pnpm dev:desktop` | 启动 Electron 桌面端开发模式 |
-| `pnpm dev:cli-web` | 启动 CLI Web（Node 后端 + Web UI）开发模式，默认访问 `http://127.0.0.1:3100/` |
-| `pnpm dev:web-wasm` | 启动 Web WASM（纯浏览器运行），默认访问 `http://127.0.0.1:3130/` |
-| `pnpm docs:dev` | 启动公开文档站开发模式 |
-| `pnpm build:desktop` | 构建桌面端 |
-| `pnpm build:cli-web` | 构建 CLI Web UI |
-| `pnpm build:web-wasm` | 构建 Web WASM |
-| `pnpm docs:build` | 构建公开文档站 |
-| `pnpm run type-check:all` | 运行前端和 Node 侧类型检查 |
-| `pnpm lint` | 运行 ESLint 并自动修复 |
-| `pnpm format` | 运行 Prettier 格式化 |
+| 命令                      | 用途                                                                          |
+| ------------------------- | ----------------------------------------------------------------------------- |
+| `pnpm dev`                | 交互式选择 Desktop、CLI Web、CLI Web 的 API Server、Web WASM 或文档站开发目标 |
+| `pnpm dev:desktop`        | 启动 Electron 桌面端开发模式                                                  |
+| `pnpm dev:cli-web`        | 启动 CLI Web（Node 后端 + Web UI）开发模式，默认访问 `http://127.0.0.1:3100/` |
+| `pnpm dev:web-wasm`       | 启动 Web WASM（纯浏览器运行），默认访问 `http://127.0.0.1:3130/`              |
+| `pnpm docs:dev`           | 启动公开文档站开发模式                                                        |
+| `pnpm build:desktop`      | 构建桌面端                                                                    |
+| `pnpm build:cli-web`      | 构建 CLI Web UI                                                               |
+| `pnpm build:web-wasm`     | 构建 Web WASM                                                                 |
+| `pnpm docs:build`         | 构建公开文档站                                                                |
+| `pnpm run type-check:all` | 运行前端和 Node 侧类型检查                                                    |
+| `pnpm lint`               | 运行 ESLint 并自动修复                                                        |
+| `pnpm format`             | 运行 Prettier 格式化                                                          |
 
 小范围改动优先对修改文件或相关子项目做定向检查；跨模块、发布或架构类改动再跑全量检查。
 
@@ -53,18 +53,18 @@ pnpm install
 
 ## 目录职责
 
-| 路径 | 职责 |
-| --- | --- |
-| `src/` | 共享前端应用代码，包含页面、组件、服务封装、状态和 i18n |
-| `src/services/` | 前端访问 Electron、CLI Web API 和平台能力的服务层 |
-| `apps/desktop/` | Electron 主进程、preload 和桌面端构建配置 |
-| `apps/cli/` | CLI、HTTP API、CLI Web 运行时和导入命令 |
-| `packages/core/` | 平台无关的核心数据模型、查询、导入和成员操作 |
-| `packages/node-runtime/` | Node.js 运行时服务、数据库、AI、导出、缓存和迁移 |
-| `packages/tools/` | 统一 AI 工具定义和数据访问适配 |
-| `docs/` | 公开文档站源码 |
-| `changelogs/` | 应用内和发布使用的多语言更新日志 |
-| `.docs/` | 可选的个人或团队私有开发上下文，不是公开贡献的必需依赖 |
+| 路径                     | 职责                                                    |
+| ------------------------ | ------------------------------------------------------- |
+| `src/`                   | 共享前端应用代码，包含页面、组件、服务封装、状态和 i18n |
+| `src/services/`          | 前端访问 Electron、CLI Web API 和平台能力的服务层       |
+| `apps/desktop/`          | Electron 主进程、preload 和桌面端构建配置               |
+| `apps/cli/`              | CLI、HTTP API、CLI Web 运行时和导入命令                 |
+| `packages/core/`         | 平台无关的核心数据模型、查询、导入和成员操作            |
+| `packages/node-runtime/` | Node.js 运行时服务、数据库、AI、导出、缓存和迁移        |
+| `packages/tools/`        | 统一 AI 工具定义和数据访问适配                          |
+| `docs/`                  | 公开文档站源码                                          |
+| `changelogs/`            | 应用内和发布使用的多语言更新日志                        |
+| `.docs/`                 | 可选的个人或团队私有开发上下文，不是公开贡献的必需依赖  |
 
 ## 架构边界
 
@@ -129,23 +129,23 @@ CHATLAB_ALLOW_INCOMPATIBLE_DATA_DIR=1
 
 ## 常见改动入口
 
-| 想改什么 | 先看哪里 |
-| --- | --- |
-| 前端页面和组件 | `src/pages/`、`src/components/` |
-| 图表分析 | `src/components/analysis/`、`src/components/charts/` |
-| 数据、消息、会话 API 调用 | `src/services/` |
-| Electron 主进程 | `apps/desktop/main/`、`apps/desktop/preload/` |
-| CLI 和 Web API | `apps/cli/` |
-| 共享业务逻辑 | `packages/node-runtime/src/services/`、`packages/core/` |
-| AI 工具和 Agent | `packages/tools/`、`packages/node-runtime/src/ai/`、`src/services/ai*` |
-| 导入解析 | `packages/core/`、`apps/cli/src/import/`、`src/services/import/` |
-| 文档站 | `docs/`、`docs/.vitepress/config.mts` |
-| 更新日志 | `changelogs/` |
+| 想改什么                  | 先看哪里                                                               |
+| ------------------------- | ---------------------------------------------------------------------- |
+| 前端页面和组件            | `src/pages/`、`src/components/`                                        |
+| 图表分析                  | `src/components/analysis/`、`src/components/charts/`                   |
+| 数据、消息、会话 API 调用 | `src/services/`                                                        |
+| Electron 主进程           | `apps/desktop/main/`、`apps/desktop/preload/`                          |
+| CLI 和 Web API            | `apps/cli/`                                                            |
+| 共享业务逻辑              | `packages/node-runtime/src/services/`、`packages/core/`                |
+| AI 工具和 Agent           | `packages/tools/`、`packages/node-runtime/src/ai/`、`src/services/ai*` |
+| 导入解析                  | `packages/core/`、`apps/cli/src/import/`、`src/services/import/`       |
+| 文档站                    | `docs/`、`docs/.vitepress/config.mts`                                  |
+| 更新日志                  | `changelogs/`                                                          |
 
 ## 测试与检查
 
 - 修改 TypeScript 或 Vue 代码后，至少运行相关类型检查。
-- 修改公开文档后，运行 `pnpm docs:build` 或对修改的 Markdown/配置文件运行格式化检查。
+- 修改公开文档或 VitePress 配置后，运行 `pnpm docs:build`，并格式化修改文件；`docs/**/*.md` 被 Prettier 默认忽略，定向格式化时使用 `pnpm exec prettier --write --ignore-path .gitignore <files...>`。
 - 修改跨平台共享逻辑后，确认 Electron 和 CLI Web 两端入口没有产生行为分歧。
 - 修复会影响用户数据、业务逻辑、异步任务、缓存状态、跨端共享 service、公开 API 契约、导入解析、去重逻辑、权限认证、AI 工具 allowlist、配置/API key 迁移或数据库 schema/迁移的行为 bug 时，必须优先补能失败的回归测试。
 - 只改 UI 文案、i18n key/翻译、样式、类型声明、日志、注释、无行为变化的小重构，或修复低风险展示细节时，可以不新增测试，但仍需运行相关类型检查、lint 和 format；不要为了低价值页面文案或源码字符串扫描新增脆弱测试。
@@ -162,6 +162,8 @@ CHATLAB_ALLOW_INCOMPATIBLE_DATA_DIR=1
 ## 使用 AI 协作
 
 AI 可以帮助阅读代码、生成补丁和补测试，但公开 PR 必须让 reviewer 能在公开上下文中理解。建议让 AI 先读 `AGENTS.md` 和本页；如果你维护了自己的 `.docs/`，可以把它作为额外上下文，但不要让变更说明、测试理由或设计依据只存在于私有 `.docs/` 中。
+
+维护代理指令、技能或审查流程时，参见 [AI 协作工作流](./ai-workflow.md)。日常任务按修改范围完成验证，不需要加载所有技能或反复执行全量检查。
 
 ## PR 与提交规范
 

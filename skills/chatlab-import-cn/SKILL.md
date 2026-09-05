@@ -1,25 +1,13 @@
 ---
 name: chatlab-import-cn
-description: 通过 clb CLI 安全预览并将本地聊天导出文件导入 ChatLab。当用户要求外部 Agent 从本地 QQ、微信、Telegram、WhatsApp、LINE、Discord、Instagram、Google Chat、ChatLab JSON/JSONL 或其他受支持的聊天导出文件执行首次导入、重新导入或增量更新时使用。
+description: 通过 clb 预览并导入本地聊天导出文件，支持重新导入和增量更新。用于导入请求，不用于只读分析或未知格式转换。
 ---
 
 # ChatLab 聊天导入
 
 通过 `clb` CLI 导入本地聊天导出文件。始终先预览准确的写入计划。将用户明确提出的导入请求视为授权，预览成功后继续执行，不再请求二次确认。
 
-## 适用场景
-
-- 首次导入本地聊天导出文件。
-- 重新导入更新后的文件，只补充新增消息。
-- 让外部 Agent 安全处理格式识别和会话匹配。
-
-如果只需分析 ChatLab 中已有的聊天记录，请使用 `chatlab-analyze-cn`。
-
-安装命令：
-
-```bash
-npx skills add ChatLab/ChatLab --skill chatlab-import-cn -g
-```
+分析已有记录时，可用则使用 `chatlab-analyze-cn`；源格式不受支持时，可用则使用 `chatlab-convert-cn`。受支持格式的导入不依赖这两个技能。
 
 ## 工作流程
 
@@ -29,7 +17,7 @@ npx skills add ChatLab/ChatLab --skill chatlab-import-cn -g
 clb --help
 ```
 
-如果 CLI 未安装，告诉用户运行 `npm install -g chatlab-cli`。未经批准不要自行安装软件。存在多个候选文件时不要猜测，每条命令中的路径都要加引号。
+如果 CLI 未安装，告诉用户运行 `npm install -g chatlab-cli`。未经批准不要自行安装软件。复用用户指定的文件和目标，路径仍有歧义时才询问。每条命令中的路径都要加引号。
 
 2. 只读预览导入计划：
 
@@ -41,7 +29,7 @@ clb import "/absolute/path/to/chat-export.json" --dry-run --json
 
 3. 只总结新建或更新模式、目标会话 ID、扫描消息数、新增消息数、重复消息数，以及匹配方式或新建原因。不要引用消息正文。
 
-4. 根据预览结果决定下一步：
+4. 确认 `ok: true`，从 `data` 读取计划后决定：
 
 - 用户只要求预览或检查时，到此停止，不写入数据。
 - `importMode` 为 `incremental` 且 `newMessageCount` 为 `0` 时，告诉用户会话已经是最新状态，然后停止。
@@ -63,5 +51,5 @@ clb import "/absolute/path/to/chat-export.json" --json
 - 绝不泄露完整聊天导出文件或消息正文。
 - 绝不编造文件路径、解析格式或会话 ID。
 - 仅在修正方式明确时遵循 `error.hint`。
-- `FILE_NOT_FOUND` 要求正确路径；`UNRECOGNIZED_FORMAT` 查看 `clb formats`；`IMPORT_IN_PROGRESS` 稍后重试；`INVALID_SESSION_ID` 要求有效 ID。
+- `FILE_NOT_FOUND`、`INVALID_SESSION_ID` 优先从上下文修正，无法确定时询问；`UNRECOGNIZED_FORMAT` 查看 `clb formats`；`IMPORT_IN_PROGRESS` 在现有导入完成后重试一次，仍阻塞则报告，不无限轮询。
 - 优先使用用户当前使用的中文变体回答，命令、参数、JSON 字段和错误码保持原样。
