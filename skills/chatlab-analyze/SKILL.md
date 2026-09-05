@@ -7,33 +7,20 @@ description: Analyze local ChatLab chat records through the clb CLI. Use when th
 
 Query and analyze records already imported into ChatLab through the read-only `clb` CLI.
 
-## Good Fit
-
-- Find conversations or determine who mentioned something first.
-- Summarize recent topics or inspect a named relationship.
-- Compare member activity, keywords, or response patterns.
-
-For importing a new chat export, use `chatlab-import` instead.
-
-Install this skill with:
-
-```bash
-npx skills add ChatLab/ChatLab --skill chatlab-analyze -g
-```
+For importing a new chat export, use `chatlab-import` when available; otherwise follow `clb import --help` and preview the exact import before writing.
 
 ## Workflow
 
 ### 1. Prepare the Query
 
-Check the CLI, load its current command contract, and list sessions:
+Load the current command contract once per task. List sessions only when the target is not already known:
 
 ```bash
-clb --help
 clb manifest
 clb sessions list --format json
 ```
 
-Use the only relevant session. If multiple sessions or members match the request, ask the user to choose from the returned candidates.
+Reuse the session, member, and time range already identified in the conversation. Ask only when the returned candidates and context cannot resolve a material ambiguity. If the CLI is unavailable, report the missing capability; installation requires authorization.
 
 ### 2. Start with a Dedicated Command
 
@@ -56,7 +43,7 @@ clb messages context --id 1021 --session <session-id> --window 10 --format agent
 clb stats keywords --session <session-id> --member <member> --last 90d --top 20 --format json
 ```
 
-When `meta.hasMore` is true, continue with `--cursor <meta.nextCursor>` and the same query conditions. Use limits and token controls to retrieve only the context needed.
+When more evidence is needed and `meta.hasMore` is true, continue with `--cursor <meta.nextCursor>` and the same query conditions. Stop when the question is answered; disclose any partial coverage instead of treating a page as the complete dataset.
 
 ### 4. Use SQL Only as a Fallback
 
@@ -69,8 +56,8 @@ clb sql "SELECT COUNT(*) AS n FROM message" --session <session-id> --format json
 
 ## Privacy and Answers
 
-- Never use `--raw`, modify ChatLab data, import files, change config, or start long-running services.
+- Queries keep privacy preprocessing enabled; do not use `--raw` or mutate data/config. A separate request to import follows the import workflow.
 - Never reveal full chat dumps. ChatLab's safe output applies the user's privacy preprocessing.
-- Cite available message evidence with markers such as `[#1021]`, `[#1021*]`, or `[#1021-1024]`.
+- Cite available evidence with `[#1021]`, `[#1021*]`, or `[#1021-1024]`. Only individual IDs can be passed to `messages context --id`; merged ranges are display-only.
 - Start with the answer, name the queried session and time range, then separate observed facts from interpretation.
 - Avoid overclaiming emotional intent in relationship analysis. Follow `error.hint` only when the correction is clear.

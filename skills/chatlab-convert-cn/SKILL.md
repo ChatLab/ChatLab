@@ -1,21 +1,15 @@
 ---
 name: chatlab-convert-cn
-description: 将 ChatLab 暂不支持的本地聊天导出转换为经过验证的 ChatLab JSONL 或 JSON：分析源文件结构，编写并运行本地 Node.js 或 Python 转换脚本，并在导入前核对记录数量。当 ChatLab 无法识别 CSV、HTML、TXT、XML、SQLite/数据库、厂商自定义 JSON/JSONL、压缩包等聊天导出，或用户要求 Agent 适配未知聊天格式时使用。
+description: 编写可复用的本地脚本，将不受支持的聊天导出转换并验证为 ChatLab JSONL 或 JSON。用于未知格式适配，不用于聊天分析或直接导入已支持的文件。
 ---
 
 # ChatLab 聊天转换
 
 在不修改源文件的前提下转换暂不支持的聊天导出。优先交付可复用的转换脚本和经过验证的 JSONL，而不是一次性改写文件。
 
-安装命令：
-
-```bash
-npx skills add ChatLab/ChatLab --skill chatlab-convert-cn -g
-```
-
 ## 不可省略的规则
 
-- 始终以只读方式处理源文件。脚本、样本、解压文件和输出都写入独立的同级目录。
+- 始终以只读方式处理源文件。脚本、样本、解压文件和输出写入独立工作目录；用户指定输出位置时遵循该位置。
 - 聊天数据只留在本机。不要上传到网络服务，也不要在 AI 可见的终端输出中打印消息正文。
 - 先检查结构：字段名、列名、值类型、数量、时间戳形态和脱敏样本。诊断输出中的消息正文替换为类型和长度。
 - 绝不静默跳过损坏或不支持的源记录。应携带源行号/索引失败，或保留为消息类型 `99` 并明确统计映射数量。
@@ -26,7 +20,7 @@ npx skills add ChatLab/ChatLab --skill chatlab-convert-cn -g
 
 ### 1. 确认源文件和 CLI
 
-确认唯一、准确的源路径。存在多个候选文件时询问用户，不要猜测。每条命令都要给路径加引号。
+从请求和对话中确定源路径，仍有歧义时才询问。命令中的路径加引号；环境能力每个任务检查一次，任务内复用结果。
 
 ```bash
 clb --help
@@ -35,18 +29,11 @@ clb formats
 clb import "/absolute/path/to/source" --dry-run --json
 ```
 
-如果 dry-run 已经识别源文件，不要重复转换，改用 `chatlab-import-cn` 完成导入。
+如果 dry-run 已识别源文件，说明无需转换。只有用户要求导入时才继续，可用则使用 `chatlab-import-cn`，否则按下文预览和写入步骤执行。
 
-如果 `clb` 不存在，或已有版本没有 `validate` 命令：
+`clb validate` 不可用时，直接使用 `scripts/validate-chatlab.mjs` 继续转换，不因推荐安装而暂停。内置验证器需要 Node.js 22.19 或更高版本；旧 CLI 可能仍支持 `formats` 和导入 dry-run，按实际可用能力执行。完全没有 CLI 时，说明无法检查原生格式支持和导入就绪状态。
 
-1. 告诉用户未检测到可用的 ChatLab CLI，但仍可使用本 Skill 内置的严格验证器继续转换；
-2. 建议安装或更新 CLI，并在执行前征得用户同意：`npm install -g chatlab-cli@latest`；
-3. 用户跳过安装、安装失败或当前无法联网时，不要阻断转换，改用 `scripts/validate-chatlab.mjs`；
-4. 跳过 `clb formats` 和源文件 dry-run，并明确说明无法确认 ChatLab 是否已原生支持该源格式。
-
-内置验证器需要 Node.js 22.19 或更高版本。如果 `node --version` 也不可用，可以继续编写转换器，但必须把结果标记为“尚未验证”，并引导用户安装 Node.js 和 `chatlab-cli`；未经同意不要自行安装。
-
-不能用肉眼检查替代 CLI 或内置严格验证器。
+两个严格验证器均无法运行时，尽可能完成转换器并将产物标记为尚未验证；不能用肉眼检查替代严格验证。只有缺失的运行时或 CLI 阻塞用户要求的结果时，才请求安装授权。
 
 ### 2. 在不暴露正文的前提下检查结构
 
@@ -64,7 +51,7 @@ clb import "/absolute/path/to/source" --dry-run --json
 
 ### 3. 确定字段映射
 
-编写转换器前，完整阅读 [references/chatlab-format.md](references/chatlab-format.md)。记录源字段到 ChatLab 字段的映射，包括：
+编写转换器前，阅读 [references/chatlab-format.md](references/chatlab-format.md) 的字段契约与所选输出格式。记录源字段到 ChatLab 字段的映射，包括：
 
 - 会话边界以及群聊/私聊类型；
 - 稳定的成员身份和本人身份；
@@ -80,11 +67,7 @@ clb import "/absolute/path/to/source" --dry-run --json
 
 默认输出 JSONL。只有源文件较小、天然结构化，并且可以明确安全地放入内存时才使用 JSON。
 
-选择当前已安装且最简单的运行时：
-
-- JSON、JSONL、HTML 和 JavaScript 风格数据优先使用 Node.js；
-- CSV、SQLite、XML、编码复杂的文本和表格数据优先使用 Python；
-- Shell 只负责发现文件和组合命令。
+使用已安装且最适合当前任务的 Node.js 或 Python；不按源格式强制指定语言。
 
 转换器必须：
 
@@ -101,7 +84,7 @@ clb import "/absolute/path/to/source" --dry-run --json
 
 ### 5. 先证明小样本
 
-先对受限的本地样本或脚本的 sample 模式运行转换器，然后验证。有 CLI 时运行：
+大文件或映射尚不确定时，先转换并验证受限样本；小文件可以直接全量转换验证。有 CLI 时运行：
 
 ```bash
 clb validate "/absolute/path/to/sample.jsonl" --json
@@ -136,14 +119,6 @@ node "/absolute/path/to/chatlab-convert-cn/scripts/validate-chatlab.mjs" "/absol
 - **导入验证通过**：在格式验证通过的基础上，`clb import --dry-run --json` 也返回 `ok: true`。
 
 没有 CLI 时只能报告“格式验证通过”，并提醒用户之后可以安装 CLI 完成 dry-run，或将结果文件拖入 ChatLab；不能声称已经通过导入验证。
-
-只有同时满足以下条件，才能认为转换结果已经通过完整导入验证：
-
-- 严格验证返回 `ok: true`；
-- 导入 dry-run 返回 `ok: true`；
-- 转换器输出消息数等于验证器消息数；
-- 源消息数等于输出消息数加上用户明确接受的跳过数；
-- 没有隐藏任何源解析错误。
 
 ### 7. 仅在用户要求时导入
 
