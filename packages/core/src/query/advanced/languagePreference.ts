@@ -129,7 +129,8 @@ export function getLanguagePreferenceAnalysis(db: DatabaseAdapter, params: Langu
 
       if (trimmed.length >= 2) phraseFreq.set(trimmed, (phraseFreq.get(trimmed) || 0) + 1)
 
-      const cleaned = cleanText(content)
+      // Preserve ordinary annotations while excluding known emoji from vocabulary.
+      const cleaned = cleanText(content, { preserveUnknownBracketedText: true })
       if (!cleaned) continue
 
       if (isChinese && nlpProvider) {

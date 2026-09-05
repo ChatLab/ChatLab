@@ -299,6 +299,18 @@ describe('getLanguagePreferenceAnalysis', () => {
     ])
   })
 
+  it('retains ordinary bracketed annotations in vocabulary', () => {
+    const db = createRowsDb([
+      { memberId: 1, name: 'Alice', content: '[需求]今天讨论[微笑]' },
+      { memberId: 1, name: 'Alice', content: '[需求]今天讨论[微笑]' },
+    ])
+
+    const result = getLanguagePreferenceAnalysis(db, { locale: 'zh-CN' })
+    const words = result.members[0]?.topWords ?? []
+
+    assert.equal(words.find((item: { word: string; count: number }) => item.word === '需求')?.count, 2)
+  })
+
   it('keeps emoji codes as phrases but excludes them from vocabulary', () => {
     const db = createRowsDb([
       { memberId: 1, name: 'Alice', content: '[微笑]' },

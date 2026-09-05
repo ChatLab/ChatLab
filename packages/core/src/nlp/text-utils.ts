@@ -34,7 +34,7 @@ const CJK_TEXT_REGEX = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u
 /**
  * 清理文本：移除 URL、@提及、表情、标点等
  */
-export function cleanText(text: string): string {
+export function cleanText(text: string, options: { preserveUnknownBracketedText?: boolean } = {}): string {
   return text
     .replace(URL_REGEX, ' ')
     .replace(MENTION_REGEX, ' ')
@@ -42,7 +42,7 @@ export function cleanText(text: string): string {
     .replace(BRACKET_EMOJI_PLACEHOLDER_REGEX, (match, name: string) => {
       if (WECHAT_BRACKET_EMOJI_MAP[name]) return WECHAT_BRACKET_EMOJI_MAP[name]
       if (KNOWN_BRACKET_EMOJI_NAMES.has(name)) return ' '
-      return CJK_TEXT_REGEX.test(name) ? ' ' : match
+      return !options.preserveUnknownBracketedText && CJK_TEXT_REGEX.test(name) ? ' ' : match
     })
     .replace(EMOJI_REGEX, ' ')
     .replace(EMOJI_VARIATION_SELECTOR_REGEX, ' ')
