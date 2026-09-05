@@ -1,11 +1,14 @@
 ---
 name: chatlab-analyze
-description: Analyze local ChatLab chat records through the clb CLI. Use when the user asks an external agent to inspect conversations, find evidence, summarize topics, compare members, or analyze a named relationship from imported ChatLab data.
+description: >-
+  Query and analyze imported ChatLab chats with clb: find evidence, summarize topics, and compare activity or relationships. 查询和分析 ChatLab 已导入聊天记录：查找证据、总结话题、比较活跃度或关系。
 ---
 
 # ChatLab Analyze
 
 Query and analyze records already imported into ChatLab through the read-only `clb` CLI.
+
+Follow the user's requested response language; otherwise use the conversation language, preserving the user's Chinese variant when applicable. Keep commands, field names, IDs, and evidence markers unchanged.
 
 For importing a new chat export, use `chatlab-import` when available; otherwise follow `clb import --help` and preview the exact import before writing.
 

@@ -19,12 +19,14 @@ The homepage also supports incremental imports. When a new file matches an impor
 
 Use this when you already work with Codex, Claude Code, or another AI agent and want the agent to handle the import for you.
 
-Node.js 22.19 or newer is required. Install ChatLab CLI and the English skill:
+Node.js 22.19 or newer is required. Install ChatLab CLI and the import skill:
 
 ```bash
 npm install -g chatlab-cli
 npx skills add ChatLab/ChatLab --skill chatlab-import -g
 ```
+
+The same skill works across languages; ask in your preferred language.
 
 Then ask the agent:
 

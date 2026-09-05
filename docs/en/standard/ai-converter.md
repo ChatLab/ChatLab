@@ -22,6 +22,8 @@ Install the conversion skill in a skill-compatible agent environment:
 npx skills add ChatLab/ChatLab --skill chatlab-convert -g
 ```
 
+The same skill works across languages; ask in your preferred language.
+
 ## Convert an export
 
 Give the agent the exact export path:
@@ -59,6 +61,4 @@ clb import "/absolute/path/to/converted.jsonl" --dry-run --json
 
 Success requires strict validation, a successful import preview, and matching source/output message counts. The converter and outputs remain available so a newer export can be converted again.
 
-::: warning Privacy
-Use an agent that can work with local files and a local terminal. Do not upload a complete chat export to an online chat box. When an unusual text format requires sampling, inspect the smallest possible range and mask message bodies.
-:::
+::: warning Privacy Use an agent that can work with local files and a local terminal. Do not upload a complete chat export to an online chat box. When an unusual text format requires sampling, inspect the smallest possible range and mask message bodies. :::

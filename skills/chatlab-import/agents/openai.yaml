@@ -1,4 +1,4 @@
 interface:
-  display_name: 'ChatLab Import'
-  short_description: 'Preview and import chat exports with ChatLab CLI'
+  display_name: 'ChatLab Import · 聊天导入'
+  short_description: 'Preview and import chat exports · 预览并导入聊天记录'
   default_prompt: 'Use $chatlab-import to safely preview and import this chat export into ChatLab.'

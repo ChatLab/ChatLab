@@ -1,11 +1,14 @@
 ---
 name: chatlab-convert
-description: Convert unsupported local chat exports into validated ChatLab JSONL or JSON with a reproducible local script. Use for unknown-format adaptation, not analysis or direct import of already supported files.
+description: >-
+  Convert unsupported local chat exports into validated ChatLab JSONL or JSON with a reusable local script. 用可复用的本地脚本，将不受支持的聊天导出转换并验证为 ChatLab JSONL 或 JSON。
 ---
 
 # ChatLab Convert
 
 Convert an unsupported local export without modifying the source. Prefer a reproducible script and a validated JSONL result over a one-off rewritten file.
+
+Follow the user's requested response language; otherwise use the conversation language, preserving the user's Chinese variant when applicable. Keep commands, field names, IDs, and evidence markers unchanged.
 
 ## Non-negotiable rules
 

@@ -1,4 +1,4 @@
 interface:
-  display_name: 'ChatLab Analyze'
-  short_description: 'Safely query and analyze local chats with ChatLab CLI'
+  display_name: 'ChatLab Analyze · 聊天分析'
+  short_description: 'Query and analyze local chats · 查询和分析本地聊天记录'
   default_prompt: 'Use $chatlab-analyze to analyze my local ChatLab chat records.'

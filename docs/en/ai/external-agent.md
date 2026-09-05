@@ -8,12 +8,14 @@ ChatLab lets AI agents such as Codex, Claude Code, and HermesAgent query and ana
 
 ## Get started
 
-Node.js 22.19 or newer is required, and chat records must already be imported into ChatLab. Install ChatLab CLI and the English Skill:
+Node.js 22.19 or newer is required, and chat records must already be imported into ChatLab. Install ChatLab CLI and the analysis skill:
 
 ```bash
 npm install -g chatlab-cli
 npx skills add ChatLab/ChatLab --skill chatlab-analyze -g
 ```
+
+The same skill works across languages; ask in your preferred language.
 
 After installation, ask Codex, Claude Code, Cursor, or another external agent:
 
@@ -65,7 +67,13 @@ In agent/json mode stdout contains exactly one JSON envelope; logs go to stderr:
   "ok": true,
   "command": "messages.search",
   "data": { "text": "returned: 2\n\n--- 2026/6/1 ---\n[#1*] 09:00 Wang: how about a trip on May Day..." },
-  "meta": { "totalHits": 2, "returnedHits": 2, "hasMore": false, "preprocess": { "desensitized": true }, "apiVersion": 1 }
+  "meta": {
+    "totalHits": 2,
+    "returnedHits": 2,
+    "hasMore": false,
+    "preprocess": { "desensitized": true },
+    "apiVersion": 1
+  }
 }
 ```
 
