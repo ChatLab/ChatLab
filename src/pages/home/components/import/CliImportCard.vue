@@ -4,10 +4,7 @@ import { useClipboard } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 
 const { t, locale } = useI18n()
-const skillInstallCommand = computed(() => {
-  const skillName = locale.value === 'zh-CN' || locale.value === 'zh-TW' ? 'chatlab-import-cn' : 'chatlab-import'
-  return `npx skills add ChatLab/ChatLab --skill ${skillName} -g`
-})
+const skillInstallCommand = 'npx skills add ChatLab/ChatLab --skill chatlab-import -g'
 const cliImportCommand = 'clb import ~/Downloads/chat-export.json'
 const { copy: copySkillCommand, copied: skillCommandCopied } = useClipboard({ copiedDuring: 2000 })
 const { copy: copyCliCommand, copied: cliCommandCopied } = useClipboard({ copiedDuring: 2000 })
