@@ -19,17 +19,19 @@ ChatLab 支援多種方式匯入聊天記錄。
 
 適合已經使用 Codex、Claude Code 等各類 AI Agent，希望讓 Agent 代為執行匯入的使用者。
 
-需要 Node.js 22.19 或更高版本。安裝 ChatLab CLI 和中文 Skill：
+需要 Node.js 22.19 或更高版本。安裝 ChatLab CLI 和匯入 Skill：
 
 ```bash
 npm install -g chatlab-cli
-npx skills add ChatLab/ChatLab --skill chatlab-import-cn -g
+npx skills add ChatLab/ChatLab --skill chatlab-import -g
 ```
+
+各語言共用同一個技能，可以直接用繁體中文提出需求。曾安裝 `chatlab-import-cn` 時，請先保留自訂修改，再安裝上面的統一版本，並透過原安裝工具移除舊入口，避免重複顯示。
 
 然後直接告訴 Agent：
 
 ```text
-chatlab-import-cn 幫我把 /absolute/path/to/chat-export.json 匯入 ChatLab
+chatlab-import 幫我把 /absolute/path/to/chat-export.json 匯入 ChatLab
 ```
 
 Agent 會先在背景預覽，預覽成功後自動建立或增量匯入，無需再次確認。

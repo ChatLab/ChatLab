@@ -105,11 +105,9 @@ try {
     { cwd: rootDir, stdio: 'inherit' }
   )
 
-  for (const skillName of ['chatlab-convert', 'chatlab-convert-cn']) {
-    const scriptsDir = path.join(rootDir, 'skills', skillName, 'scripts')
-    mkdirSync(scriptsDir, { recursive: true })
-    copyFileSync(outputPath, path.join(scriptsDir, 'validate-chatlab.mjs'))
-  }
+  const scriptsDir = path.join(rootDir, 'skills', 'chatlab-convert', 'scripts')
+  mkdirSync(scriptsDir, { recursive: true })
+  copyFileSync(outputPath, path.join(scriptsDir, 'validate-chatlab.mjs'))
 } finally {
   rmSync(tempDir, { recursive: true, force: true })
 }

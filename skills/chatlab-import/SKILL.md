@@ -1,11 +1,14 @@
 ---
 name: chatlab-import
-description: Preview and import local chat exports into ChatLab with clb, including re-imports and incremental updates. Use for import requests, not read-only analysis or unsupported-format conversion.
+description: >-
+  Preview and import supported local chat exports into ChatLab, including incremental updates. 预览并导入 ChatLab 支持的本地聊天导出，支持增量更新。
 ---
 
 # ChatLab Import
 
 Import local chat exports through the `clb` CLI. Always preview the exact write. Treat an explicit request to import as authorization to continue after a successful preview; do not ask for a second confirmation.
+
+Follow the user's requested response language; otherwise use the conversation language, preserving the user's Chinese variant when applicable. Keep commands, field names, IDs, and evidence markers unchanged.
 
 For analysis of imported records, use `chatlab-analyze` when available. For an unsupported source, use `chatlab-convert` when available; neither skill is required for a supported import.
 

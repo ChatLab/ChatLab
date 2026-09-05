@@ -1,4 +1,4 @@
 interface:
-  display_name: 'ChatLab Convert'
-  short_description: 'Convert unsupported chat exports into ChatLab format'
+  display_name: 'ChatLab Convert · 聊天转换'
+  short_description: 'Convert unsupported chat exports · 转换不受支持的聊天格式'
   default_prompt: 'Use $chatlab-convert to convert this unsupported chat export into a validated ChatLab JSONL file.'

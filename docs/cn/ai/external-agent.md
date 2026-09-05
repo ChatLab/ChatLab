@@ -8,22 +8,24 @@ ChatLab 可以让 Codex、Claude Code、HermesAgent 等 AI Agent 在本地查询
 
 ## 开始使用
 
-需要 Node.js 22.19 或更高版本，并已在 ChatLab 中导入聊天记录。安装 ChatLab CLI 和中文 Skill：
+需要 Node.js 22.19 或更高版本，并已在 ChatLab 中导入聊天记录。安装 ChatLab CLI 和分析 Skill：
 
 ```bash
 npm install -g chatlab-cli
-npx skills add ChatLab/ChatLab --skill chatlab-analyze-cn -g
+npx skills add ChatLab/ChatLab --skill chatlab-analyze -g
 ```
+
+各语言共用同一个技能，可以直接用中文提出需求。曾安装 `chatlab-analyze-cn` 时，请先保留自定义改动，再安装上面的统一版本，并通过原安装工具移除旧入口，避免重复显示。
 
 安装后，可以在 Codex、Claude Code、Cursor 等外部 Agent 中直接说：
 
 ```text
-chatlab-analyze-cn 帮我分析我和小红的聊天记录
+chatlab-analyze 帮我分析我和小红的聊天记录
 ```
 
 这个技能会引导 Agent 先执行 `clb manifest` 获取机读命令清单，再用安全的 `--format agent/json` 查询聊天记录。
 
-`chatlab-analyze-cn` 始终只读。如果你希望 Agent 导入新的聊天导出文件，请改用独立的 `chatlab-import-cn` Skill；它会先预览导入计划，再自动新建或增量导入，详见[导入聊天记录指南](/cn/usage/how-to-import)。
+`chatlab-analyze` 始终只读。如果你希望 Agent 导入新的聊天导出文件，请改用独立的 `chatlab-import` Skill；它会先预览导入计划，再自动新建或增量导入，详见[导入聊天记录指南](/cn/usage/how-to-import)。
 
 ## 命令总览
 
@@ -65,7 +67,13 @@ agent/json 模式下 stdout 只包含一个 JSON 响应信封，日志一律走 
   "ok": true,
   "command": "messages.search",
   "data": { "text": "returned: 2\n\n--- 2026/6/1 ---\n[#1*] 09:00 老王: 今年五一去旅游吧..." },
-  "meta": { "totalHits": 2, "returnedHits": 2, "hasMore": false, "preprocess": { "desensitized": true }, "apiVersion": 1 }
+  "meta": {
+    "totalHits": 2,
+    "returnedHits": 2,
+    "hasMore": false,
+    "preprocess": { "desensitized": true },
+    "apiVersion": 1
+  }
 }
 ```
 

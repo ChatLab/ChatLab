@@ -16,24 +16,26 @@ outline: deep
 npm install -g chatlab-cli
 ```
 
-再在支持 Skills 的 Agent 环境中安装中文版转换 Skill：
+再在支持 Skills 的 Agent 环境中安装转换 Skill：
 
 ```bash
-npx skills add ChatLab/ChatLab --skill chatlab-convert-cn -g
+npx skills add ChatLab/ChatLab --skill chatlab-convert -g
 ```
+
+各语言共用同一个技能，可以直接用中文提出需求。曾安装 `chatlab-convert-cn` 时，请先保留自定义改动，再安装上面的统一版本，并通过原安装工具移除旧入口，避免重复显示。
 
 ## 开始转换
 
 把聊天导出的准确路径告诉 Agent：
 
 ```text
-使用 $chatlab-convert-cn，把 "/你的/聊天记录路径" 转换并导入 ChatLab。
+使用 $chatlab-convert，把 "/你的/聊天记录路径" 转换并导入 ChatLab。
 ```
 
 如果只希望生成转换结果，不立即导入：
 
 ```text
-使用 $chatlab-convert-cn，把 "/你的/聊天记录路径" 转换为 ChatLab 格式，只转换，不导入。
+使用 $chatlab-convert，把 "/你的/聊天记录路径" 转换为 ChatLab 格式，只转换，不导入。
 ```
 
 Skill 会自动选择电脑上已有的 Node.js、Python 或 Shell 工具，完成以下流程：
@@ -59,6 +61,4 @@ clb import "/转换后的文件.jsonl" --dry-run --json
 
 只有严格验证和导入预览都成功，并且源消息数与输出消息数核对一致，才会报告转换成功。转换脚本和输出文件都会保留，方便以后重新转换更新后的聊天记录。
 
-::: warning 隐私提醒
-请使用能够访问本机文件和终端的 Agent 执行转换，不要把完整聊天文件上传到在线对话框。即使需要排查特殊文本格式，也应只检查最小范围并隐藏消息正文。
-:::
+::: warning 隐私提醒请使用能够访问本机文件和终端的 Agent 执行转换，不要把完整聊天文件上传到在线对话框。即使需要排查特殊文本格式，也应只检查最小范围并隐藏消息正文。:::
