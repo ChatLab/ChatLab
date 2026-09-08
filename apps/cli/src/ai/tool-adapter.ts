@@ -12,7 +12,12 @@ import type {
   RawMessage,
   ToolTimeRange,
 } from '@openchatlab/tools'
-import { CoreDataProvider, executeToolForAgent, toAgentToolParameters } from '@openchatlab/tools'
+import {
+  CoreDataProvider,
+  executeToolForAgent,
+  getLocalizedToolMetadata,
+  toAgentToolParameters,
+} from '@openchatlab/tools'
 import type { DatabaseAdapter } from '@openchatlab/core'
 import {
   applyPreprocessingPipeline,
@@ -56,6 +61,8 @@ export interface ServerToolContext {
 
 export interface AdaptToolsOptions {
   maxToolResultTokens?: number
+  /** Request locale; decides whether the LLM sees Chinese or English tool descriptions. */
+  locale?: string
 }
 
 export function adaptToolsForAgent(
@@ -66,13 +73,14 @@ export function adaptToolsForAgent(
   const tokenBudget = options?.maxToolResultTokens ?? DEFAULT_MAX_TOOL_RESULT_TOKENS
   const chartSchemaGateState = createChartSchemaGateState()
 
-  return tools.map((tool) =>
-    wrapWithChartSchemaGate(
+  return tools.map((tool) => {
+    const localized = getLocalizedToolMetadata(tool, options?.locale)
+    return wrapWithChartSchemaGate(
       {
         name: tool.name,
         label: tool.name,
-        description: tool.description,
-        parameters: toAgentToolParameters(tool.inputSchema) as any,
+        description: localized.description,
+        parameters: toAgentToolParameters(localized.inputSchema) as any,
         executionMode: tool.executionMode,
         async execute(_toolCallId: string, params: unknown, signal, onUpdate) {
           const ctx = getContext()
@@ -122,5 +130,5 @@ export function adaptToolsForAgent(
       },
       chartSchemaGateState
     )
-  )
+  })
 }

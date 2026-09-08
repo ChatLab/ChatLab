@@ -18,4 +18,6 @@ export interface McpServerOptions {
   /** MCP server name exposed to clients (default: 'chatlab') */
   name?: string
   dbManager: McpDatabaseManager
+  /** Locale deciding whether tool descriptions are Chinese or English (default: English) */
+  locale?: string
 }

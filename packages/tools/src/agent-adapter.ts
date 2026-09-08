@@ -1,4 +1,5 @@
 import { CROSS_CHAT_AGENT_TOOL_REGISTRY } from './registry'
+import { getLocalizedToolMetadata } from './tool-metadata'
 import type { CrossChatToolExecutionContext, JsonSchema, ToolDefinition, ToolProgress, ToolResult } from './types'
 
 interface AgentToolParameters {
@@ -74,22 +75,25 @@ export function createCrossChatAgentToolAdapters(
     ...context,
     resolvedEntityRefs: context.resolvedEntityRefs ?? [],
   }
-  return CROSS_CHAT_AGENT_TOOL_REGISTRY.map((tool) => ({
-    name: tool.name,
-    label: tool.name,
-    description: tool.description,
-    parameters: toAgentToolParameters(tool.inputSchema),
-    executionMode: tool.executionMode,
-    execute: async (
-      _toolCallId: string,
-      params: unknown,
-      signal: AbortSignal,
-      onUpdate?: (update: { content: []; details: { progress: ToolProgress } }) => void
-    ) =>
-      executeToolForAgent(tool, params, {
-        ...runContext,
-        abortSignal: signal,
-        reportProgress: (progress) => onUpdate?.({ content: [], details: { progress } }),
-      }),
-  }))
+  return CROSS_CHAT_AGENT_TOOL_REGISTRY.map((tool) => {
+    const { description, inputSchema } = getLocalizedToolMetadata(tool, context.locale)
+    return {
+      name: tool.name,
+      label: tool.name,
+      description,
+      parameters: toAgentToolParameters(inputSchema),
+      executionMode: tool.executionMode,
+      execute: async (
+        _toolCallId: string,
+        params: unknown,
+        signal: AbortSignal,
+        onUpdate?: (update: { content: []; details: { progress: ToolProgress } }) => void
+      ) =>
+        executeToolForAgent(tool, params, {
+          ...runContext,
+          abortSignal: signal,
+          reportProgress: (progress) => onUpdate?.({ content: [], details: { progress } }),
+        }),
+    }
+  })
 }

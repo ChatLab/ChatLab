@@ -16,3 +16,14 @@ export function initStandaloneMcpRuntime(
   const dbManager = new DatabaseManager(pathProvider, { runtime })
   return { dbManager, pathProvider, runtime }
 }
+
+/**
+ * Locale for MCP tool descriptions: the configured UI language, or the system locale when unset.
+ * Mirrors Desktop's initLocale, so Chinese systems keep Chinese tool descriptions.
+ */
+export function resolveMcpLocale(
+  config: { locale?: { lang?: string } },
+  systemLocale: string = Intl.DateTimeFormat().resolvedOptions().locale
+): string {
+  return config.locale?.lang || systemLocale
+}
