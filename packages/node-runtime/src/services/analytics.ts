@@ -52,6 +52,8 @@ const EVENT_NAMES = new Set<AnalyticsEventName>([
   'chat_import_failed',
   'incremental_import_used',
   'feature_used',
+  'insight_viewed',
+  'insight_tab_used',
   'ai_setup_completed',
   'ai_request_started',
   'ai_request_completed',
@@ -78,6 +80,19 @@ const FAILURE_REASONS = new Set([
   'write',
   'unknown',
 ])
+
+const INSIGHT_TABS = {
+  group: new Set(['overview', 'type-analysis', 'time-analysis', 'topic', 'relationship']),
+  private: new Set([
+    'overview',
+    'type-analysis',
+    'time-analysis',
+    'topic',
+    'relationship',
+    'journey',
+    'language-preference',
+  ]),
+}
 
 const APP_LOCALES = new Set(['zh-CN', 'zh-TW', 'en-US', 'ja-JP'])
 
@@ -135,6 +150,15 @@ function normalizeEvent(eventName: string, props: Record<string, unknown> = {}):
     properties.feature_id = props.feature_id
   }
 
+  if (name === 'insight_viewed' || name === 'insight_tab_used') {
+    if (props.chat_type !== 'group' && props.chat_type !== 'private') return null
+    properties.chat_type = props.chat_type
+    if (name === 'insight_tab_used') {
+      if (typeof props.tab_id !== 'string' || !INSIGHT_TABS[props.chat_type].has(props.tab_id)) return null
+      properties.tab_id = props.tab_id
+    }
+  }
+
   if (name === 'ai_request_completed') {
     if (typeof props.success !== 'boolean') return null
     properties.success = props.success
@@ -149,6 +173,8 @@ function normalizeEvent(eventName: string, props: Record<string, unknown> = {}):
 }
 
 function eventPath(event: NormalizedEvent): string {
+  if (event.name === 'insight_viewed') return `/insights/${event.properties.chat_type}`
+  if (event.name === 'insight_tab_used') return `/insights/${event.properties.chat_type}/${event.properties.tab_id}`
   if (event.name === 'incremental_import_used') return '/import/incremental'
   if (event.name.startsWith('chat_import_')) return '/import'
   if (event.name.startsWith('ai_')) return '/ai'

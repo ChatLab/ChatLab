@@ -17,6 +17,7 @@ interface Props {
 interface Emits {
   (e: 'update:modelValue', value: string): void
   (e: 'change', value: string): void
+  (e: 'select', value: string): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -39,6 +40,13 @@ const activeTab = computed({
     emit('change', value)
   },
 })
+
+function selectTab(value: string) {
+  const changed = value !== activeTab.value
+  activeTab.value = value
+  // Restore/model changes are not user selections; reselecting the active tab is not a visit.
+  if (changed) emit('select', value)
+}
 
 function updateIndicator() {
   const activeButton = tabRefs.value[activeTab.value]
@@ -128,7 +136,7 @@ watch(
             ? 'text-primary-600 dark:text-primary-400'
             : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
         ]"
-        @click="activeTab = tab.id"
+        @click="selectTab(tab.id)"
       >
         <UiIcon v-if="tab.icon" :name="tab.icon" :size="size === 'sm' ? 'sm' : 'md'" />
         {{ tab.label }}

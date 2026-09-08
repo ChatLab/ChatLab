@@ -19,6 +19,7 @@ import { useSessionStore } from '@/stores/session'
 import { useLayoutStore } from '@/stores/layout'
 import { useSettingsStore } from '@/stores/settings'
 import { useSessionAnalysisPageBase } from '@/composables'
+import { useInsightTabAnalytics } from '@/composables/useInsightTabAnalytics'
 
 const { t } = useI18n()
 
@@ -82,6 +83,13 @@ const {
 })
 
 provide('session-switch-loading', isSessionSwitching)
+
+const trackInsightTab = useInsightTabAnalytics({
+  chatType: 'private',
+  isActive: () => activeTab.value === 'insights' && !isSessionSwitching.value,
+  sessionId: currentSessionId,
+  routePath: () => route.path,
+})
 
 // 当前筛选后的消息总数
 const filteredMessageCount = computed(() => {
@@ -173,6 +181,7 @@ const otherMemberAvatar = computed(() => {
               :filtered-message-count="filteredMessageCount"
               :filtered-member-count="filteredMemberCount"
               :time-filter="timeFilter"
+              @select-tab="trackInsightTab"
             />
             <ChatExplorer
               v-else-if="activeTab === 'ai-chat'"

@@ -10,6 +10,7 @@ defineProps<{
 const model = defineModel<string>({ required: true })
 const emit = defineEmits<{
   change: [value: string]
+  select: [value: string]
 }>()
 </script>
 
@@ -22,6 +23,7 @@ const emit = defineEmits<{
     size="sm"
     :bordered="false"
     @change="emit('change', $event)"
+    @select="emit('select', $event)"
   >
     <template v-if="$slots.right" #right>
       <slot name="right" />

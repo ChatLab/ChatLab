@@ -21,6 +21,7 @@ import { useSessionStore } from '@/stores/session'
 import { useLayoutStore } from '@/stores/layout'
 import { useSettingsStore } from '@/stores/settings'
 import { useSessionAnalysisPageBase } from '@/composables'
+import { useInsightTabAnalytics } from '@/composables/useInsightTabAnalytics'
 
 const { t } = useI18n()
 
@@ -88,6 +89,13 @@ const {
 
 provide('session-switch-loading', isSessionSwitching)
 
+const trackInsightTab = useInsightTabAnalytics({
+  chatType: 'group',
+  isActive: () => activeTab.value === 'insights' && !isSessionSwitching.value,
+  sessionId: currentSessionId,
+  routePath: () => route.path,
+})
+
 // 当前筛选后的消息总数
 const filteredMessageCount = computed(() => {
   return memberActivity.value.reduce((sum, m) => sum + m.messageCount, 0)
@@ -153,6 +161,7 @@ const filteredMemberCount = computed(() => {
               :filtered-message-count="filteredMessageCount"
               :filtered-member-count="filteredMemberCount"
               :time-filter="timeFilter"
+              @select-tab="trackInsightTab"
             />
             <RankingView
               v-else-if="activeTab === 'ranking'"

@@ -1440,6 +1440,8 @@ export type AnalyticsEventName =
   | 'chat_import_failed'
   | 'incremental_import_used'
   | 'feature_used'
+  | 'insight_viewed'
+  | 'insight_tab_used'
   | 'ai_setup_completed'
   | 'ai_request_started'
   | 'ai_request_completed'

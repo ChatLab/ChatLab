@@ -42,6 +42,7 @@ const subTabs = computed(() => {
 })
 
 const activeSubTab = ref('overview')
+const emit = defineEmits<{ selectTab: [value: string] }>()
 
 const selectedMemberId = ref<number | null>(null)
 
@@ -53,7 +54,12 @@ const viewTimeFilter = computed(() => ({
 
 <template>
   <div class="flex h-full flex-col">
-    <SectionTabs v-model="activeSubTab" :items="subTabs" persist-key="groupInsightsTab">
+    <SectionTabs
+      v-model="activeSubTab"
+      :items="subTabs"
+      persist-key="groupInsightsTab"
+      @select="emit('selectTab', $event)"
+    >
       <template #right>
         <UserSelect
           v-if="activeSubTab === 'type-analysis' || activeSubTab === 'time-analysis'"

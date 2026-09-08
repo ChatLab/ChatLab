@@ -144,6 +144,44 @@ test('track normalizes the shared locale instead of accepting arbitrary event da
   }
 })
 
+test('insight telemetry accepts only public tab categories and never forwards chat identifiers', async (t) => {
+  const systemDir = createTempSystemDir()
+  t.after(() => rmSync(systemDir, { recursive: true, force: true }))
+  const bodies: Array<{ payload: { name: string; url: string; data: Record<string, unknown> } }> = []
+  t.mock.method(globalThis, 'fetch', async (_input: unknown, init?: RequestInit) => {
+    bodies.push(JSON.parse(String(init?.body)))
+    return new Response(null, { status: 204 })
+  })
+  const service = new AnalyticsService(systemDir, createOptions())
+  assert.equal(await service.track('insight_viewed', { chat_type: 'group' }), true)
+  assert.equal(
+    await service.track('insight_tab_used', {
+      chat_type: 'private',
+      tab_id: 'journey',
+      session_id: 'secret-chat',
+      name: 'Alice',
+      text: 'private message',
+    }),
+    true
+  )
+  assert.equal(bodies[0].payload.url, '/insights/group')
+  assert.equal(bodies[1].payload.url, '/insights/private/journey')
+  assert.equal(bodies[1].payload.data.chat_type, 'private')
+  assert.equal(bodies[1].payload.data.tab_id, 'journey')
+  assert.equal(JSON.stringify(bodies).includes('secret-chat'), false)
+  assert.equal('name' in bodies[1].payload.data, false)
+  assert.equal('text' in bodies[1].payload.data, false)
+  for (const props of [
+    { chat_type: 'group', tab_id: 'journey' },
+    { chat_type: 'group', tab_id: '/private/path' },
+    { chat_type: 'secret-chat', tab_id: 'overview' },
+    { chat_type: 'private' },
+  ])
+    assert.equal(await service.track('insight_tab_used', props), false)
+  assert.equal(await service.track('insight_viewed', { chat_type: 'secret-chat' }), false)
+  assert.equal(bodies.length, 2)
+})
+
 test('anonymous id persists across AnalyticsService instances', async () => {
   const systemDir = createTempSystemDir()
   const originalFetch = globalThis.fetch
