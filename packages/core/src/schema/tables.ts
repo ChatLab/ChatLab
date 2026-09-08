@@ -4,11 +4,11 @@
  * 所有 CREATE TABLE / INDEX 语句的单一事实来源。
  * 新建数据库时使用完整 Schema，现有数据库通过迁移脚本演进。
  *
- * 当前 Schema 版本：10
+ * 当前 Schema 版本：11
  */
 
 /** 当前 Schema 版本（最新迁移的版本号） */
-export const CURRENT_SCHEMA_VERSION = 10
+export const CURRENT_SCHEMA_VERSION = 11
 
 /**
  * Table DDL only (no indexes). Used by bulk-import workflows that defer
@@ -77,10 +77,45 @@ export const CHAT_DB_TABLES = `
   );
 `
 
+/** Name of the FTS5 index mirroring message.content. */
+export const MESSAGE_FTS_TABLE = 'message_fts'
+
+/**
+ * Full-text index over message content.
+ *
+ * External-content table: rows live in `message`, the index only stores the
+ * trigram postings, and the triggers keep both in sync. `trigram` tokenization
+ * gives substring matching (>= 3 code points) without a JS tokenizer, so Node
+ * and the browser share this one definition.
+ *
+ * Creating the virtual table does not populate it — a fresh index over existing
+ * rows needs `INSERT INTO message_fts(message_fts) VALUES('rebuild')`, which is
+ * what `ensureMessageSearchIndex()` does.
+ */
+export const MESSAGE_FTS_DDL = `
+  CREATE VIRTUAL TABLE IF NOT EXISTS message_fts USING fts5(
+    content,
+    content='message',
+    content_rowid='id',
+    tokenize='trigram'
+  );
+  CREATE TRIGGER IF NOT EXISTS message_fts_ai AFTER INSERT ON message BEGIN
+    INSERT INTO message_fts(rowid, content) VALUES (new.id, new.content);
+  END;
+  CREATE TRIGGER IF NOT EXISTS message_fts_ad AFTER DELETE ON message BEGIN
+    INSERT INTO message_fts(message_fts, rowid, content) VALUES ('delete', old.id, old.content);
+  END;
+  CREATE TRIGGER IF NOT EXISTS message_fts_au AFTER UPDATE OF content ON message BEGIN
+    INSERT INTO message_fts(message_fts, rowid, content) VALUES ('delete', old.id, old.content);
+    INSERT INTO message_fts(rowid, content) VALUES (new.id, new.content);
+  END;
+`
+
 /**
  * Index DDL only. Applied after bulk import or as part of full schema init.
  */
-export const CHAT_DB_INDEXES = `
+export const CHAT_DB_INDEXES =
+  `
   CREATE INDEX IF NOT EXISTS idx_message_ts ON message(ts);
   CREATE INDEX IF NOT EXISTS idx_message_sender ON message(sender_id);
   CREATE INDEX IF NOT EXISTS idx_message_sender_ts ON message(sender_id, ts);
@@ -90,7 +125,7 @@ export const CHAT_DB_INDEXES = `
   CREATE INDEX IF NOT EXISTS idx_member_name_history_member_id ON member_name_history(member_id);
   CREATE INDEX IF NOT EXISTS idx_segment_time ON segment(start_ts, end_ts);
   CREATE INDEX IF NOT EXISTS idx_context_segment ON message_context(segment_id);
-`
+` + MESSAGE_FTS_DDL
 
 /**
  * Combined tables + indexes DDL for the current schema.
