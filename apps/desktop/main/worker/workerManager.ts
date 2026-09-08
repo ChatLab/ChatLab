@@ -787,13 +787,14 @@ export async function searchMessages(
   filter?: any,
   limit?: number,
   offset?: number,
-  senderId?: number
+  senderId?: number,
+  options?: { sort?: 'desc' | 'relevance'; forceLike?: boolean }
 ): Promise<{ messages: SearchMessageResult[]; total: number }> {
-  return sendToWorker('searchMessages', { sessionId, keywords, filter, limit, offset, senderId })
+  return sendToWorker('searchMessages', { sessionId, keywords, filter, limit, offset, senderId, options })
 }
 
 /**
- * 深度搜索消息（LIKE 子串匹配，速度较慢但不会遗漏）
+ * 深度搜索消息（强制 LIKE 逐条子串扫描，速度较慢但不会遗漏）
  */
 export async function deepSearchMessages(
   sessionId: string,

@@ -1,7 +1,7 @@
 /**
  * 深度搜索消息工具
  *
- * LIKE 子串匹配，速度较慢但不会遗漏。与 search-messages 结构相同，底层使用不同搜索策略。
+ * 强制走 LIKE 逐条子串扫描：不用全文索引，速度较慢但不会遗漏。与 search-messages 结构相同。
  */
 
 import type { ToolDefinition, ToolExecutionContext, ToolResult, JsonSchema } from '../types'
@@ -58,7 +58,8 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
 
 export const deepSearchMessagesTool: ToolDefinition = {
   name: 'deep_search_messages',
-  description: '深度搜索消息（LIKE 子串匹配），适用于需要精确文本片段匹配的场景。',
+  description:
+    '逐条子串扫描消息（LIKE），不排序、按时间倒序返回；用于 search_messages 没有结果，或关键词少于 3 个字符的场景。',
   inputSchema,
   handler,
   category: 'core',

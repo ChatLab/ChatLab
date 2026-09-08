@@ -81,7 +81,8 @@ export async function getAllRecentMessages(
 }
 
 /**
- * Keyword search delegated to the shared LIKE implementation.
+ * Keyword search delegated to the shared core implementation, which picks the
+ * full-text index or the LIKE scan.
  */
 export async function searchMessages(
   sessionId: string,
@@ -89,17 +90,18 @@ export async function searchMessages(
   filter?: TimeFilter,
   limit: number = 20,
   offset: number = 0,
-  senderId?: number
+  senderId?: number,
+  options?: { sort?: 'desc' | 'relevance'; forceLike?: boolean }
 ): Promise<MessagesWithTotal> {
   ensureAvatarColumn(sessionId)
   const executor = createSyncExecutor(sessionId)
   if (!executor) return { messages: [], total: 0 }
 
-  return searchMessagesLikeAsync(executor, keywords, filter, limit, offset, senderId)
+  return searchMessagesLikeAsync(executor, keywords, filter, limit, offset, senderId, options)
 }
 
 /**
- * Deep search compatibility alias using the same LIKE implementation.
+ * Deep search: the exhaustive LIKE scan, never routed through the index.
  */
 export async function deepSearchMessages(
   sessionId: string,
@@ -109,10 +111,7 @@ export async function deepSearchMessages(
   offset: number = 0,
   senderId?: number
 ): Promise<MessagesWithTotal> {
-  ensureAvatarColumn(sessionId)
-  const executor = createSyncExecutor(sessionId)
-  if (!executor) return { messages: [], total: 0 }
-  return searchMessagesLikeAsync(executor, keywords, filter, limit, offset, senderId)
+  return searchMessages(sessionId, keywords, filter, limit, offset, senderId, { forceLike: true })
 }
 
 /**

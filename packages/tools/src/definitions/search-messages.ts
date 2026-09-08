@@ -32,6 +32,7 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
     timeFilter: effectiveTimeFilter,
     limit,
     senderId: params.sender_id as number | undefined,
+    sort: 'relevance',
   })
 
   const contextBefore = context.searchContextBefore ?? 2
@@ -59,7 +60,7 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
 export const searchMessagesTool: ToolDefinition = {
   name: 'search_messages',
   description:
-    '根据关键词搜索群聊记录。适用于用户想要查找特定话题、关键词相关的聊天内容。可以指定时间范围和发送者来筛选消息。',
+    '按关键词搜索群聊记录（关键词不少于 3 个字符时走全文索引、按相关度排序；更短的关键词自动改为子串匹配）。适用于查找特定话题或关键词相关的聊天内容，可以指定时间范围和发送者来筛选消息。',
   inputSchema,
   handler,
   category: 'core',

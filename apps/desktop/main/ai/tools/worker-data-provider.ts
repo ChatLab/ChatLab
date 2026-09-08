@@ -53,7 +53,7 @@ export class WorkerDataProvider implements ToolDataProvider {
 
   async searchMessages(
     keywords: string[],
-    options?: { timeFilter?: ToolTimeRange; limit?: number; senderId?: number }
+    options?: { timeFilter?: ToolTimeRange; limit?: number; senderId?: number; sort?: 'asc' | 'desc' | 'relevance' }
   ): Promise<SearchMessagesResult> {
     const result = await this.run(() =>
       workerManager.searchMessages(
@@ -62,7 +62,8 @@ export class WorkerDataProvider implements ToolDataProvider {
         options?.timeFilter,
         options?.limit ?? 50,
         0,
-        options?.senderId
+        options?.senderId,
+        { sort: options?.sort === 'relevance' ? 'relevance' : 'desc' }
       )
     )
     return { messages: mapSearchMessages(result.messages), total: result.total }

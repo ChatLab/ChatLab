@@ -57,6 +57,7 @@ export class CoreDataProvider implements ToolDataProvider {
       matchMode: options?.matchMode,
       excludeKeywords: options?.excludeKeywords,
       sort: options?.sort,
+      forceLike: options?.forceLike,
     })
     return {
       messages: result.messages.map((m) => ({
@@ -72,7 +73,9 @@ export class CoreDataProvider implements ToolDataProvider {
   }
 
   async deepSearchMessages(keywords: string[], options?: SearchMessagesOptions): Promise<SearchMessagesResult> {
-    return this.searchMessages(keywords, options)
+    // Deep search is the exhaustive substring scan: it must not be routed through
+    // the index, and its results stay in timestamp order.
+    return this.searchMessages(keywords, { ...options, forceLike: true, sort: 'desc' })
   }
 
   async getSearchMessageContext(

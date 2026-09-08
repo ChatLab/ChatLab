@@ -68,7 +68,7 @@ describe('high-risk analysis tool definitions', () => {
     assert.deepEqual(searchCalls, [
       {
         keywords: ['alpha'],
-        options: { timeFilter: contextFilter, limit: 4, senderId: 7 },
+        options: { timeFilter: contextFilter, limit: 4, senderId: 7, sort: 'relevance' },
       },
     ])
     assert.deepEqual(contextCalls, [{ ids: [11], before: 1, after: 1 }])
