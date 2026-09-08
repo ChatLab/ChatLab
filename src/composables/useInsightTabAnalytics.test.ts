@@ -9,7 +9,8 @@ test('only uninterrupted foreground selections count; initial views and cancella
   })
   const { useInsightTabAnalytics } = await import('./useInsightTabAnalytics')
   const browserWindow = new EventTarget()
-  const browserDocument = Object.assign(new EventTarget(), { visibilityState: 'visible', hasFocus: () => true })
+  let focused = true
+  const browserDocument = Object.assign(new EventTarget(), { visibilityState: 'visible', hasFocus: () => focused })
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
   const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document')
   Object.defineProperty(globalThis, 'window', { configurable: true, value: browserWindow })
@@ -83,6 +84,60 @@ test('only uninterrupted foreground selections count; initial views and cancella
   select('overview')
   t.mock.timers.tick(3000)
   assert.equal(visits().length, 2)
+
+  // Loading can finish in a hidden tab or an unfocused window. Neither is a view yet.
+  const views = () => events.filter(({ name }) => name === 'insight_viewed').length
+  for (const [visibility, returnEvent] of [
+    ['hidden', 'focus'],
+    ['visible', 'focus'],
+    ['hidden', 'visibilitychange'],
+  ]) {
+    active.value = false
+    focused = false
+    browserDocument.visibilityState = visibility
+    const before = views()
+    active.value = true
+    assert.equal(views(), before)
+    if (returnEvent === 'focus') {
+      browserDocument.visibilityState = 'visible'
+      browserDocument.dispatchEvent(new Event('visibilitychange'))
+    } else {
+      focused = true
+      browserWindow.dispatchEvent(new Event('focus'))
+    }
+    assert.equal(views(), before)
+    focused = true
+    browserDocument.visibilityState = 'visible'
+    if (returnEvent === 'focus') browserWindow.dispatchEvent(new Event('focus'))
+    else browserDocument.dispatchEvent(new Event('visibilitychange'))
+    assert.equal(views(), before + 1)
+    browserWindow.dispatchEvent(new Event('focus'))
+    browserDocument.dispatchEvent(new Event('visibilitychange'))
+    assert.equal(views(), before + 1)
+    t.mock.timers.tick(5000)
+    assert.equal(visits().length, 2)
+  }
+
+  // Returning to the foreground cannot revive a cancelled dwell visit.
+  select('topic')
+  t.mock.timers.tick(2000)
+  focused = false
+  browserWindow.dispatchEvent(new Event('blur'))
+  focused = true
+  browserWindow.dispatchEvent(new Event('focus'))
+  t.mock.timers.tick(5000)
+  assert.equal(visits().length, 2)
+
+  // Leaving before the first foreground view must discard the pending denominator event.
+  active.value = false
+  focused = false
+  active.value = true
+  const beforeLeaving = views()
+  active.value = false
+  focused = true
+  browserWindow.dispatchEvent(new Event('focus'))
+  assert.equal(views(), beforeLeaving)
+  active.value = true
   select('topic')
   scope.stop()
   t.mock.timers.tick(3000)

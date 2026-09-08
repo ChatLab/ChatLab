@@ -9,6 +9,7 @@ export function useInsightTabAnalytics(options: {
   routePath: () => string
 }) {
   let timer: ReturnType<typeof setTimeout> | undefined
+  let pendingView = false
 
   function cancel() {
     clearTimeout(timer)
@@ -16,6 +17,12 @@ export function useInsightTabAnalytics(options: {
   }
 
   const isForeground = () => document.visibilityState === 'visible' && document.hasFocus()
+
+  function reportPendingView() {
+    if (!pendingView || !options.isActive() || !options.sessionId.value || !isForeground()) return
+    pendingView = false
+    trackProductEvent('insight_viewed', { chat_type: options.chatType })
+  }
 
   function selectTab(tabId: string) {
     cancel()
@@ -35,21 +42,32 @@ export function useInsightTabAnalytics(options: {
     ([active, sessionId]) => {
       cancel()
       // Separate denominator: old clients without sub-tab tracking must not dilute its adoption rate.
-      if (active && sessionId) trackProductEvent('insight_viewed', { chat_type: options.chatType })
+      pendingView = Boolean(active && sessionId)
+      reportPendingView()
     },
     { immediate: true, flush: 'sync' }
   )
 
   function onVisibilityChange() {
     if (document.visibilityState !== 'visible') cancel()
+    else reportPendingView()
   }
   window.addEventListener('blur', cancel)
+  window.addEventListener('focus', reportPendingView)
   // Cancel as soon as navigation commits, before an outgoing page transition finishes.
-  watch(options.routePath, cancel, { flush: 'sync' })
+  watch(
+    options.routePath,
+    () => {
+      cancel()
+      pendingView = false
+    },
+    { flush: 'sync' }
+  )
   document.addEventListener('visibilitychange', onVisibilityChange)
   onScopeDispose(() => {
     cancel()
     window.removeEventListener('blur', cancel)
+    window.removeEventListener('focus', reportPendingView)
     document.removeEventListener('visibilitychange', onVisibilityChange)
   })
 
