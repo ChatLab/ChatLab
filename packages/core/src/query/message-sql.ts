@@ -6,6 +6,9 @@
  * mechanism differs (direct db.prepare vs pluginQuery HTTP).
  */
 
+import { MESSAGE_FTS_TABLE } from '../schema/tables'
+import { buildFtsMatchExpression } from './search-index'
+
 // ==================== SQL fragments ====================
 
 export const FULL_MSG_COLUMNS = `
@@ -135,6 +138,12 @@ export function buildMsgConditions(options?: {
   /** Keyword join mode: 'any' (OR, default) or 'all' (AND). */
   matchMode?: 'any' | 'all'
   /**
+   * How keywords are matched: 'like' (substring scan, default) or 'fts'
+   * (message_fts trigram index). Callers pick 'fts' only when the index exists
+   * and every keyword is long enough — see canUseFtsKeywords().
+   */
+  keywordMode?: 'like' | 'fts'
+  /**
    * Blacklist pushdown: rows whose content contains any keyword are excluded
    * (case-insensitive for ASCII, wildcards escaped). NULL content is kept,
    * matching the preprocessing pipeline's blacklist behavior.
@@ -171,10 +180,16 @@ export function buildMsgConditions(options?: {
     params.push(options.memberId)
   }
   if (options?.keywords && options.keywords.length > 0) {
-    const joiner = options.matchMode === 'all' ? ' AND ' : ' OR '
-    const kwConds = options.keywords.map(() => "msg.content LIKE ? ESCAPE '\\'")
-    conds.push(`(${kwConds.join(joiner)})`)
-    params.push(...options.keywords.map((k) => `%${escapeLikePattern(k)}%`))
+    const matchMode = options.matchMode === 'all' ? 'all' : 'any'
+    if (options.keywordMode === 'fts') {
+      conds.push(`msg.id IN (SELECT rowid FROM ${MESSAGE_FTS_TABLE} WHERE ${MESSAGE_FTS_TABLE} MATCH ?)`)
+      params.push(buildFtsMatchExpression(options.keywords, matchMode))
+    } else {
+      const joiner = matchMode === 'all' ? ' AND ' : ' OR '
+      const kwConds = options.keywords.map(() => "msg.content LIKE ? ESCAPE '\\'")
+      conds.push(`(${kwConds.join(joiner)})`)
+      params.push(...options.keywords.map((k) => `%${escapeLikePattern(k)}%`))
+    }
   }
   if (options?.excludeKeywords && options.excludeKeywords.length > 0) {
     const exclude = buildExcludeKeywordsConditions(options.excludeKeywords)

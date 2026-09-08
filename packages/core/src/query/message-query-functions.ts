@@ -18,6 +18,8 @@ import {
   type FullMessageRow,
   type MappedMessage,
 } from './message-sql'
+import { MESSAGE_FTS_TABLE } from '../schema/tables'
+import { buildFtsMatchExpression, canUseFtsKeywords, hasMessageSearchIndexAsync } from './search-index'
 
 export interface AsyncSqlExecutor {
   all<T>(sql: string, params?: unknown[]): Promise<T[]>
@@ -48,7 +50,8 @@ export interface AsyncConversationData {
 function filterConditions(
   filter?: TimeFilter,
   senderId?: number,
-  keywords?: string[]
+  keywords?: string[],
+  keywordMode?: 'like' | 'fts'
 ): { clause: string; params: unknown[] } {
   return buildMsgConditions({
     startTs: filter?.startTs,
@@ -56,6 +59,7 @@ function filterConditions(
     senderId,
     memberId: filter?.memberId,
     keywords,
+    keywordMode,
   })
 }
 
@@ -109,23 +113,54 @@ export async function fetchMessagesAfter(
   return { messages: sliced.map(mapMessageRow), hasMore }
 }
 
-/** LIKE-based keyword search with count and pagination. */
+/**
+ * Keyword search with count and pagination.
+ *
+ * Uses the message_fts trigram index when it exists and every keyword is long
+ * enough for it, and falls back to the LIKE substring scan otherwise. Both paths
+ * return the same hit set; only `sort: 'relevance'` changes the order, and only
+ * on the indexed path.
+ */
 export async function searchMessagesLikeAsync(
   executor: AsyncSqlExecutor,
   keywords: string[],
   filter?: TimeFilter,
   limit: number = 20,
   offset: number = 0,
-  senderId?: number
+  senderId?: number,
+  options?: { sort?: 'desc' | 'relevance'; forceLike?: boolean }
 ): Promise<AsyncMessagesWithTotal> {
-  const { clause, params } = filterConditions(filter, senderId, keywords)
+  const cleaned = keywords.map((keyword) => keyword.trim()).filter((keyword) => keyword.length > 0)
+  const useFts = !options?.forceLike && canUseFtsKeywords(cleaned) && (await hasMessageSearchIndexAsync(executor))
+  const byRelevance = options?.sort === 'relevance' && useFts
 
-  const countSql = `SELECT COUNT(*) as total ${MSG_COUNT_FROM} WHERE 1=1 ${clause}`
-  const countRow = await executor.get<{ total: number }>(countSql, params)
+  // The relevance page joins the FTS table directly, so its keyword condition is
+  // in the JOIN rather than in the shared clause. The LIKE path keeps the raw
+  // keywords it has always used; only the FTS path normalizes them.
+  const conditionKeywords = byRelevance ? undefined : useFts ? cleaned : keywords
+  const { clause, params } = filterConditions(filter, senderId, conditionKeywords, useFts ? 'fts' : 'like')
+  const match = byRelevance ? buildFtsMatchExpression(cleaned, 'any') : null
+
+  const countClause =
+    match === null
+      ? clause
+      : `${clause} AND msg.id IN (SELECT rowid FROM ${MESSAGE_FTS_TABLE} WHERE ${MESSAGE_FTS_TABLE} MATCH ?)`
+  const countSql = `SELECT COUNT(*) as total ${MSG_COUNT_FROM} WHERE 1=1 ${countClause}`
+  const countRow = await executor.get<{ total: number }>(countSql, match === null ? params : [...params, match])
   const total = countRow?.total ?? 0
 
-  const sql = `${FULL_MSG_SELECT} WHERE 1=1 ${clause} ORDER BY msg.ts DESC LIMIT ? OFFSET ?`
-  const rows = await executor.all<FullMessageRow>(sql, [...params, limit, offset])
+  // bm25() needs the FTS table in the FROM list, so relevance paging joins it
+  // instead of filtering through the IN-subquery the other paths use.
+  const sql =
+    match === null
+      ? `${FULL_MSG_SELECT} WHERE 1=1 ${clause} ORDER BY msg.ts DESC LIMIT ? OFFSET ?`
+      : `${FULL_MSG_SELECT}
+         JOIN ${MESSAGE_FTS_TABLE} ON ${MESSAGE_FTS_TABLE}.rowid = msg.id
+         WHERE ${MESSAGE_FTS_TABLE} MATCH ? ${clause}
+         ORDER BY bm25(${MESSAGE_FTS_TABLE}), msg.ts DESC, msg.id DESC
+         LIMIT ? OFFSET ?`
+  const pageParams = match === null ? params : [match, ...params]
+  const rows = await executor.all<FullMessageRow>(sql, [...pageParams, limit, offset])
   return { messages: rows.map(mapMessageRow), total }
 }
 
