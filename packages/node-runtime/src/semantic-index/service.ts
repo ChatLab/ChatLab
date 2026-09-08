@@ -874,7 +874,8 @@ export class SemanticIndexService {
         : null
     if (
       result.status === 'completed' &&
-      result.chunksWritten > 0 &&
+      // 只有真正跑过 embedding 才能证明本地模型加载成功；全部复用向量时不改 preload 状态
+      result.chunksWritten > result.chunksReused &&
       jobConfig.mode === 'local' &&
       currentConfig.mode === 'local' &&
       currentConfig.local.modelId === jobConfig.local.modelId &&
@@ -888,6 +889,7 @@ export class SemanticIndexService {
       dbPathHash: job.dbPathHash,
       status: result.status,
       chunksWritten: result.chunksWritten,
+      chunksReused: result.chunksReused,
       elapsedMs: Date.now() - startedAt,
       error: result.error,
     })
