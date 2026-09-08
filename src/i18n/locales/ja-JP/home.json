@@ -69,6 +69,32 @@
       "incremental": "{newCount} 件を追加し、重複 {duplicateCount} 件をスキップしました",
       "unchanged": "インポート済みのため、新しいメッセージはありません"
     },
+    "target": {
+      "title": "インポート先を選択",
+      "hint": "今回のインポート先を選択してください。",
+      "hintWithFile": "{file} のインポート先を選択してください。",
+      "auto": "自動で判断",
+      "autoAppend": "「{session}」に追加します（判定: {method}）",
+      "autoCreate": "新しいセッションを作成します（{reason}）",
+      "session": "指定したセッションに追加",
+      "sessionHint": "このファイルのメッセージを既存セッションに統合します。重複はスキップされます",
+      "new": "新しいセッションを作成",
+      "newHint": "既存セッションに一致しても、必ず新しいセッションを作成します",
+      "searchPlaceholder": "セッションを検索",
+      "noSessions": "インポート済みのセッションがありません",
+      "noMatches": "一致するセッションがありません",
+      "confirm": "インポートを開始",
+      "matchedBy": {
+        "source-session-id": "エクスポート内のセッション ID",
+        "stable-id": "グループ ID / メンバー構成",
+        "trailing-messages": "末尾メッセージの一致"
+      },
+      "createReason": {
+        "no-match": "一致する既存セッションなし",
+        "ambiguous": "候補セッションが複数",
+        "user-choice": "新規作成を選択"
+      }
+    },
     "batch": {
       "importing": "一括インポート中",
       "progressCount": "{current} / {total} 件目",

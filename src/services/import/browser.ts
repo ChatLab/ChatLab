@@ -8,6 +8,7 @@ import { rebaseChatLabDemoDocuments } from '@openchatlab/parser/browser'
 import { reportRuntimeLog } from '@/services/log-report'
 import type { BrowserRuntimeRpcPort } from '../browser-runtime/types'
 import type {
+  AutoImportDecision,
   DemoImportResult,
   DemoProgress,
   FormatInfo,
@@ -198,6 +199,11 @@ export class BrowserImportAdapter implements ImportAdapter {
     } finally {
       clearTimeout(timeout)
     }
+  }
+
+  /** Web WASM always creates a session: the browser runtime has no incremental import to match against. */
+  analyzeAutoImport(_file: File | string, _options?: ImportOptions): Promise<AutoImportDecision> {
+    return Promise.resolve({ action: 'create', reason: 'no-match' })
   }
 
   analyzeIncrementalImport(_sessionId: string, _file: File | string): Promise<IncrementalAnalysis> {

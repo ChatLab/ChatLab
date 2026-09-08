@@ -3,6 +3,7 @@ import { FileDropZone } from '@/components/UI'
 import FileListItem from './FileListItem.vue'
 import ChatSelector, { type ChatInfo } from './ChatSelector.vue'
 import FormatSelectorModal from './FormatSelectorModal.vue'
+import ImportTargetModal from './ImportTargetModal.vue'
 import { runPreparedImportBatch } from './preparedImportFlow'
 import { storeToRefs } from 'pinia'
 import { ref, computed } from 'vue'
@@ -13,9 +14,11 @@ import {
   useDataService,
   useImportService,
   usePlatformService,
+  type AutoImportDecision,
   type PreparedImportSource,
   type ImportOptions,
   type ImportResult,
+  type ImportTarget,
 } from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
 import { useCacheService } from '@/services/cache/service'
@@ -58,6 +61,48 @@ const preparedImportSource = ref<PreparedImportSource | null>(null)
 // 格式选择器状态（自动检测失败时的手动兜底）
 const showFormatSelector = ref(false)
 const formatSelectorFilePath = ref('')
+
+// 导入目标选择状态（单文件导入，格式确定之后）
+const showImportTarget = ref(false)
+const importTargetDecision = ref<AutoImportDecision | null>(null)
+const importTargetFileName = ref('')
+let resolveImportTarget: ((target: ImportTarget | null) => void) | null = null
+
+/**
+ * 单文件导入前询问目标会话。返回 null 表示用户取消。
+ * Web WASM 没有增量导入，也就没有可选目标，直接沿用原有的新建行为。
+ */
+async function askImportTarget(file: File | string, options: ImportOptions): Promise<ImportTarget | null> {
+  if (!props.backendFeatures || sessionStore.sessions.length === 0) return { mode: 'auto' }
+
+  importTargetFileName.value = typeof file === 'string' ? file.split(/[\\/]/).pop() || file : file.name
+  importTargetDecision.value = null
+  showImportTarget.value = true
+
+  const chosen = new Promise<ImportTarget | null>((resolve) => {
+    resolveImportTarget = resolve
+  })
+  useImportService()
+    .analyzeAutoImport(file, options)
+    .then((decision) => {
+      importTargetDecision.value = decision
+    })
+    .catch(() => {
+      importTargetDecision.value = { action: 'create', reason: 'no-match' }
+    })
+
+  return chosen
+}
+
+function handleImportTargetConfirm(target: ImportTarget) {
+  resolveImportTarget?.(target)
+  resolveImportTarget = null
+}
+
+function handleImportTargetCancel() {
+  resolveImportTarget?.(null)
+  resolveImportTarget = null
+}
 
 function withSessionGapThreshold(options: ImportOptions = {}): ImportOptions {
   return { ...options, sessionGapThreshold: getSessionGapThreshold() }
@@ -285,6 +330,10 @@ async function processWebFiles(files: File[]) {
     if (!format) {
       pendingFormatFile.value = file
       formatSelectorFilePath.value = file.name
+      // The import will fail with error.unrecognized_format and surface the manual format selector;
+      // asking for a target first would be a dead-end step.
+      await importSingleWebFile(file, undefined, false)
+      return
     }
 
     await importSingleWebFile(file)
@@ -299,12 +348,18 @@ async function processWebFiles(files: File[]) {
 
 const pendingWebFile = ref<File | null>(null)
 
-async function importSingleWebFile(file: File, options?: ImportOptions) {
+async function importSingleWebFile(file: File, options?: ImportOptions, askTarget = true) {
+  let target: ImportTarget | null = { mode: 'auto' }
+  if (askTarget) {
+    target = await askImportTarget(file, options ?? {})
+    if (!target) return
+  }
+
   isImporting.value = true
   importProgress.value = { stage: 'detecting', progress: 0, message: '' }
 
   try {
-    const result = await useImportService().importFile(file, withSessionGapThreshold(options), (p) => {
+    const result = await useImportService().importFile(file, withSessionGapThreshold({ ...options, target }), (p) => {
       if (p.stage === 'done') return
       importProgress.value = p
     })
@@ -432,7 +487,9 @@ async function processFilePaths(paths: string[]) {
       }
 
       // 单文件导入
-      const result = await sessionStore.importFileFromPath(paths[0])
+      const target = await askImportTarget(paths[0], {})
+      if (!target) return
+      const result = await sessionStore.importFileFromPath(paths[0], { target })
       if (!result.success && result.error) {
         importError.value = translateError(result.error)
         // 格式无法识别时，记住文件路径以便手动选择格式
@@ -482,16 +539,23 @@ async function handleFormatSelect(formatId: string) {
   const filePath = formatSelectorFilePath.value
   if (!filePath) return
 
+  const target = await askImportTarget(filePath, { formatId })
+  if (!target) return
+
   importError.value = null
   importDiagnostics.value = null
   isImporting.value = true
   importProgress.value = { stage: 'detecting', progress: 0, message: '' }
 
   try {
-    const result = await useImportService().importFile(filePath, withSessionGapThreshold({ formatId }), (progress) => {
-      if (progress.stage === 'done') return
-      importProgress.value = progress
-    })
+    const result = await useImportService().importFile(
+      filePath,
+      withSessionGapThreshold({ formatId, target }),
+      (progress) => {
+        if (progress.stage === 'done') return
+        importProgress.value = progress
+      }
+    )
 
     if (importProgress.value) {
       importProgress.value.progress = 100
@@ -1246,6 +1310,15 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
       v-model:open="showFormatSelector"
       :file-path="formatSelectorFilePath"
       @select="handleFormatSelect"
+    />
+
+    <!-- 导入目标选择（单文件导入） -->
+    <ImportTargetModal
+      v-model:open="showImportTarget"
+      :decision="importTargetDecision"
+      :file-name="importTargetFileName"
+      @confirm="handleImportTargetConfirm"
+      @cancel="handleImportTargetCancel"
     />
   </div>
 </template>
