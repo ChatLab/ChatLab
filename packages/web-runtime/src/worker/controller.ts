@@ -513,7 +513,9 @@ export class WebRuntimeWorkerController {
       'opfs-pool-resumed': 0.68,
       'opfs-database-opening': 0.7,
       'opfs-database-opened': 0.8,
-      'schema-initializing': 0.9,
+      'schema-initializing': 0.88,
+      'search-index-checking': 0.92,
+      'search-index-ready': 0.97,
       'schema-ready': 1,
       'opfs-pool-pausing': 1,
       'opfs-pool-paused': 1,
@@ -531,6 +533,7 @@ export class WebRuntimeWorkerController {
       stage === 'sqlite-ready' ||
       stage === 'opfs-pool-ready' ||
       stage === 'opfs-database-opened' ||
+      stage === 'search-index-ready' ||
       stage === 'schema-ready'
     ) {
       this.emitLog(request.id, {

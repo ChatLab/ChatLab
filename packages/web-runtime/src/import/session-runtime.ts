@@ -1,6 +1,7 @@
 import {
   CHAT_DB_INDEXES,
   CHAT_DB_TABLES,
+  ensureMessageSearchIndex,
   generateSessionIndex,
   normalizeSessionGapThreshold,
   getBrowserWordFrequency as queryBrowserWordFrequency,
@@ -258,6 +259,9 @@ export class BrowserSessionRuntime {
           const stats = await this.database.withDatabase(filename, CHAT_DB_TABLES, (db) => {
             const result = writeParseResultToDb(db, parsed.meta, members, messages)
             db.exec(CHAT_DB_INDEXES)
+            // Messages were written before message_fts existed, so backfill it here
+            // rather than leaving the first search to pay for it.
+            ensureMessageSearchIndex(db)
             generateSessionIndex(db, normalizeSessionGapThreshold(options.sessionGapThreshold))
             return {
               ...result,

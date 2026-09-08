@@ -1,4 +1,10 @@
-import { CHAT_DB_INDEXES, CHAT_DB_TABLES, CURRENT_SCHEMA_VERSION, type DatabaseAdapter } from '@openchatlab/core'
+import {
+  CHAT_DB_INDEXES,
+  CHAT_DB_TABLES,
+  CURRENT_SCHEMA_VERSION,
+  ensureMessageSearchIndex,
+  type DatabaseAdapter,
+} from '@openchatlab/core'
 import type { OpenDatabaseResult } from '../rpc/protocol'
 import { WebRuntimeError } from '../runtime-error'
 import type { WorkspaceDatabaseStage } from '../storage/workspace-database'
@@ -51,6 +57,11 @@ export class BrowserDatabaseRuntime {
         onStage?.('schema-initializing')
         database.exec(CHAT_DB_TABLES)
         database.exec(CHAT_DB_INDEXES)
+        // There is no migration runner in the browser: a database imported before
+        // the index existed gets it here, and its backfill runs inside the worker.
+        onStage?.('search-index-checking')
+        ensureMessageSearchIndex(database)
+        onStage?.('search-index-ready')
         onStage?.('schema-ready')
       } catch (error) {
         try {

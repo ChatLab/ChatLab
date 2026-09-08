@@ -12,6 +12,8 @@ export type WorkspaceDatabaseStage =
   | 'opfs-database-opening'
   | 'opfs-database-opened'
   | 'schema-initializing'
+  | 'search-index-checking'
+  | 'search-index-ready'
   | 'schema-ready'
   | 'opfs-pool-pausing'
   | 'opfs-pool-paused'

@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import sqlite3InitModule, { type Database, type SAHPoolUtil } from '@sqlite.org/sqlite-wasm'
-import { CURRENT_SCHEMA_VERSION, getHourlyActivity } from '@openchatlab/core'
+import { CHAT_DB_TABLES, CURRENT_SCHEMA_VERSION, getHourlyActivity } from '@openchatlab/core'
 import { BrowserDatabaseRuntime } from './database-runtime'
 import type { WebRuntimeLockManager } from './workspace-lease'
 
-async function createMemoryRuntime(options: { initializationFailures?: number } = {}): Promise<{
+async function createMemoryRuntime(options: { initializationFailures?: number; seedSql?: string } = {}): Promise<{
   runtime: BrowserDatabaseRuntime
   openedDatabases: Database[]
   filenames: Set<string>
@@ -17,6 +17,9 @@ async function createMemoryRuntime(options: { initializationFailures?: number } 
   class MemoryPoolDatabase {
     constructor(filename: string) {
       const db = new sqlite3.oo1.DB(':memory:', 'c')
+      // seedSql stands in for an OPFS database written by an earlier version:
+      // open() receives a handle that already holds rows.
+      if (options.seedSql) db.exec(options.seedSql)
       openedDatabases.push(db)
       filenames.add(filename)
       return db
@@ -81,6 +84,37 @@ describe('BrowserDatabaseRuntime', () => {
     assert.equal(openedDatabases[0].isOpen(), false)
     assert.throws(() => runtime.getOpenDatabase(), /No database is open/)
     assert.deepEqual(await runtime.close(), { closed: false })
+  })
+
+  it('creates and backfills the message search index when opening a database written without it', async () => {
+    const { runtime } = await createMemoryRuntime({
+      seedSql: `${CHAT_DB_TABLES}
+        INSERT INTO meta (name, platform, type, imported_at, schema_version)
+        VALUES ('Legacy', 'wechat', 'group', 1000, 10);
+        INSERT INTO member (id, platform_id, account_name) VALUES (1, 'u1', 'Alice');
+        INSERT INTO message (id, sender_id, ts, type, content) VALUES (1, 1, 1000, 0, '周末一起打球吗');
+        INSERT INTO message (id, sender_id, ts, type, content) VALUES (2, 1, 1001, 0, '老地方见');
+      `,
+    })
+    const stages: string[] = []
+
+    await runtime.open('/legacy.db', (stage) => stages.push(stage))
+    const db = runtime.getOpenDatabase()
+
+    const table = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'message_fts'").get() as
+      | { sql: string }
+      | undefined
+    assert.ok(table)
+    assert.match(table.sql, /trigram/)
+    // The browser has no migration runner, so the rows written before the index
+    // existed have to be backfilled on open or they stay unsearchable.
+    assert.deepEqual(db.prepare(`SELECT rowid FROM message_fts WHERE message_fts MATCH '"老地方"'`).all(), [
+      { rowid: 2 },
+    ])
+    assert.ok(stages.includes('search-index-checking'))
+    assert.ok(stages.includes('search-index-ready'))
+
+    await runtime.close()
   })
 
   it('rejects relative filenames and a second database while one is open', async () => {
