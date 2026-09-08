@@ -13,6 +13,8 @@ import {
   BetterSqliteAdapter,
   autoImportBatch as sharedAutoImportBatch,
   autoImportFile as sharedAutoImportFile,
+  analyzeAutoImportFile as sharedAnalyzeAutoImportFile,
+  analyzeIncrementalImport as sharedAnalyzeIncrementalImport,
   streamingImport,
   analyzeNewImport as sharedAnalyzeNewImport,
   streamParseFileInfo as sharedStreamParseFileInfo,
@@ -23,6 +25,7 @@ import {
   listDatabaseCandidateIds,
 } from '@openchatlab/node-runtime'
 import type {
+  AutoImportAnalysisResult,
   AutoImportBatchItemResult,
   AutoImportResult,
   StreamImportDeps,
@@ -31,12 +34,13 @@ import type {
   ImportProgressCallback,
 } from '@openchatlab/node-runtime'
 import { sendProgress, generateSessionId, getDbPath, createDatabaseWithoutIndexes } from './utils'
-import { incrementalImport } from './incrementalImport'
+import { buildIncrementalImportDeps, incrementalImport } from './incrementalImport'
 import { getCacheDir, getDbDir, getLogsDir, getTempDir, openRawDatabase } from '../core'
 import { getImportLogDir } from '../core/perfLogPath'
 
 export type { StreamImportResult }
 export type { AutoImportResult }
+export type { AutoImportAnalysisResult }
 export type { AutoImportBatchItemResult }
 export type { AnalyzeNewImportResult, StreamParseFileInfoResult } from '@openchatlab/node-runtime'
 export type { SkipReasons, ImportDiagnostics } from '@openchatlab/node-runtime'
@@ -127,7 +131,8 @@ export async function autoImport(
   requestId: string,
   formatOptions?: Record<string, unknown>,
   explicitSessionId?: string,
-  sessionGapThreshold?: number
+  sessionGapThreshold?: number,
+  forceCreate?: boolean
 ): Promise<AutoImportResult> {
   return sharedAutoImportFile(
     filePath,
@@ -152,7 +157,39 @@ export async function autoImport(
           itemProgress
         ),
     },
-    { explicitSessionId, formatOptions }
+    { explicitSessionId, forceCreate, formatOptions }
+  )
+}
+
+/**
+ * Preview which target automatic matching would pick, so the import dialog can preselect it.
+ */
+export async function analyzeAutoImport(
+  filePath: string,
+  requestId: string,
+  formatOptions?: Record<string, unknown>
+): Promise<AutoImportAnalysisResult> {
+  return sharedAnalyzeAutoImportFile(
+    filePath,
+    {
+      listSessionIds: () => listDatabaseCandidateIds(getDbDir()),
+      openReadonly: (sessionId) => new BetterSqliteAdapter(openRawDatabase(getDbPath(sessionId), { readonly: true })),
+      onProgress: (progress) => sendProgress(requestId, progress),
+      sessionExists: (sessionId) => fs.existsSync(getDbPath(sessionId)),
+      analyzeCreateSession: (sourcePath, sourceFormatOptions) =>
+        sharedAnalyzeNewImport(sourcePath, (progress) => sendProgress(requestId, progress), {
+          formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,
+          chatIndex: typeof sourceFormatOptions?.chatIndex === 'number' ? sourceFormatOptions.chatIndex : undefined,
+        }),
+      analyzeAppendSession: (sessionId, sourcePath, sourceFormatOptions, context) =>
+        sharedAnalyzeIncrementalImport(sessionId, sourcePath, buildIncrementalImportDeps(requestId), {
+          formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,
+          chatIndex: typeof sourceFormatOptions?.chatIndex === 'number' ? sourceFormatOptions.chatIndex : undefined,
+          platformMessageIdScope: context?.platformMessageIdScope,
+          senderPlatformIdMappings: context?.senderPlatformIdMappings,
+        }),
+    },
+    { formatOptions }
   )
 }
 

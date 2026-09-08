@@ -14,7 +14,7 @@ interface ChatImportResult {
   error?: string
   importMode?: 'created' | 'incremental'
   matchedBy?: 'source-session-id' | 'stable-id' | 'trailing-messages'
-  createReason?: 'no-match' | 'ambiguous'
+  createReason?: 'no-match' | 'ambiguous' | 'user-choice'
   newMessageCount?: number
   duplicateCount?: number
   diagnostics?: {
@@ -26,6 +26,18 @@ interface ChatImportResult {
     messagesSkipped: number
     skipReasons: { noSenderId: number; noAccountName: number; invalidTimestamp: number; noType: number }
   }
+}
+
+interface ChatAutoImportAnalysis {
+  success: boolean
+  importMode?: 'created' | 'incremental'
+  sessionId?: string
+  matchedBy?: 'source-session-id' | 'stable-id' | 'trailing-messages'
+  createReason?: 'no-match' | 'ambiguous' | 'user-choice'
+  totalMessageCount?: number
+  newMessageCount?: number
+  duplicateCount?: number
+  error?: string
 }
 
 export const chatApi = {
@@ -58,6 +70,9 @@ export const chatApi = {
 
   importWithOptions: (filePath: string, formatOptions: Record<string, unknown>): Promise<ChatImportResult> =>
     ipcRenderer.invoke('chat:importWithOptions', filePath, formatOptions),
+
+  analyzeAutoImport: (filePath: string, formatOptions?: Record<string, unknown>): Promise<ChatAutoImportAnalysis> =>
+    ipcRenderer.invoke('chat:analyzeAutoImport', filePath, formatOptions),
 
   importBatch: (
     batchId: string,

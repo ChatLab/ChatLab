@@ -17,6 +17,8 @@ import { isValidImportSessionId } from './session-id'
 
 export interface AutoImportOptions {
   explicitSessionId?: string
+  /** The user asked for a separate session, so skip matching even when a target would be found. */
+  forceCreate?: boolean
   formatOptions?: Record<string, unknown>
   /** Pre-resolved by the batch coordinator while the data directory is read-only. */
   resolvedDecision?: AutoImportDecision
@@ -104,6 +106,8 @@ async function planAutoImport(
   deps: Pick<AutoImportDeps, 'listSessionIds' | 'openReadonly' | 'onProgress' | 'sessionExists' | 'resolveTarget'>,
   options: AutoImportOptions
 ): Promise<AutoImportPlan> {
+  if (options.forceCreate) return { action: 'create', reason: 'user-choice' }
+
   if (options.resolvedDecision) {
     const decision = options.resolvedDecision
     return decision.action === 'incremental'
@@ -199,7 +203,7 @@ export async function autoImportFile(
 ): Promise<AutoImportResult> {
   let plan: AutoImportPlan | undefined
   try {
-    if (!options.explicitSessionId) {
+    if (!options.explicitSessionId && !options.forceCreate) {
       appLogger.info('import', 'Automatic session matching started', {
         candidateCount: deps.listSessionIds().length,
       })

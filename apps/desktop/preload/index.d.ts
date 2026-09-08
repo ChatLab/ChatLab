@@ -72,10 +72,22 @@ interface ChatImportResult {
   error?: string
   importMode?: 'created' | 'incremental'
   matchedBy?: 'source-session-id' | 'stable-id' | 'trailing-messages'
-  createReason?: 'no-match' | 'ambiguous'
+  createReason?: 'no-match' | 'ambiguous' | 'user-choice'
   newMessageCount?: number
   duplicateCount?: number
   diagnostics?: ImportDiagnostics
+}
+
+interface ChatAutoImportAnalysis {
+  success: boolean
+  importMode?: 'created' | 'incremental'
+  sessionId?: string
+  matchedBy?: 'source-session-id' | 'stable-id' | 'trailing-messages'
+  createReason?: 'no-match' | 'ambiguous' | 'user-choice'
+  totalMessageCount?: number
+  newMessageCount?: number
+  duplicateCount?: number
+  error?: string
 }
 
 /**
@@ -87,6 +99,7 @@ interface ChatApi {
   import: (filePath: string) => Promise<ChatImportResult>
   importDirectory: (dirPath: string, options?: Record<string, unknown>) => Promise<ChatImportResult>
   importWithOptions: (filePath: string, formatOptions: Record<string, unknown>) => Promise<ChatImportResult>
+  analyzeAutoImport: (filePath: string, formatOptions?: Record<string, unknown>) => Promise<ChatAutoImportAnalysis>
   importBatch: (
     batchId: string,
     items: Array<{ id: string; filePath: string }>,

@@ -81,6 +81,7 @@ import {
 import {
   streamImport,
   autoImport,
+  analyzeAutoImport,
   autoImportBatch,
   streamParseFileInfo,
   analyzeIncrementalImport,
@@ -258,7 +259,9 @@ const syncHandlers: Record<string, (payload: any) => any> = {
 const asyncHandlers: Record<string, (payload: any, requestId: string) => Promise<any>> = {
   // 流式导入
   streamImport: (p, id) => streamImport(p.filePath, id, p.formatOptions, p.externalSessionId, p.sessionGapThreshold),
-  autoImport: (p, id) => autoImport(p.filePath, id, p.formatOptions, p.explicitSessionId, p.sessionGapThreshold),
+  autoImport: (p, id) =>
+    autoImport(p.filePath, id, p.formatOptions, p.explicitSessionId, p.sessionGapThreshold, p.forceCreate),
+  analyzeAutoImport: (p, id) => analyzeAutoImport(p.filePath, id, p.formatOptions),
   autoImportBatch: async (p, id) => {
     const controller = new AbortController()
     importBatchControllers.set(p.batchId, controller)
