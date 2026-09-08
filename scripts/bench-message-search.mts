@@ -242,8 +242,8 @@ function buildQuerySpecs(window: { startTs: number; endTs: number }): QuerySpec[
     spec(6, ['人齐就开打']),
     spec(7, ['天气']),
     spec(8, ['收到']),
-    spec(9, ['周末', '打球']),
-    spec(10, ['周末', '打球'], { matchMode: 'all' }),
+    spec(9, ['天气', '打球']),
+    spec(10, ['天气', '打球'], { matchMode: 'all' }),
     spec(11, ['天气'], { window }),
     spec(12, ['打球'], { sort: 'relevance' }),
   ]
