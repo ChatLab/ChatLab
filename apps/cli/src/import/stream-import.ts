@@ -255,6 +255,7 @@ async function autoImportUnlocked(
             ...sourceFormatOptions,
             onProgress: itemProgress ?? progressAdapter,
             platformMessageIdScope: context?.platformMessageIdScope,
+            crossSourceAppend: context?.crossSourceAppend,
             senderPlatformIdMappings: context?.senderPlatformIdMappings,
           },
           updateCompatibilityGate
@@ -332,6 +333,7 @@ export async function autoImportBatch(
                 ...sourceFormatOptions,
                 onProgress: itemProgress,
                 platformMessageIdScope: context?.platformMessageIdScope,
+                crossSourceAppend: context?.crossSourceAppend,
                 senderPlatformIdMappings: context?.senderPlatformIdMappings,
               },
               false
@@ -413,6 +415,7 @@ export async function analyzeAutoImport(
           formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,
           chatIndex: typeof sourceFormatOptions?.chatIndex === 'number' ? sourceFormatOptions.chatIndex : undefined,
           platformMessageIdScope: context?.platformMessageIdScope,
+          crossSourceAppend: context?.crossSourceAppend,
           senderPlatformIdMappings: context?.senderPlatformIdMappings,
         }),
     },

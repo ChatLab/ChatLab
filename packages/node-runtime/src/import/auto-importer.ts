@@ -26,6 +26,8 @@ export interface AutoImportOptions {
 
 export interface AutoImportAppendContext {
   platformMessageIdScope?: string
+  /** The target came from the user, not from matching, so the file may be another account's export. */
+  crossSourceAppend?: boolean
   senderPlatformIdMappings?: SenderPlatformIdMapping[]
 }
 
@@ -97,6 +99,7 @@ type AutoImportPlan =
       sessionId: string
       matchedBy?: AutoImportMatchMethod
       platformMessageIdScope?: string
+      crossSourceAppend?: boolean
       senderPlatformIdMappings?: SenderPlatformIdMapping[]
     }
   | { action: 'create'; sessionId?: string; reason?: AutoImportCreateReason }
@@ -126,7 +129,7 @@ async function planAutoImport(
       throw new Error('sessionId contains invalid characters')
     }
     return deps.sessionExists(options.explicitSessionId)
-      ? { action: 'incremental', sessionId: options.explicitSessionId }
+      ? { action: 'incremental', sessionId: options.explicitSessionId, crossSourceAppend: true }
       : { action: 'create', sessionId: options.explicitSessionId }
   }
 
@@ -215,6 +218,7 @@ export async function autoImportFile(
         plan.sessionId,
         await deps.appendSession(plan.sessionId, filePath, options.formatOptions, deps.onProgress, {
           platformMessageIdScope: plan.platformMessageIdScope,
+          crossSourceAppend: plan.crossSourceAppend,
           senderPlatformIdMappings: plan.senderPlatformIdMappings,
         }),
         plan.matchedBy
@@ -266,6 +270,7 @@ export async function analyzeAutoImportFile(
     if (plan.action === 'incremental') {
       const analysis = await deps.analyzeAppendSession(plan.sessionId, filePath, options.formatOptions, {
         platformMessageIdScope: plan.platformMessageIdScope,
+        crossSourceAppend: plan.crossSourceAppend,
         senderPlatformIdMappings: plan.senderPlatformIdMappings,
       })
       if (analysis.error) return { success: false, error: analysis.error }

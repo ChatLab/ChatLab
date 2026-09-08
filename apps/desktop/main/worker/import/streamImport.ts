@@ -152,6 +152,7 @@ export async function autoImport(
             formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,
             chatIndex: typeof sourceFormatOptions?.chatIndex === 'number' ? sourceFormatOptions.chatIndex : undefined,
             platformMessageIdScope: context?.platformMessageIdScope,
+            crossSourceAppend: context?.crossSourceAppend,
             senderPlatformIdMappings: context?.senderPlatformIdMappings,
           },
           itemProgress
@@ -186,6 +187,7 @@ export async function analyzeAutoImport(
           formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,
           chatIndex: typeof sourceFormatOptions?.chatIndex === 'number' ? sourceFormatOptions.chatIndex : undefined,
           platformMessageIdScope: context?.platformMessageIdScope,
+          crossSourceAppend: context?.crossSourceAppend,
           senderPlatformIdMappings: context?.senderPlatformIdMappings,
         }),
     },
@@ -231,6 +233,7 @@ export async function autoImportBatch(
             formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,
             chatIndex: typeof sourceFormatOptions?.chatIndex === 'number' ? sourceFormatOptions.chatIndex : undefined,
             platformMessageIdScope: context?.platformMessageIdScope,
+            crossSourceAppend: context?.crossSourceAppend,
             senderPlatformIdMappings: context?.senderPlatformIdMappings,
           },
           itemProgress
