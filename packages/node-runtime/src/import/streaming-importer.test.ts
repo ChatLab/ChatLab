@@ -418,12 +418,15 @@ test('streamingImport updates avatars without creating a per-session FTS table',
   const row = db.prepare('SELECT platform_id, avatar FROM member WHERE platform_id = ?').get('10001') as
     | { platform_id: string; avatar: string | null }
     | undefined
-  const ftsTable = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'message_fts'").get()
+  const indexed = db.prepare('SELECT COUNT(*) AS count FROM message_fts_docsize').get() as { count: number }
+  const messages = db.prepare('SELECT COUNT(*) AS count FROM message').get() as { count: number }
   db.close()
 
   assert.equal(row?.platform_id, '10001')
   assert.equal(row?.avatar, 'data:image/png;base64,AAAA')
-  assert.equal(ftsTable, undefined)
+  // Messages are bulk-inserted before message_fts exists, so the importer has to
+  // backfill it; an empty index would make every keyword search miss.
+  assert.equal(indexed.count, messages.count)
 })
 
 test('streamingImport builds the session index exactly once with the requested gap threshold', async (t) => {
@@ -502,7 +505,7 @@ test(
       .get('qq-message-2') as {
       reply_to_message_id: string | null
     }
-    const ftsTable = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'message_fts'").get()
+    const indexed = db.prepare('SELECT COUNT(*) AS count FROM message_fts_docsize').get() as { count: number }
     db.close()
 
     assert.deepEqual(meta, {
@@ -513,7 +516,7 @@ test(
     })
     assert.deepEqual(counts, { members: 2, messages: 2 })
     assert.equal(reply.reply_to_message_id, 'qq-message-1')
-    assert.equal(ftsTable, undefined)
+    assert.equal(indexed.count, counts.messages)
   }
 )
 

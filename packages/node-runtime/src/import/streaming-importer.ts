@@ -12,6 +12,7 @@
 import type { DatabaseAdapter } from '@openchatlab/core'
 import {
   CHAT_DB_INDEXES,
+  ensureMessageSearchIndex,
   generateSessionIndex as generateCoreSessionIndex,
   normalizeSessionGapThreshold,
 } from '@openchatlab/core'
@@ -68,6 +69,8 @@ export interface ImportStageTimings {
   messageWriteMs: number
   nicknameHistoryMs: number
   indexCreationMs: number
+  /** Time spent creating and backfilling the message full-text index. */
+  searchIndexMs: number
   checkpointMs: number
   sessionIndexMs: number
   postImportHookMs: number
@@ -305,6 +308,7 @@ async function streamImportSingle(
     messageWriteMs: 0,
     nicknameHistoryMs: 0,
     indexCreationMs: 0,
+    searchIndexMs: 0,
     checkpointMs: 0,
     sessionIndexMs: 0,
     postImportHookMs: 0,
@@ -764,6 +768,17 @@ async function streamImportSingle(
     sampleRss()
     logger?.perf('Indexes created', totalMessageCount)
 
+    // The bulk INSERTs ran before message_fts existed, so the index starts empty
+    // and has to be backfilled once here; later writes go through its triggers.
+    const searchIndexStartedAt = now()
+    const searchIndex = ensureMessageSearchIndex(db)
+    timings.searchIndexMs = elapsedMs(searchIndexStartedAt, now)
+    sampleRss()
+    logger?.perf(
+      `Search index ${searchIndex.rebuilt ? 'built' : 'reused'} (${searchIndex.rows} rows)`,
+      totalMessageCount
+    )
+
     // Final WAL checkpoint + session index + post-import hook
     onProgress({
       stage: 'indexing',
@@ -809,7 +824,7 @@ async function streamImportSingle(
 
     logger?.perfDetail(
       `[Stages] parser=${timings.parserMs.toFixed(1)}ms | message-write=${timings.messageWriteMs.toFixed(1)}ms | ` +
-        `indexes=${timings.indexCreationMs.toFixed(1)}ms | ` +
+        `indexes=${timings.indexCreationMs.toFixed(1)}ms | search-index=${timings.searchIndexMs.toFixed(1)}ms | ` +
         `session-index=${timings.sessionIndexMs.toFixed(1)}ms | hook=${timings.postImportHookMs.toFixed(1)}ms`
     )
     logger?.perf('Import completed', totalMessageCount)

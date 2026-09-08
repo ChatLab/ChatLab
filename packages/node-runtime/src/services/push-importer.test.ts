@@ -82,8 +82,9 @@ test('analyzes a new push payload with the same optional-account and member sema
 
   const db = manager.openRawSessionDatabase('push-analysis', { readonly: true })
   try {
-    const ftsTable = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'message_fts'").get()
-    assert.equal(ftsTable, undefined)
+    const indexed = db.prepare('SELECT COUNT(*) AS count FROM message_fts_docsize').get() as { count: number }
+    const messages = db.prepare('SELECT COUNT(*) AS count FROM message').get() as { count: number }
+    assert.equal(indexed.count, messages.count)
   } finally {
     db.close()
   }
