@@ -3,9 +3,10 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { CHAT_DB_SCHEMA, generateSessionIndex } from '@openchatlab/core'
+import { CHAT_DB_SCHEMA, CHAT_DB_TABLES, generateSessionIndex } from '@openchatlab/core'
 import { openBetterSqliteDatabase } from '../better-sqlite3-adapter'
 import { analyzeIncrementalImport, incrementalImport, type IncrementalImportDeps } from './incremental-importer'
+import { streamingImport, type StreamImportDeps } from './streaming-importer'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -611,4 +612,111 @@ test('deduplicates repeated input across parser message batches', async (t) => {
   assert.equal(result.success, true)
   assert.equal(result.newMessageCount, 5000)
   assert.equal(result.batch?.duplicateCount, 1)
+})
+
+interface WeFlowSideOptions {
+  /** Account that exported the file; WeFlow infers it from `isSend === 1`. */
+  ownerId: string
+  /** First platform message ID; the two sides of the same chat number messages differently. */
+  platformMessageIdBase: number
+}
+
+const CROSS_SOURCE_MESSAGES: Array<{ sender: 'wxid_alice' | 'wxid_bob'; content: string }> = [
+  { sender: 'wxid_alice', content: 'are we still on for tomorrow' },
+  { sender: 'wxid_bob', content: 'yes, ten in the morning' },
+  { sender: 'wxid_alice', content: 'perfect, see you then' },
+  { sender: 'wxid_bob', content: 'bring the contract please' },
+  { sender: 'wxid_alice', content: 'already printed' },
+  { sender: 'wxid_bob', content: 'great' },
+]
+
+const DISPLAY_NAMES: Record<string, string> = { wxid_alice: 'Alice', wxid_bob: 'Bob' }
+
+/** One WeFlow export of the same private chat, as produced on `ownerId`'s device. */
+function writeWeFlowSideExport(filePath: string, { ownerId, platformMessageIdBase }: WeFlowSideOptions): void {
+  const peerId = ownerId === 'wxid_alice' ? 'wxid_bob' : 'wxid_alice'
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify({
+      weflow: { version: '1.0.0', exportTime: 1780331000 },
+      session: {
+        wxid: peerId,
+        nickname: DISPLAY_NAMES[peerId],
+        remark: '',
+        displayName: DISPLAY_NAMES[peerId],
+        type: '私聊',
+        lastTimestamp: 1780330832 + CROSS_SOURCE_MESSAGES.length,
+        messageCount: CROSS_SOURCE_MESSAGES.length,
+      },
+      messages: CROSS_SOURCE_MESSAGES.map((message, index) => ({
+        localId: index + 1,
+        platformMessageId: String(platformMessageIdBase + index),
+        createTime: 1780330832 + index,
+        formattedTime: '',
+        type: '文本消息',
+        localType: 1,
+        content: message.content,
+        isSend: message.sender === ownerId ? 1 : 0,
+        senderUsername: message.sender,
+        senderDisplayName: DISPLAY_NAMES[message.sender],
+        senderAvatarKey: message.sender,
+        source: '',
+      })),
+    }),
+    'utf8'
+  )
+}
+
+function createStreamImportDeps(dbPath: string): StreamImportDeps {
+  return {
+    openDatabase() {
+      const db = openBetterSqliteDatabase(dbPath, { nativeBinding })
+      db.exec(CHAT_DB_TABLES)
+      return db
+    },
+    deleteDatabase() {
+      for (const suffix of ['', '-wal', '-shm']) {
+        try {
+          fs.unlinkSync(dbPath + suffix)
+        } catch {
+          /* ignore */
+        }
+      }
+    },
+    onProgress() {
+      /* noop for focused importer tests */
+    },
+  }
+}
+
+// Issue #358: the same private chat exported from both accounts. The two files carry the same
+// messages but different owners and disjoint platform message ID spaces, so appending the second
+// export to the first session must not store every message twice.
+test('deduplicates the same private chat exported from both sides', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const dbPath = path.join(tempDir, 'session.db')
+  const aliceExport = path.join(tempDir, 'alice-side.json')
+  const bobExport = path.join(tempDir, 'bob-side.json')
+  writeWeFlowSideExport(aliceExport, { ownerId: 'wxid_alice', platformMessageIdBase: 1 })
+  writeWeFlowSideExport(bobExport, { ownerId: 'wxid_bob', platformMessageIdBase: 1001 })
+
+  const created = await streamingImport(aliceExport, createStreamImportDeps(dbPath), { formatId: 'weflow' }, 'session')
+  assert.equal(created.success, true)
+  assert.equal(created.diagnostics?.messagesWritten, CROSS_SOURCE_MESSAGES.length)
+
+  const deps = createDeps(dbPath)
+  const analysis = await analyzeIncrementalImport('session', bobExport, deps, { formatId: 'weflow' })
+  const result = await incrementalImport('session', bobExport, deps, { formatId: 'weflow' })
+  assert.equal(result.success, true)
+
+  const db = openBetterSqliteDatabase(dbPath, { readonly: true, nativeBinding })
+  const stored = db.prepare('SELECT COUNT(*) AS count FROM message').get() as { count: number }
+  db.close()
+
+  assert.equal(analysis.duplicateCount, CROSS_SOURCE_MESSAGES.length)
+  assert.equal(result.batch?.duplicateCount, CROSS_SOURCE_MESSAGES.length)
+  assert.equal(result.newMessageCount, 0)
+  assert.equal(stored.count, CROSS_SOURCE_MESSAGES.length)
 })
