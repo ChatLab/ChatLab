@@ -267,7 +267,15 @@ export function registerCacheRoutes(server: FastifyInstance, ctx: CacheRouteCont
       fs.mkdirSync(downloadsDir, { recursive: true })
     }
 
-    const filePath = path.join(downloadsDir, filename)
+    // Confine the write to the downloads directory: browser callers pick this
+    // name, and `path.join` collapses `..`, so anything but a plain file name
+    // would otherwise resolve outside `downloadsDir`.
+    const safeName = path.basename(filename)
+    if (safeName !== filename || safeName === '.' || safeName === '..') {
+      return { success: false, error: 'Invalid filename' }
+    }
+
+    const filePath = path.join(downloadsDir, safeName)
     fs.writeFileSync(filePath, buffer)
 
     return { success: true, filePath }

@@ -297,3 +297,50 @@ describe('registerCacheRoutes data directory routes', () => {
     await app.close()
   })
 })
+
+describe('registerCacheRoutes save-to-downloads', () => {
+  it('writes a plain file name inside the downloads directory', async () => {
+    const app = Fastify()
+    registerCacheRoutes(app, { pathProvider: createPathProvider() })
+    await app.ready()
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/_web/cache/save-to-downloads',
+      payload: {
+        filename: 'result.csv',
+        dataUrl: `data:text/csv;charset=utf-8,${encodeURIComponent('a,b\n1,2')}`,
+      },
+    })
+
+    assert.equal(response.statusCode, 200)
+    assert.deepEqual(response.json(), {
+      success: true,
+      filePath: path.join(testSystemDir, 'downloads', 'result.csv'),
+    })
+
+    await app.close()
+  })
+
+  it('refuses a file name that would escape the downloads directory', async () => {
+    const app = Fastify()
+    registerCacheRoutes(app, { pathProvider: createPathProvider() })
+    await app.ready()
+
+    const escapedPath = path.join(testSystemDir, 'escaped.txt')
+    const response = await app.inject({
+      method: 'POST',
+      url: '/_web/cache/save-to-downloads',
+      payload: {
+        filename: '../escaped.txt',
+        dataUrl: `data:text/plain;charset=utf-8,${encodeURIComponent('attacker controlled')}`,
+      },
+    })
+
+    assert.equal(response.statusCode, 200)
+    assert.deepEqual(response.json(), { success: false, error: 'Invalid filename' })
+    assert.equal(fs.existsSync(escapedPath), false)
+
+    await app.close()
+  })
+})
