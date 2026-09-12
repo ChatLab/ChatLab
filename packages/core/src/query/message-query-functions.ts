@@ -177,7 +177,7 @@ export async function fetchMessageContext(
 
 /**
  * Get context messages around search results.
- * Session-aware when message_context table is available, falls back to id-based.
+ * Uses chronological neighbors within the indexed segment, or across the chat when unindexed.
  */
 export async function fetchSearchMessageContext(
   executor: AsyncSqlExecutor,
@@ -211,19 +211,23 @@ export async function fetchSearchMessageContext(
       if (sessionRow) {
         if (contextBefore > 0) {
           const rows = await executor.all<{ id: number }>(
-            `SELECT mc.message_id as id FROM message_context mc
-             WHERE mc.segment_id = ? AND mc.message_id < ?
-             ORDER BY mc.message_id DESC LIMIT ?`,
-            [sessionRow.segment_id, messageId, contextBefore]
+            `SELECT msg.id FROM message_context mc
+             JOIN message msg ON msg.id = mc.message_id
+             JOIN message anchor ON anchor.id = ?
+             WHERE mc.segment_id = ? AND (msg.ts < anchor.ts OR (msg.ts = anchor.ts AND msg.id < anchor.id))
+             ORDER BY msg.ts DESC, msg.id DESC LIMIT ?`,
+            [messageId, sessionRow.segment_id, contextBefore]
           )
           rows.forEach((r) => contextIds.add(r.id))
         }
         if (contextAfter > 0) {
           const rows = await executor.all<{ id: number }>(
-            `SELECT mc.message_id as id FROM message_context mc
-             WHERE mc.segment_id = ? AND mc.message_id > ?
-             ORDER BY mc.message_id ASC LIMIT ?`,
-            [sessionRow.segment_id, messageId, contextAfter]
+            `SELECT msg.id FROM message_context mc
+             JOIN message msg ON msg.id = mc.message_id
+             JOIN message anchor ON anchor.id = ?
+             WHERE mc.segment_id = ? AND (msg.ts > anchor.ts OR (msg.ts = anchor.ts AND msg.id > anchor.id))
+             ORDER BY msg.ts ASC, msg.id ASC LIMIT ?`,
+            [messageId, sessionRow.segment_id, contextAfter]
           )
           rows.forEach((r) => contextIds.add(r.id))
         }
@@ -232,17 +236,23 @@ export async function fetchSearchMessageContext(
     }
 
     if (contextBefore > 0) {
-      const rows = await executor.all<{ id: number }>('SELECT id FROM message WHERE id < ? ORDER BY id DESC LIMIT ?', [
-        messageId,
-        contextBefore,
-      ])
+      const rows = await executor.all<{ id: number }>(
+        `SELECT msg.id FROM message msg
+         JOIN message anchor ON anchor.id = ?
+         WHERE msg.ts < anchor.ts OR (msg.ts = anchor.ts AND msg.id < anchor.id)
+         ORDER BY msg.ts DESC, msg.id DESC LIMIT ?`,
+        [messageId, contextBefore]
+      )
       rows.forEach((r) => contextIds.add(r.id))
     }
     if (contextAfter > 0) {
-      const rows = await executor.all<{ id: number }>('SELECT id FROM message WHERE id > ? ORDER BY id ASC LIMIT ?', [
-        messageId,
-        contextAfter,
-      ])
+      const rows = await executor.all<{ id: number }>(
+        `SELECT msg.id FROM message msg
+         JOIN message anchor ON anchor.id = ?
+         WHERE msg.ts > anchor.ts OR (msg.ts = anchor.ts AND msg.id > anchor.id)
+         ORDER BY msg.ts ASC, msg.id ASC LIMIT ?`,
+        [messageId, contextAfter]
+      )
       rows.forEach((r) => contextIds.add(r.id))
     }
   }
