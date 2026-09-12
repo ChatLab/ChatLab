@@ -7,18 +7,111 @@
 
 import { Agent as PiAgentCore } from '@earendil-works/pi-agent-core'
 import type { AgentEvent as PiAgentEvent, AgentMessage as PiAgentMessage } from '@earendil-works/pi-agent-core'
-import { type Message as PiMessage, type Usage as PiUsage, clampThinkingLevel } from '@earendil-works/pi-ai'
+import {
+  type Context as PiContext,
+  type Message as PiMessage,
+  type Usage as PiUsage,
+  clampThinkingLevel,
+} from '@earendil-works/pi-ai'
 import { StreamingThinkTagParser, needsStreamingThinkParsing } from '@openchatlab/core'
 import type { ToolProgress } from '@openchatlab/shared-types'
 
 import type { AgentCoreOptions, AgentCoreResult, AgentTokenUsage } from './types'
-import { initTokenizer } from '../tokenizer'
+import { countTokens, initTokenizer } from '../tokenizer'
 import { streamSimple as defaultStreamSimple } from '../pi-runtime'
 import { DEFAULT_MAX_TOOL_ROUNDS } from './constants'
 import { toPiHistoryMessages, type ReplayOptions } from './history'
 
 function isPiMessage(message: PiAgentMessage): message is PiMessage {
   return message.role === 'user' || message.role === 'assistant' || message.role === 'toolResult'
+}
+
+function fitToolResults(context: PiContext, contextWindow: number, maxTokens: number) {
+  // Match Pi's output safety margin. cl100k is an estimate for other providers;
+  // also cover Pi's character estimate so trimming does not starve the answer.
+  const safetyTokens = Math.min(4096, Math.floor(contextWindow / 2))
+  const budget = contextWindow - safetyTokens - Math.min(maxTokens, Math.floor(contextWindow / 4))
+  const estimate = (text: string) => {
+    // Bound tokenizer work for long unbroken tool output (e.g. CJK or encoded data).
+    let tokens = 0
+    for (let i = 0; i < text.length; i += 256) tokens += countTokens(text.slice(i, i + 256))
+    return Math.max(tokens, Math.ceil(text.length / 4))
+  }
+  const messageTokens = (message: PiMessage) =>
+    8 +
+    estimate(
+      JSON.stringify({
+        role: message.role,
+        content: message.content,
+        ...(message.role === 'toolResult' ? { toolCallId: message.toolCallId, toolName: message.toolName } : {}),
+      })
+    )
+  let tokens =
+    8 +
+    estimate(context.systemPrompt ?? '') +
+    estimate(
+      JSON.stringify(
+        context.tools?.map(({ name, description, parameters }) => ({ name, description, parameters })) ?? []
+      )
+    ) +
+    context.messages.reduce((sum, message) => sum + messageTokens(message), 0)
+  if (tokens <= budget) return { context, maxTokens: Math.min(maxTokens, contextWindow - tokens - 16) }
+
+  const messages = context.messages.slice()
+  const marker = '\n[Tool result truncated to fit the context window. Use a narrower query if needed.]'
+  // Retain recent evidence first; edit only the request view, never the transcript.
+  for (let i = 0; i < messages.length && tokens > budget; i++) {
+    const message = messages[i]
+    if (message.role !== 'toolResult') continue
+    const content = message.content.slice()
+    for (let j = 0; j < content.length && tokens > budget; j++) {
+      const block = content[j]
+      if (block.type !== 'text') continue
+      const before = messageTokens({ ...message, content })
+      content[j] = { ...block, text: marker }
+      const after = messageTokens({ ...message, content })
+      if (after >= before) {
+        content[j] = block
+        continue
+      }
+      if (tokens - before + after <= budget) {
+        let low = 0
+        let high = block.text.length
+        while (low < high) {
+          const mid = Math.ceil((low + high) / 2)
+          content[j] = { ...block, text: block.text.slice(0, mid) + marker }
+          if (tokens - before + messageTokens({ ...message, content }) <= budget) low = mid
+          else high = mid - 1
+        }
+        content[j] = { ...block, text: block.text.slice(0, low) + marker }
+      }
+      tokens += messageTokens({ ...message, content }) - before
+    }
+    messages[i] = { ...message, content }
+  }
+  // The reserve is a target, not a new hard limit on existing user/history text.
+  // OpenAI Responses enforces a minimum of 16 output tokens.
+  if (tokens + 16 > contextWindow)
+    throw new Error(
+      'Agent context exceeds the model window after trimming tool results. Start a new conversation or shorten the request.'
+    )
+
+  // Provider usage described the untrimmed prefix. Invalidate it only in this
+  // request so Pi estimates the edited context instead of reusing stale totals.
+  return {
+    context: {
+      ...context,
+      messages: messages.map((message) =>
+        message.role === 'assistant'
+          ? {
+              ...message,
+              usage: { ...message.usage, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0 },
+            }
+          : message
+      ),
+    },
+    maxTokens: Math.max(1, Math.min(maxTokens, contextWindow - tokens - 16)),
+  }
 }
 
 export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCoreResult> {
@@ -120,12 +213,15 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
       messages: toPiHistoryMessages(history, replayOptions),
     },
     getApiKey: () => apiKey,
-    streamFn: resolvedStreamFn,
+    streamFn: (model, context, streamOptions) => {
+      const fitted = fitToolResults(context, model.contextWindow, model.maxTokens)
+      onConvertToLlm?.(fitted.context.messages)
+      return resolvedStreamFn(model, fitted.context, { ...streamOptions, maxTokens: fitted.maxTokens })
+    },
     convertToLlm: (messages) => {
       const filtered = messages.filter(
         (msg): msg is PiMessage => msg.role === 'user' || msg.role === 'assistant' || msg.role === 'toolResult'
       )
-      onConvertToLlm?.(filtered)
       return filtered
     },
     afterToolCall: async ({ result }) =>
