@@ -212,7 +212,8 @@ export function createElectronRunAgentStream(
             })
           }),
           getAIChatManager(),
-          compressionLogger
+          compressionLogger,
+          { signal: abortSignal }
         )
 
         if (compressionResult.compressed && compressionResult.summaryContent) {

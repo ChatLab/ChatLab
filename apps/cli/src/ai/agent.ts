@@ -133,7 +133,8 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
       systemPrompt,
       llmAdapter,
       aiChatManager,
-      aiLogger ?? undefined
+      aiLogger ?? undefined,
+      { signal: abortSignal }
     )
     if (compressionResult.compressed) {
       onEvent({
