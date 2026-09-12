@@ -14,6 +14,7 @@ import {
 
 import { runAgentCore } from '../core'
 import type { AgentCoreEvent, AgentCoreOptions } from '../types'
+import { countTokens } from '../../tokenizer'
 
 const model: Model<'openai-completions'> = {
   id: 'test-model',
@@ -146,6 +147,107 @@ function createOptions(overrides: Partial<AgentCoreOptions> = {}): AgentCoreOpti
 }
 
 describe('runAgentCore runtime contract', () => {
+  it('fits accumulated tool results into each request without changing the transcript', async () => {
+    const smallModel = { ...model, contextWindow: 8192, maxTokens: 2048 }
+    const text = '订单记录 order details 12345\n'.repeat(300)
+    const tool = createTool('lookup', async () => ({ content: [{ type: 'text', text }], details: null }))
+    const requests: Context[] = []
+    const result = await runAgentCore(
+      createOptions({
+        piModel: smallModel,
+        tools: [tool],
+        streamFn: createScriptedStream([
+          ...[0, 1].map((round) => (context: Context) => {
+            requests.push(context)
+            return assistantMessage(
+              [0, 1, 2].map((i) => ({
+                type: 'toolCall' as const,
+                id: `lookup-${round}-${i}`,
+                name: 'lookup',
+                arguments: {},
+              })),
+              { stopReason: 'toolUse' }
+            )
+          }),
+          (context) => {
+            requests.push(context)
+            return assistantMessage([{ type: 'text', text: 'Finished' }])
+          },
+        ]),
+      })
+    )
+    assert.equal(result.error, undefined)
+    assert.equal(requests.length, 3)
+    for (const context of requests) {
+      const input = countTokens(
+        JSON.stringify({
+          systemPrompt: context.systemPrompt,
+          tools: context.tools,
+          messages: context.messages.map(({ role, content }) => ({ role, content })),
+        })
+      )
+      assert.ok(input + smallModel.maxTokens <= smallModel.contextWindow, `request input was ${input} tokens`)
+      const calls = context.messages.flatMap((m) =>
+        m.role === 'assistant' ? m.content.filter((b) => b.type === 'toolCall').map((b) => b.id) : []
+      )
+      assert.deepEqual(
+        context.messages.flatMap((m) => (m.role === 'toolResult' ? [m.toolCallId] : [])),
+        calls
+      )
+    }
+    const originalResults = result.finalMessages.filter((m) => m.role === 'toolResult')
+    assert.equal(originalResults.length, 6)
+    assert.ok(originalResults.every((m) => m.content[0].type === 'text' && m.content[0].text === text))
+    assert.ok(
+      requests
+        .at(-1)!
+        .messages.some(
+          (m) => m.role === 'toolResult' && m.content.some((b) => b.type === 'text' && b.text.includes('订单记录'))
+        )
+    )
+  })
+
+  it('reports protected context overflow before sending a doomed provider request', async () => {
+    let providerCalls = 0
+    const result = await runAgentCore(
+      createOptions({
+        piModel: { ...model, contextWindow: 8192 },
+        userMessage: '不可丢失的用户问题'.repeat(2000),
+        streamFn: createScriptedStream([
+          () => {
+            providerCalls++
+            return assistantMessage([{ type: 'text', text: 'Unexpected' }])
+          },
+        ]),
+      })
+    )
+    assert.equal(providerCalls, 0)
+    assert.match(result.error ?? '', /context/i)
+  })
+
+  it('keeps existing history that fits the window but exceeds the output reserve target', async () => {
+    const historyText = '重要聊天证据 '.repeat(600)
+    let captured: Context | undefined
+    let outputBudget = 0
+    const result = await runAgentCore(
+      createOptions({
+        piModel: { ...model, contextWindow: 8192, maxTokens: 2048 },
+        history: [{ role: 'user', content: historyText }],
+        streamFn: createScriptedStream([
+          (context, options) => {
+            captured = context
+            outputBudget = options?.maxTokens ?? 0
+            return assistantMessage([{ type: 'text', text: 'Continued' }])
+          },
+        ]),
+      })
+    )
+    assert.equal(result.error, undefined)
+    assert.equal(captured?.messages[0].content[0].type, 'text')
+    assert.equal(captured?.messages[0].content[0].text, historyText)
+    assert.equal(outputBudget, 2048, 'Preserve the configured output budget when the history and answer both fit')
+  })
+
   it('streams thinking, content, and usage into ChatLab events', async () => {
     const events: AgentCoreEvent[] = []
     const result = await runAgentCore(
