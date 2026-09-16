@@ -93,6 +93,9 @@ export {
 
 export { buildContactKey, shouldScopeContactToSession } from './contact-identity'
 
+export { resolvePrivateChatParticipants } from './private-participants'
+export type { PrivateChatParticipant, PrivateChatParticipantsResult } from './private-participants'
+
 export { getCrossChatSessionActivityFacts } from './cross-chat-statistics'
 export type {
   CrossChatMemberActivityFacts,
