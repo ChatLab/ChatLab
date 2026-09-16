@@ -33,6 +33,7 @@ import type {
   RelationshipStats,
 } from '@/types/analysis'
 import type { LanguagePreferenceResult } from '@/types/quotes/languagePreference'
+import type { SharedPhrasesResult } from '@/types/quotes/sharedPhrases'
 import type {
   TextStats,
   TextLengthPercentiles,
@@ -395,6 +396,15 @@ export class FetchDataAdapter implements DataAdapter {
     if (filter?.endTs) params.set('endTs', String(filter.endTs))
     if (filter?.memberId) params.set('memberId', String(filter.memberId))
     return analyticsGet(`/sessions/${sessionId}/analytics/language-preference?${params}`)
+  }
+
+  getSharedPhrases(sessionId: string, filter?: TimeFilter, limit?: number): Promise<SharedPhrasesResult> {
+    const params = new URLSearchParams()
+    if (filter?.startTs) params.set('startTs', String(filter.startTs))
+    if (filter?.endTs) params.set('endTs', String(filter.endTs))
+    if (limit) params.set('limit', String(limit))
+    const qs = params.toString()
+    return analyticsGet(`/sessions/${sessionId}/analytics/shared-phrases${qs ? `?${qs}` : ''}`)
   }
 
   getMentionAnalysis(sessionId: string, filter?: TimeFilter): Promise<MentionAnalysis> {

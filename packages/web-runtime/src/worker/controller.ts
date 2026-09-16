@@ -55,6 +55,7 @@ export type WorkerSessionRuntime = Pick<
   | 'getRelationshipStats'
   | 'getJourneyStats'
   | 'getLanguagePreferenceAnalysis'
+  | 'getSharedPhrases'
   | 'getWordFrequency'
   | 'getTimeInvestment'
 >
@@ -463,6 +464,16 @@ export class WebRuntimeWorkerController {
           request.payload.sessionId,
           request.payload.locale,
           request.payload.filter
+        )
+        this.emitAnalysisQueryCompleted(request, startedAt)
+        return result
+      }
+      case 'analysis.sharedPhrases': {
+        const startedAt = this.startAnalysisQuery()
+        const result = await this.sessionRuntime.getSharedPhrases(
+          request.payload.sessionId,
+          request.payload.filter,
+          request.payload.limit
         )
         this.emitAnalysisQueryCompleted(request, startedAt)
         return result

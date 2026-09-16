@@ -186,6 +186,10 @@ export interface WebRuntimeTaskMap {
     payload: { sessionId: string; locale: string; filter?: BrowserTimeFilter }
     result: unknown
   }
+  'analysis.sharedPhrases': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter; limit?: number }
+    result: unknown
+  }
   'analysis.wordFrequency': {
     payload: { sessionId: string; params: Omit<WordFrequencyParams, 'sessionId'> }
     result: WordFrequencyResult
@@ -315,6 +319,7 @@ const WEB_RUNTIME_TASK_TYPES: Record<WebRuntimeTaskType, true> = {
   'analysis.relationship': true,
   'analysis.journey': true,
   'analysis.languagePreference': true,
+  'analysis.sharedPhrases': true,
   'analysis.wordFrequency': true,
   'globalInsight.timeInvestment': true,
 }

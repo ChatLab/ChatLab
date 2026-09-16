@@ -28,6 +28,9 @@ import {
   getLaughAnalysis,
   getClusterGraph,
   getLanguagePreferenceAnalysis,
+  getSharedPhrases,
+  SHARED_PHRASES_RULE_VERSION,
+  tokenizerIdentity,
   getDragonKingAnalysis,
   getDivingAnalysis,
   getCheckInAnalysis,
@@ -218,6 +221,20 @@ export function registerAnalyticsRoutes(server: FastifyInstance, ctx: AnalyticsR
             nlpProvider: createJiebaNlpProvider(),
           }),
         { extraVersion: `dict:${zhDictVersion}` }
+      )
+    }
+  )
+
+  server.get<{ Params: { id: string }; Querystring: FilteredQuery & { limit?: string } }>(
+    '/_web/sessions/:id/analytics/shared-phrases',
+    async (request) => {
+      const id = request.params.id
+      const filter = parseTimeFilter(request.query)
+      const limit = request.query.limit ? parseInt(request.query.limit, 10) : undefined
+      // Word segmentation follows the runtime's ICU data, so a Node upgrade must not reuse phrases cut by the old one.
+      const key = { ...filter, limit, rule: SHARED_PHRASES_RULE_VERSION, tokenizer: tokenizerIdentity() }
+      return cached('shared-phrases', id, key, () =>
+        getSharedPhrases(adapter.ensureReadonly(id), { timeFilter: filter, limit })
       )
     }
   )

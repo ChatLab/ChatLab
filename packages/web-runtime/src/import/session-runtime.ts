@@ -6,6 +6,7 @@ import {
   getBrowserWordFrequency as queryBrowserWordFrequency,
   getClusterGraph as queryClusterGraph,
   getLanguagePreferenceAnalysis as queryLanguagePreferenceAnalysis,
+  getSharedPhrases as querySharedPhrases,
   getMembersWithAliases as queryMembersWithAliases,
   getMentionAnalysis as queryMentionAnalysis,
   getGroupRelationshipGalaxy as queryGroupRelationshipGalaxy,
@@ -40,6 +41,7 @@ import {
   type MessageTypeStats,
   type MonthlyActivity,
   type RelationshipStats,
+  type SharedPhrasesResult,
   type JourneyStats,
   type TextLengthPercentiles,
   type TextStats,
@@ -461,6 +463,10 @@ export class BrowserSessionRuntime {
 
   async getLanguagePreferenceAnalysis(id: string, locale: string, filter?: BrowserTimeFilter) {
     return this.withSessionDatabase(id, (db) => queryLanguagePreferenceAnalysis(db, { locale, timeFilter: filter }))
+  }
+
+  async getSharedPhrases(id: string, filter?: BrowserTimeFilter, limit?: number): Promise<SharedPhrasesResult> {
+    return this.withSessionDatabase(id, (db) => querySharedPhrases(db, { timeFilter: filter, limit }))
   }
 
   async getWordFrequency(id: string, params: Omit<WordFrequencyParams, 'sessionId'>): Promise<WordFrequencyResult> {

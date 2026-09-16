@@ -39,6 +39,7 @@ import type {
   RelationshipStats,
 } from '@/types/analysis'
 import type { LanguagePreferenceResult } from '@/types/quotes/languagePreference'
+import type { SharedPhrasesResult } from '@/types/quotes/sharedPhrases'
 import type {
   TextStats,
   TextLengthPercentiles,
@@ -229,6 +230,7 @@ export interface DataAdapter {
     filter?: TimeFilter,
     dictType?: string
   ): Promise<LanguagePreferenceResult>
+  getSharedPhrases(sessionId: string, filter?: TimeFilter, limit?: number): Promise<SharedPhrasesResult>
   getMentionAnalysis(sessionId: string, filter?: TimeFilter): Promise<MentionAnalysis>
   getGroupRelationshipGalaxy(sessionId: string, filter?: TimeFilter): Promise<GroupRelationshipGalaxyData>
   getClusterGraph(sessionId: string, filter?: TimeFilter, options?: ClusterGraphOptions): Promise<ClusterGraphData>

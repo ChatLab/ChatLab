@@ -224,6 +224,7 @@ describe('BrowserDataAdapter', () => {
           'analysis.relationship': { hasSessionIndex: true },
           'analysis.journey': { range: null, hasSessionIndex: true, months: [], years: [] },
           'analysis.languagePreference': { members: [], sharedWords: [], similarityScore: 0 },
+          'analysis.sharedPhrases': { available: false, reason: 'not_private_chat' },
           'analysis.wordFrequency': { words: [], totalWords: 0, totalMessages: 0, uniqueWords: 0 },
         }
         return results[type] as WebRuntimeTaskResult<T>
@@ -242,6 +243,10 @@ describe('BrowserDataAdapter', () => {
     assert.equal((await adapter.getRelationshipStats('session-one')).hasSessionIndex, true)
     assert.equal((await adapter.getJourneyStats('session-one')).hasSessionIndex, true)
     assert.equal((await adapter.getLanguagePreferenceAnalysis('session-one', 'en-US')).members.length, 0)
+    assert.deepEqual(await adapter.getSharedPhrases('session-one', { startTs: 1 }, 20), {
+      available: false,
+      reason: 'not_private_chat',
+    })
     assert.equal((await adapter.getWordFrequency('session-one', { locale: 'en-US' })).totalWords, 0)
 
     assert.deepEqual(
@@ -257,9 +262,15 @@ describe('BrowserDataAdapter', () => {
         'analysis.relationship',
         'analysis.journey',
         'analysis.languagePreference',
+        'analysis.sharedPhrases',
         'analysis.wordFrequency',
       ]
     )
+    assert.deepEqual(requests.find(({ type }) => type === 'analysis.sharedPhrases')?.payload, {
+      sessionId: 'session-one',
+      filter: { startTs: 1 },
+      limit: 20,
+    })
   })
 
   it('ignores stale Worker analysis results after the analytics epoch changes', async () => {
