@@ -155,6 +155,17 @@
     "watermark": "話題畫像 · Topic Profile",
     "sharedTopics": "共同話題"
   },
+  "sharedPhrases": {
+    "title": "共同說法",
+    "description": "雙方都用過、至少出現在 3 個輪次和 2 次對話裡的說法，按雙方各自使用的輪次排序；不表示這些說法只在兩人之間使用。",
+    "turns": "{count} 個輪次",
+    "firstUsed": "首次 {date}",
+    "unavailable": "需要兩個人都發過訊息的私聊，才能列出共同說法。",
+    "empty": "目前時間範圍內沒有達到條件的共同說法。",
+    "hasMore": "只列出排序靠前的 {count} 則。",
+    "coverage": "分析了 {text} 則文字訊息，未計入 {excluded} 則訊息；共 {turns} 個輪次、{sessions} 次對話。",
+    "method": "分詞方式：{tokenizer}；規則版本：{rule}"
+  },
   "catchphrase": {
     "title": "群成員口頭禪",
     "description": "看看每位成員最具代表性的重複短句",

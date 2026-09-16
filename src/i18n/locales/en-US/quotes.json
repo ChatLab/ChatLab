@@ -155,6 +155,17 @@
     "watermark": "Topic Profile",
     "sharedTopics": "Shared Topics"
   },
+  "sharedPhrases": {
+    "title": "Shared Phrases",
+    "description": "Phrases both people used, in at least 3 turns and 2 conversations, ordered by the number of turns in which each of them used the phrase. It does not mean a phrase is used only between the two of them.",
+    "turns": "turns: {count}",
+    "firstUsed": "first used {date}",
+    "unavailable": "Shared phrases need a private chat in which both people sent messages.",
+    "empty": "No phrase meets the threshold in the current time range.",
+    "hasMore": "Only the top {count} phrases are listed.",
+    "coverage": "Text messages analyzed: {text}; messages not counted: {excluded}; turns: {turns}; conversations: {sessions}.",
+    "method": "Tokenizer: {tokenizer}; rule versions: {rule}"
+  },
   "catchphrase": {
     "title": "Group Catchphrases",
     "description": "See each member's most characteristic repeated phrases",

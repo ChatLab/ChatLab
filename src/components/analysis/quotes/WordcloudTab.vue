@@ -7,6 +7,7 @@ import { LoadingState, UITabs, SectionCard } from '@/components/UI'
 import { useInsightViewLoading } from '@/components/UI/insight-view-loading'
 import TopicProfileCard from './TopicProfileCard.vue'
 import SharedTopicsCard from './SharedTopicsCard.vue'
+import SharedPhrasesCard from './SharedPhrasesCard.vue'
 import type { WordFrequencyItem, PosTagStat } from './topicProfileTypes'
 import UserSelect from '@/components/common/UserSelect.vue'
 import WordFilterModal from '@/components/common/WordFilterModal.vue'
@@ -496,6 +497,14 @@ onMounted(async () => {
           :dict-type="selectedDictType"
           :exclude-words="currentExcludeWords"
           @word-click="handleWordClick"
+        />
+
+        <!-- 共同说法（仅私聊） -->
+        <SharedPhrasesCard
+          v-if="props.showSharedTopics"
+          :session-id="props.sessionId"
+          :time-filter="props.timeFilter"
+          :enable-record-navigation="props.enableRecordNavigation"
         />
 
         <!-- 3. 热门词汇分布（词云 + 配置面板） -->

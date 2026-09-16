@@ -155,6 +155,17 @@
     "watermark": "话题画像 · Topic Profile",
     "sharedTopics": "共同话题"
   },
+  "sharedPhrases": {
+    "title": "共同说法",
+    "description": "双方都用过、至少出现在 3 个轮次和 2 次对话里的说法，按双方各自使用的轮次排序；不表示这些说法只在两人之间使用。",
+    "turns": "{count} 个轮次",
+    "firstUsed": "首次 {date}",
+    "unavailable": "需要两个人都发过消息的私聊，才能列出共同说法。",
+    "empty": "当前时间范围内没有达到条件的共同说法。",
+    "hasMore": "只列出排序靠前的 {count} 条。",
+    "coverage": "分析了 {text} 条文本消息，未计入 {excluded} 条消息；共 {turns} 个轮次、{sessions} 次对话。",
+    "method": "分词方式：{tokenizer}；规则版本：{rule}"
+  },
   "catchphrase": {
     "title": "群成员口头禅",
     "description": "看看每位成员最有代表性的重复短句",
