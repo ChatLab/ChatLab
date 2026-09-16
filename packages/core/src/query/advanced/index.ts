@@ -39,6 +39,15 @@ export type {
 export { getLanguagePreferenceAnalysis } from './languagePreference'
 export type { NlpProvider, PosTagResult, LanguagePreferenceParams } from './languagePreference'
 
+export { getSharedPhrases, SHARED_PHRASES_RULE_VERSION } from './sharedPhrases'
+export type {
+  SharedPhrasesParams,
+  SharedPhraseMemberUse,
+  SharedPhrase,
+  SharedPhraseExampleMessage,
+  SharedPhrasesResult,
+} from './sharedPhrases'
+
 export {
   getDragonKingAnalysis,
   getDivingAnalysis,
