@@ -32,3 +32,16 @@ export {
   stripMediaPlaceholders,
   stripVoiceTranscriptionPrefix,
 } from './text-utils'
+
+export {
+  TURN_RULE_VERSION,
+  TURN_GAP_SECONDS,
+  DEFAULT_SESSION_GAP_SECONDS,
+  compareMessageOrder,
+  buildTurns,
+  assignSessionIndexes,
+  segmentWords,
+  extractHanRuns,
+  tokenizerIdentity,
+} from './text-units'
+export type { TextUnitMessage, Turn, WordToken } from './text-units'

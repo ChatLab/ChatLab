@@ -300,6 +300,15 @@ export {
   cleanText,
   isSystemMessageContent,
   isValidWord,
+  TURN_RULE_VERSION,
+  TURN_GAP_SECONDS,
+  DEFAULT_SESSION_GAP_SECONDS,
+  compareMessageOrder,
+  buildTurns,
+  assignSessionIndexes,
+  segmentWords,
+  extractHanRuns,
+  tokenizerIdentity,
 } from './nlp'
 export type {
   SupportedLocale,
@@ -314,6 +323,9 @@ export type {
   BatchSegmentOptions,
   BatchSegmentResult,
   DictInfo,
+  TextUnitMessage,
+  Turn,
+  WordToken,
 } from './nlp'
 
 // AI（内置工具目录、LLM 模型系统等静态数据）
