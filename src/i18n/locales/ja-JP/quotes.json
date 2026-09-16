@@ -189,7 +189,9 @@
       "radarVerb": "動詞",
       "radarAdj": "形容詞",
       "radarModal": "終助詞",
-      "radarAdv": "副詞"
+      "radarAdv": "副詞",
+      "topCatchphrases": "よく使う口癖",
+      "languageProfiles": "言語プロフィール"
     },
     "catchphrasePK": {
       "title": "口癖バトル",
