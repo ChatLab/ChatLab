@@ -9,6 +9,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSessionStore } from '@/stores/session'
 import type { AutoImportDecision, ImportTarget } from '@/services'
+import { createImportTargetModalChoice } from './importTargetChoice'
 
 const props = defineProps<{
   open: boolean
@@ -64,9 +65,18 @@ const filteredSessions = computed(() => {
 
 const canConfirm = computed(() => mode.value !== 'session' || Boolean(selectedSessionId.value))
 
+const choice = createImportTargetModalChoice({
+  close: () => {
+    isOpen.value = false
+  },
+  confirm: (target) => emit('confirm', target),
+  cancel: () => emit('cancel'),
+})
+
 watch(
   () => props.open,
   (open) => {
+    choice.openChanged(open)
     if (!open) return
     sessionQuery.value = ''
     mode.value = 'auto'
@@ -85,16 +95,9 @@ watch(
 
 function confirmSelection() {
   if (!canConfirm.value) return
-  isOpen.value = false
-  emit(
-    'confirm',
+  choice.confirm(
     mode.value === 'session' ? { mode: 'session', sessionId: selectedSessionId.value! } : { mode: mode.value }
   )
-}
-
-function handleClose() {
-  isOpen.value = false
-  emit('cancel')
 }
 </script>
 
@@ -214,7 +217,7 @@ function handleClose() {
 
     <template #footer>
       <div class="flex w-full justify-end gap-2">
-        <UButton variant="ghost" color="neutral" @click="handleClose">
+        <UButton variant="ghost" color="neutral" @click="choice.cancel">
           {{ t('common.cancel') }}
         </UButton>
         <UButton :disabled="!canConfirm" @click="confirmSelection">

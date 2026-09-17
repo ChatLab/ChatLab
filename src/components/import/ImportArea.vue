@@ -4,6 +4,7 @@ import FileListItem from './FileListItem.vue'
 import ChatSelector, { type ChatInfo } from './ChatSelector.vue'
 import FormatSelectorModal from './FormatSelectorModal.vue'
 import ImportTargetModal from './ImportTargetModal.vue'
+import { createImportTargetQuestion } from './importTargetChoice'
 import { runPreparedImportBatch } from './preparedImportFlow'
 import { storeToRefs } from 'pinia'
 import { ref, computed } from 'vue'
@@ -66,7 +67,9 @@ const formatSelectorFilePath = ref('')
 const showImportTarget = ref(false)
 const importTargetDecision = ref<AutoImportDecision | null>(null)
 const importTargetFileName = ref('')
-let resolveImportTarget: ((target: ImportTarget | null) => void) | null = null
+const importTargetQuestion = createImportTargetQuestion(() => {
+  showImportTarget.value = true
+})
 
 /**
  * 单文件导入前询问目标会话。返回 null 表示用户取消。
@@ -77,11 +80,8 @@ async function askImportTarget(file: File | string, options: ImportOptions): Pro
 
   importTargetFileName.value = typeof file === 'string' ? file.split(/[\\/]/).pop() || file : file.name
   importTargetDecision.value = null
-  showImportTarget.value = true
 
-  const chosen = new Promise<ImportTarget | null>((resolve) => {
-    resolveImportTarget = resolve
-  })
+  const chosen = importTargetQuestion.ask()
   useImportService()
     .analyzeAutoImport(file, options)
     .then((decision) => {
@@ -92,16 +92,6 @@ async function askImportTarget(file: File | string, options: ImportOptions): Pro
     })
 
   return chosen
-}
-
-function handleImportTargetConfirm(target: ImportTarget) {
-  resolveImportTarget?.(target)
-  resolveImportTarget = null
-}
-
-function handleImportTargetCancel() {
-  resolveImportTarget?.(null)
-  resolveImportTarget = null
 }
 
 function withSessionGapThreshold(options: ImportOptions = {}): ImportOptions {
@@ -1317,8 +1307,8 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
       v-model:open="showImportTarget"
       :decision="importTargetDecision"
       :file-name="importTargetFileName"
-      @confirm="handleImportTargetConfirm"
-      @cancel="handleImportTargetCancel"
+      @confirm="importTargetQuestion.confirm"
+      @cancel="importTargetQuestion.cancel"
     />
   </div>
 </template>
