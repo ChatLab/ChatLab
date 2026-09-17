@@ -259,6 +259,8 @@ Returned summaries are brief descriptions of each segment, helping quickly locat
     // ===== AI Agent system prompts =====
     agent: {
       answerWithoutTools: 'Please answer based on the information already retrieved, do not call any more tools.',
+      outputLimitReached:
+        'The response reached the model output limit (including reasoning) and is incomplete. Generated content has been kept. Send "continue" or narrow your question and try again.',
       toolError: 'Error: {{error}}',
       currentDateIs: 'Current date is',
       chatContext: {

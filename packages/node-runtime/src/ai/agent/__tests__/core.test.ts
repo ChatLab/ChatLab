@@ -146,6 +146,54 @@ function createOptions(overrides: Partial<AgentCoreOptions> = {}): AgentCoreOpti
 }
 
 describe('runAgentCore runtime contract', () => {
+  for (const partialText of ['', 'The main conclusion is']) {
+    it(`reports output truncation without losing ${partialText ? 'partial text' : 'thinking-only output'}`, async () => {
+      const events: AgentCoreEvent[] = []
+      const content: AssistantMessage['content'] = [{ type: 'thinking', thinking: 'Comparing the evidence' }]
+      if (partialText) content.push({ type: 'text', text: partialText })
+      const result = await runAgentCore(
+        createOptions({
+          locale: 'en-US',
+          streamFn: createScriptedStream([assistantMessage(content, { stopReason: 'length' })]),
+          onEvent: (event) => events.push(event),
+        })
+      )
+
+      assert.match(result.error ?? '', /output limit/i)
+      assert.equal(result.stopReason, 'length')
+      assert.deepEqual(result.finalMessages.at(-1)?.content, content)
+      assert.deepEqual(
+        events.filter((event) => event.type === 'content').map((event) => event.content),
+        partialText ? [partialText] : []
+      )
+      assert.ok(events.some((event) => event.type === 'thinking_delta'))
+    })
+  }
+
+  it('stops on truncated tool arguments instead of spending more tokens on an automatic retry', async () => {
+    let toolExecuted = false
+    const result = await runAgentCore(
+      createOptions({
+        tools: [
+          createTool('lookup', async () => {
+            toolExecuted = true
+            return { content: [{ type: 'text', text: 'Should not run' }], details: {} }
+          }),
+        ],
+        locale: 'en-US',
+        streamFn: createScriptedStream([
+          assistantMessage([{ type: 'toolCall', id: 'partial-call', name: 'lookup', arguments: {} }], {
+            stopReason: 'length',
+          }),
+        ]),
+      })
+    )
+
+    assert.equal(toolExecuted, false)
+    assert.equal(result.stopReason, 'length')
+    assert.match(result.error ?? '', /output limit/i)
+  })
+
   it('streams thinking, content, and usage into ChatLab events', async () => {
     const events: AgentCoreEvent[] = []
     const result = await runAgentCore(
@@ -182,6 +230,8 @@ describe('runAgentCore runtime contract', () => {
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
     })
+    assert.equal(result.error, undefined)
+    assert.equal(result.stopReason, 'stop')
   })
 
   it('executes a tool and continues to the final response', async () => {

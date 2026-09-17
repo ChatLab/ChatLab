@@ -249,6 +249,8 @@ export default {
 
     agent: {
       answerWithoutTools: '请根据已获取的信息给出回答，不要再调用工具。',
+      outputLimitReached:
+        '本次回复达到模型输出上限（包含思考过程），回答未完成。已保留生成的内容，你可以发送“继续”或缩小问题范围后重试。',
       toolError: '错误: {{error}}',
       currentDateIs: '当前日期是',
       chatContext: {

@@ -258,6 +258,8 @@ export default {
 
     agent: {
       answerWithoutTools: '取得済みの情報に基づいて回答してください。これ以上ツールを呼び出さないでください。',
+      outputLimitReached:
+        'モデルの出力上限（思考過程を含む）に達したため、回答は未完了です。生成済みの内容は保持されています。「続けて」と送信するか、質問の範囲を絞って再試行してください。',
       toolError: 'エラー: {{error}}',
       currentDateIs: '現在の日付は',
       chatContext: {

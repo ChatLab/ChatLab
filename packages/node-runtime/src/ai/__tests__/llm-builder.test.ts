@@ -29,6 +29,18 @@ describe('normalizeOpenAICompatibleBaseUrl', () => {
 })
 
 describe('buildPiModel', () => {
+  it('reserves output space for reasoning while preserving explicit limits', () => {
+    for (const config of [
+      { provider: 'deepseek', model: 'deepseek-v4-flash' },
+      { provider: 'openai', model: 'o3' },
+      { provider: 'openai-compatible', model: 'qwen3:8b' },
+    ]) {
+      assert.equal(buildPiModel(config).maxTokens, 16_384)
+      assert.equal(buildPiModel({ ...config, maxTokens: 4096 }).maxTokens, 4096)
+    }
+    assert.equal(buildPiModel({ provider: 'openai', model: 'gpt-4o' }).maxTokens, 4096)
+  })
+
   it('builds a Google Generative AI model', () => {
     const model = buildPiModel({
       provider: 'gemini',

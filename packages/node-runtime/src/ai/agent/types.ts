@@ -6,10 +6,11 @@
  */
 
 import type { AgentTool } from '@earendil-works/pi-agent-core'
-import type { Model, Api, Message } from '@earendil-works/pi-ai'
+import type { Model, Api, Message, StopReason } from '@earendil-works/pi-ai'
 import type { ThinkingLevel } from '@openchatlab/core'
 import type { ToolProgress } from '@openchatlab/shared-types'
 import type { AIEntityRef, ContentBlock } from '../chats'
+import type { AiLogger } from '../ai-logger'
 
 export interface AgentTokenUsage {
   promptTokens: number
@@ -50,6 +51,8 @@ export interface AgentCoreOptions {
   abortSignal?: AbortSignal
   /** Stable AI conversation identifier forwarded to providers that support session affinity. */
   providerSessionId?: string
+  locale?: string
+  logger?: Pick<AiLogger, 'info' | 'error'>
   steerMessage?: string
   /** Override the thinking level for this request. Clamped to what the model supports. */
   thinkingLevel?: ThinkingLevel
@@ -68,6 +71,7 @@ export interface AgentCoreOptions {
 export interface AgentCoreResult {
   usage: AgentTokenUsage
   error?: string
+  stopReason?: StopReason
   finalMessages: Message[]
   toolsUsed: string[]
   toolRounds: number

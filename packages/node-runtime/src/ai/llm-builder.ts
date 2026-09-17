@@ -169,7 +169,8 @@ export function buildPiModel(config: PiModelConfig, options?: BuildPiModelOption
     input: ['text'],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow,
-    maxTokens: config.maxTokens ?? 4096,
+    // Reasoning and visible text share the output budget on compatible APIs.
+    maxTokens: config.maxTokens ?? (reasoning ? 16_384 : 4096),
     compat,
   }
 }

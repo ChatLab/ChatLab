@@ -7,12 +7,18 @@
 
 import { Agent as PiAgentCore } from '@earendil-works/pi-agent-core'
 import type { AgentEvent as PiAgentEvent, AgentMessage as PiAgentMessage } from '@earendil-works/pi-agent-core'
-import { type Message as PiMessage, type Usage as PiUsage, clampThinkingLevel } from '@earendil-works/pi-ai'
+import {
+  type AssistantMessage,
+  type Message as PiMessage,
+  type Usage as PiUsage,
+  clampThinkingLevel,
+} from '@earendil-works/pi-ai'
 import { StreamingThinkTagParser, needsStreamingThinkParsing } from '@openchatlab/core'
 import type { ToolProgress } from '@openchatlab/shared-types'
 
 import type { AgentCoreOptions, AgentCoreResult, AgentTokenUsage } from './types'
 import { initTokenizer } from '../tokenizer'
+import { createAiTranslate } from '../i18n'
 import { streamSimple as defaultStreamSimple } from '../pi-runtime'
 import { DEFAULT_MAX_TOOL_ROUNDS } from './constants'
 import { toPiHistoryMessages, type ReplayOptions } from './history'
@@ -51,6 +57,7 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
   }
   const toolsUsed: string[] = []
   let toolRounds = 0
+  let lastAssistant: AssistantMessage | undefined
 
   const addPiUsage = (usage?: PiUsage) => {
     if (!usage) return
@@ -62,7 +69,7 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
   }
 
   if (abortSignal?.aborted) {
-    return { usage: totalUsage, finalMessages: [], toolsUsed: [], toolRounds: 0 }
+    return { usage: totalUsage, stopReason: 'aborted', finalMessages: [], toolsUsed: [], toolRounds: 0 }
   }
 
   // Resolve thinkingLevel for pi-agent-core:
@@ -130,7 +137,8 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
     },
     afterToolCall: async ({ result }) =>
       (result as { isError?: boolean }).isError === true ? { isError: true } : undefined,
-    shouldStopAfterTurn: async () => hasCompletedFinalAnswerTurn,
+    // A cut-off tool call must not trigger an automatic paid retry either.
+    shouldStopAfterTurn: async ({ message }) => message.stopReason === 'length' || hasCompletedFinalAnswerTurn,
     prepareNextTurnWithContext: ({ context }) =>
       hasReachedToolRoundLimit
         ? {
@@ -238,6 +246,7 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
       onEvent({ type: 'turn_end', round: toolRounds, hadToolCalls })
     } else if (event.type === 'message_end') {
       if (event.message.role === 'assistant') {
+        lastAssistant = event.message
         thinkParser?.flush()
         addPiUsage(event.message.usage)
         onEvent({ type: 'usage_update', usage: { ...totalUsage } })
@@ -269,9 +278,31 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
 
     await coreAgent.prompt(userMessage)
 
+    const stopReason = lastAssistant?.stopReason
+    const error =
+      coreAgent.state.errorMessage ||
+      (stopReason === 'length' ? createAiTranslate(options.locale)('ai.agent.outputLimitReached') : undefined)
+    const completionInfo = {
+      aiChatId: options.providerSessionId,
+      provider: piModel.provider,
+      model: piModel.id,
+      stopReason,
+      rawStopReason: lastAssistant?.rawStopReason,
+      configuredMaxOutputTokens: piModel.maxTokens,
+      outputTokens: lastAssistant?.usage.output,
+      reasoningTokens: lastAssistant?.usage.reasoning,
+      toolRounds,
+    }
+    if (error && !abortSignal?.aborted) {
+      options.logger?.error('Agent', 'Agent execution ended without a complete response', completionInfo)
+    } else {
+      options.logger?.info('Agent', 'Agent execution finished', completionInfo)
+    }
+
     return {
       usage: totalUsage,
-      error: coreAgent.state.errorMessage || undefined,
+      error,
+      stopReason,
       finalMessages: coreAgent.state.messages.filter(isPiMessage),
       toolsUsed: [...toolsUsed],
       toolRounds,

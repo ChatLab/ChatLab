@@ -232,6 +232,8 @@ export class Agent {
         maxToolRounds,
         abortSignal: this.abortSignal,
         providerSessionId: this.context.aiChatId,
+        locale: this.locale,
+        logger: aiLogger,
         steerMessage: answerWithoutToolsPrompt,
         thinkingLevel: this.config.thinkingLevel,
         streamFn: errorCapturingStreamFn,
@@ -319,7 +321,8 @@ export class Agent {
           const apiPath = typeof apiType === 'string' ? pathMap[apiType] : undefined
           ctx.url = apiPath ? baseUrl.replace(/\/+$/, '') + apiPath : baseUrl
         }
-        if (lastRequestPayload) {
+        // Output truncation is explained by completion metadata, not the private request body.
+        if (lastRequestPayload && result.stopReason !== 'length') {
           try {
             ctx.requestBody = JSON.stringify(lastRequestPayload, null, 2)
           } catch {
