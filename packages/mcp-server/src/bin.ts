@@ -9,7 +9,7 @@
 
 import { loadConfig } from '@openchatlab/config'
 import { startMcpServer } from './server'
-import { initStandaloneMcpRuntime } from './standalone-runtime'
+import { initStandaloneMcpRuntime, resolveMcpLocale } from './standalone-runtime'
 import { getMcpPackageVersion } from './runtime-version'
 
 function main(): void {
@@ -18,7 +18,7 @@ function main(): void {
   const version = getMcpPackageVersion()
   const { dbManager } = initStandaloneMcpRuntime(version, userDataDir)
 
-  startMcpServer({ version, dbManager }).catch((err) => {
+  startMcpServer({ version, dbManager, locale: resolveMcpLocale(config) }).catch((err) => {
     console.error('[chatlab-mcp] Fatal error:', err)
     process.exit(1)
   })

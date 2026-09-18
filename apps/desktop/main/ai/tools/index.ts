@@ -8,7 +8,6 @@
 import type { AgentTool } from '@openchatlab/node-runtime'
 import type { ToolContext, TruncationStrategy } from './types'
 import { isAnalysisToolAllowed } from './tool-filter'
-import { t as i18nT } from '../../i18n'
 import { applyPreprocessingPipeline, type PreprocessableMessage } from '@openchatlab/node-runtime'
 import { aiLogger } from '../logger'
 import { getSkillConfig } from '../skills/manager'
@@ -50,36 +49,6 @@ const TRUNCATION_STRATEGY_MAP = new Map<string, TruncationStrategy>(
 
 // 导出类型
 export * from './types'
-
-/**
- * 翻译 AgentTool 的描述（工具级 + 参数级）
- *
- * i18n 键命名规则：
- * - 工具描述：ai.tools.{toolName}.desc
- * - 参数描述：ai.tools.{toolName}.params.{paramName}
- */
-function translateTool(tool: AgentTool<any>): AgentTool<any> {
-  const name = tool.name
-
-  const descKey = `ai.tools.${name}.desc`
-  const translatedDesc = i18nT(descKey)
-
-  const params = tool.parameters as Record<string, unknown>
-  if (params?.properties && typeof params.properties === 'object') {
-    for (const [paramName, param] of Object.entries(params.properties as Record<string, Record<string, unknown>>)) {
-      const paramKey = `ai.tools.${name}.params.${paramName}`
-      const translated = i18nT(paramKey)
-      if (translated !== paramKey) {
-        param.description = translated
-      }
-    }
-  }
-
-  return {
-    ...tool,
-    description: translatedDesc !== descKey ? translatedDesc : tool.description,
-  }
-}
 
 /**
  * 预处理包装层
@@ -147,7 +116,6 @@ export async function getAllTools(context: ToolContext, allowedTools?: string[])
   const chartSchemaGateState = createChartSchemaGateState()
 
   return [...coreTools, ...analysisTools, ...evidenceTools, ...semanticTools]
-    .map(translateTool)
     .map((t) => wrapWithChartSchemaGate(t, chartSchemaGateState))
     .map((t) => wrapWithPreprocessing(t, context))
 }

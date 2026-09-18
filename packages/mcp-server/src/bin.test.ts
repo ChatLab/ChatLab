@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { DataDirCompatibilityError, raiseDataDirMinRuntimeVersion } from '@openchatlab/node-runtime'
-import { initStandaloneMcpRuntime } from './standalone-runtime'
+import { initStandaloneMcpRuntime, resolveMcpLocale } from './standalone-runtime'
 
 function makeTempDir(): string {
   const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
@@ -27,4 +27,16 @@ test('initStandaloneMcpRuntime rejects incompatible data directories before stdi
     () => initStandaloneMcpRuntime('0.25.1', userDataDir),
     (error) => error instanceof DataDirCompatibilityError && error.code === 'DATA_DIR_REQUIRES_NEWER_RUNTIME'
   )
+})
+
+test('resolveMcpLocale prefers the configured language and falls back to the system locale', () => {
+  const cases: Array<{ lang: string; systemLocale: string; expected: string }> = [
+    { lang: 'zh-CN', systemLocale: 'en-US', expected: 'zh-CN' },
+    { lang: '', systemLocale: 'en-US', expected: 'en-US' },
+    { lang: '', systemLocale: 'zh-CN', expected: 'zh-CN' },
+  ]
+
+  for (const { lang, systemLocale, expected } of cases) {
+    assert.equal(resolveMcpLocale({ locale: { lang } }, systemLocale), expected, `${lang || '(empty)'}/${systemLocale}`)
+  }
 })

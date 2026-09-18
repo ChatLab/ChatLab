@@ -7,6 +7,7 @@
 
 import {
   executeToolForAgent,
+  getLocalizedToolMetadata,
   toAgentToolParameters,
   type ToolDefinition,
   type ToolExecutionContext,
@@ -58,13 +59,14 @@ export function adaptSharedTool(tool: ToolDefinition): ToolRegistryEntry {
     category: tool.category ?? 'core',
     truncationStrategy: tool.truncationStrategy,
     factory(context: ToolContext): AgentTool<any> {
+      // Tool and parameter descriptions follow the chat locale: Chinese locales keep the definition text,
+      // every other locale gets the English metadata table.
+      const localized = getLocalizedToolMetadata(tool, context.locale)
       return {
         name: tool.name,
         label: tool.name,
-        // 保留英文原始描述作为 fallback：translateTool 会在 i18n key 命中时覆盖为译文，
-        // 缺 key 时回退到此英文描述，避免把裸 i18n key 当作工具描述传给 LLM。
-        description: tool.description,
-        parameters: toAgentToolParameters(tool.inputSchema) as any,
+        description: localized.description,
+        parameters: toAgentToolParameters(localized.inputSchema) as any,
         executionMode: tool.executionMode,
         async execute(_toolCallId: string, params: unknown, signal, onUpdate) {
           return executeToolForAgent(

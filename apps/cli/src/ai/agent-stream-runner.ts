@@ -227,7 +227,7 @@ export function createCliRunAgentStream(
             timeFilter: params.timeFilter,
             maxMessagesLimit: params.maxMessagesLimit,
           }),
-          { maxToolResultTokens }
+          { maxToolResultTokens, locale }
         )
       : []
 
