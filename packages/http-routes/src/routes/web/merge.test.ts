@@ -228,3 +228,142 @@ test('keeps every distinct platform message when merging a source with its super
   assert.equal(new Set(messages.map((message) => message.platformMessageId)).size, 120)
   assert.equal(messages.find((message) => message.platformMessageId === 'message-11')?.replyToMessageId, 'message-10')
 })
+
+test('reports the merged session and its source sessions after a successful import', { timeout: 5000 }, async (t) => {
+  const rootDir = makeTempDir()
+  t.after(() => fs.rmSync(rootDir, { recursive: true, force: true }))
+
+  const pathProvider = createPathProvider(rootDir)
+  const dbManager = new DatabaseManager(pathProvider, { nativeBinding, allowMissingRuntimeForTests: true })
+  const mergeSessionCache = new MergeSessionCache(pathProvider, { nativeBinding })
+
+  const createSession = (sessionId: string, content: string): void => {
+    const db = dbManager.openRawSessionDatabase(sessionId, { create: true, initializeChatTables: true })
+    db.prepare('INSERT INTO meta (name, platform, type, imported_at) VALUES (?, ?, ?, ?)').run(
+      'Source',
+      'qq',
+      'private',
+      1_700_000_000
+    )
+    const member = db.prepare('INSERT INTO member (platform_id, account_name) VALUES (?, ?)').run('qq-user-1', 'Alice')
+    db.prepare('INSERT INTO message (sender_id, sender_account_name, ts, type, content) VALUES (?, ?, ?, ?, ?)').run(
+      member.lastInsertRowid,
+      'Alice',
+      1_700_000_001,
+      0,
+      content
+    )
+    db.close()
+  }
+  createSession('older', 'first half')
+  createSession('newer', 'second half')
+
+  const imported: Array<{ sessionId: string; sourceSessionIds: string[] }> = []
+  // 承接可能很慢：把回调停在这个 promise 上，合并响应仍必须先返回（否则本用例会超时）
+  let releaseCarryOver = (): void => {}
+  const carryOverBlocked = new Promise<void>((resolve) => {
+    releaseCarryOver = resolve
+  })
+  let finishCarryOver = (): void => {}
+  const carryOverFinished = new Promise<void>((resolve) => {
+    finishCarryOver = resolve
+  })
+  let carryOverDone = false
+  const app = Fastify()
+  registerMergeRoutes(app, {
+    dbManager,
+    mergeSessionCache,
+    async streamImport() {
+      return { sessionId: 'merged-session' }
+    },
+    onMergedSessionImported: async (params) => {
+      imported.push(params)
+      await carryOverBlocked
+      carryOverDone = true
+      finishCarryOver()
+    },
+  })
+  await app.ready()
+  t.after(() => app.close())
+
+  const exportResponse = await app.inject({
+    method: 'POST',
+    url: '/_web/sessions/export-for-merge',
+    payload: { sessionIds: ['older', 'newer'] },
+  })
+  const handles = (exportResponse.json().handles as Array<{ handle: string }>).map(({ handle }) => handle)
+
+  // 不导入时不回调：没有产生新会话就没有要承接的对象
+  await app.inject({ method: 'POST', url: '/_web/merge/execute', payload: { handles, outputName: 'Preview' } })
+  assert.deepEqual(imported, [])
+
+  const exportAgain = await app.inject({
+    method: 'POST',
+    url: '/_web/sessions/export-for-merge',
+    payload: { sessionIds: ['older', 'newer'] },
+  })
+  const importHandles = (exportAgain.json().handles as Array<{ handle: string }>).map(({ handle }) => handle)
+  const response = await app.inject({
+    method: 'POST',
+    url: '/_web/merge/execute',
+    payload: { handles: importHandles, outputName: 'Merged', andImport: true },
+  })
+
+  assert.equal(response.statusCode, 200)
+  // 合并响应没有等承接跑完
+  assert.equal(carryOverDone, false)
+  releaseCarryOver()
+  await carryOverFinished
+  assert.deepEqual(imported, [{ sessionId: 'merged-session', sourceSessionIds: ['older', 'newer'] }])
+})
+
+test('a failing merged-session callback does not fail the merge', async (t) => {
+  const rootDir = makeTempDir()
+  t.after(() => fs.rmSync(rootDir, { recursive: true, force: true }))
+
+  const pathProvider = createPathProvider(rootDir)
+  const dbManager = new DatabaseManager(pathProvider, { nativeBinding, allowMissingRuntimeForTests: true })
+  const mergeSessionCache = new MergeSessionCache(pathProvider, { nativeBinding })
+  const { db, tempDbPath } = mergeSessionCache.createTempDatabase('upload.json')
+  const writer = new TempDbWriter(db)
+  writer.writeMeta({ name: 'Uploaded', platform: 'wechat', type: 'private' })
+  writer.writeMembers([{ platformId: 'wxid_alice', accountName: 'Alice' }])
+  writer.writeMessages([
+    { senderPlatformId: 'wxid_alice', senderAccountName: 'Alice', timestamp: 100, type: 0, content: 'hello' },
+  ])
+  writer.finish()
+  // 上传得到的句柄没有来源会话，回调只能拿到空的 sourceSessionIds
+  const handle = mergeSessionCache.store('upload.json', tempDbPath)
+
+  let received: string[] | undefined
+  let reportCarryOver = (): void => {}
+  const carriedOver = new Promise<void>((resolve) => {
+    reportCarryOver = resolve
+  })
+  const app = Fastify()
+  registerMergeRoutes(app, {
+    dbManager,
+    mergeSessionCache,
+    async streamImport() {
+      return { sessionId: 'merged-session' }
+    },
+    onMergedSessionImported: ({ sourceSessionIds }) => {
+      received = sourceSessionIds
+      reportCarryOver()
+      throw new Error('carry over failed')
+    },
+  })
+  await app.ready()
+  t.after(() => app.close())
+
+  const response = await app.inject({
+    method: 'POST',
+    url: '/_web/merge/execute',
+    payload: { handles: [handle], outputName: 'Merged', andImport: true },
+  })
+
+  assert.equal(response.statusCode, 200)
+  assert.equal(response.json().sessionId, 'merged-session')
+  await carriedOver
+  assert.deepEqual(received, [])
+})
