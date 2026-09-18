@@ -2024,7 +2024,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         return { success: false, reason: 'busy', activeTask: activeTask.value }
       }
 
-      if (result.success && result.result) {
+      const wasTruncated = result.error?.name === 'OutputLimitError'
+      if ((result.success || wasTruncated) && result.result) {
         updateAIMessage({
           dataSource: { toolsUsed: result.result.toolsUsed, toolRounds: result.result.toolRounds },
           isStreaming: false,
@@ -2036,7 +2037,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         updateAIMessage({ contentBlocks: [...blocks], isStreaming: false })
       }
 
-      if (!result.success) {
+      // A completed provider stream can be incomplete without invalidating its generated content.
+      if (!result.success && !wasTruncated) {
         restoreOriginal()
         return { success: false, reason: 'error' }
       }
@@ -2065,7 +2067,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
       targetBuffer.sessionTokenUsage = toTokenUsage(await useAIService().getAIChatTokenUsage(state.currentAIChatId!))
       state.sessionTokenUsage = { ...targetBuffer.sessionTokenUsage }
-      return { success: true }
+      return result.success ? { success: true } : { success: false, reason: 'error' }
     } catch (error) {
       if (state.isAborted) {
         restoreOriginal()

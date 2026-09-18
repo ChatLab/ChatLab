@@ -196,7 +196,13 @@ export async function runCrossChatAgent(options: RunCrossChatAgentOptions): Prom
       return
     }
     if (result.error) {
-      onEvent({ type: 'error', error: { name: 'AgentError', message: formatAIError(result.error) } })
+      onEvent({
+        type: 'error',
+        error: {
+          name: result.stopReason === 'length' ? 'OutputLimitError' : 'AgentError',
+          message: formatAIError(result.error),
+        },
+      })
     }
     handler.emitStatus(result.error ? 'error' : 'completed', cachedMessages, { force: true })
     logger?.info('CrossChatAgent', 'Cross-chat agent execution ended', {

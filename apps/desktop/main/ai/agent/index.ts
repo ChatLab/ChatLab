@@ -301,6 +301,7 @@ export class Agent {
             requestBody?: string
           }
         }
+        if (result.stopReason === 'length') agentError.name = 'OutputLimitError'
         const lastMsg = [...result.finalMessages].reverse().find((m) => m.role === 'assistant') as
           | (PiAssistantMessage & { provider?: string; model?: string; api?: string })
           | undefined

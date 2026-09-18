@@ -272,7 +272,10 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
 
     if (result.error && !abortSignal?.aborted) {
       const friendlyMessage = formatAIError(result.error)
-      onEvent({ type: 'error', error: { name: 'AgentError', message: friendlyMessage } })
+      onEvent({
+        type: 'error',
+        error: { name: result.stopReason === 'length' ? 'OutputLimitError' : 'AgentError', message: friendlyMessage },
+      })
     }
 
     handler.emitStatus(abortSignal?.aborted ? 'aborted' : result.error ? 'error' : 'completed', cachedMessages, {

@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import * as nodeRuntime from '../packages/node-runtime/src/index'
 import { runServerAgent } from '../apps/cli/src/ai/agent'
+import { runChatTurn } from '../apps/cli/src/ai/chat-command'
 import { AIChatManager } from '../packages/node-runtime/src/ai/chats'
 import { runCrossChatAgent } from '../packages/node-runtime/src/ai/cross-chat-agent'
 import type { AgentStreamChunk } from '../packages/node-runtime/src/ai/agent/event-handler'
@@ -68,7 +69,7 @@ test('session and global agents surface truncated output instead of reporting su
       getDefaultAssistantConfig: () => config,
     } as LLMConfigStore)
 
-    for (const kind of ['session', 'global', 'desktop session'] as const) {
+    for (const kind of ['session', 'global', 'desktop session', 'CLI command'] as const) {
       for (const scenario of [
         { name: 'thinking only', text: '', finishReason: 'length' },
         { name: 'partial answer', text: 'The conclusion is', finishReason: 'length' },
@@ -117,7 +118,26 @@ test('session and global agents surface truncated output instead of reporting su
             aiChatManager: manager,
             onEvent: (event: AgentStreamChunk) => events.push(event),
           }
-          if (kind === 'global') {
+          if (kind === 'CLI command') {
+            await runChatTurn(
+              { aiChatId: chat.id, question: common.userMessage, json: true, locale: common.locale },
+              {
+                dbManager: { open: () => ({}) } as never,
+                pathProvider: {} as never,
+                aiChatManager: manager,
+                createRunAgentStream: () => async (_params, onEvent) => {
+                  await runServerAgent({
+                    ...common,
+                    llmConfig: config,
+                    onEvent: (event) => {
+                      common.onEvent(event)
+                      onEvent(event)
+                    },
+                  })
+                },
+              }
+            )
+          } else if (kind === 'global') {
             await runCrossChatAgent({
               ...common,
               piModel: buildPiModel(config),
@@ -146,7 +166,10 @@ test('session and global agents surface truncated output instead of reporting su
           const errors = events.filter((event) => event.type === 'error')
           const truncated = scenario.finishReason === 'length'
           assert.equal(errors.length, truncated ? 1 : 0)
-          if (truncated) assert.match((errors[0].error as { message: string }).message, /output limit/i)
+          if (truncated) {
+            assert.match((errors[0].error as { message: string }).message, /output limit/i)
+            assert.equal((errors[0].error as { name: string }).name, 'OutputLimitError')
+          }
           assert.deepEqual(
             events
               .filter((event) => event.type === 'status')
@@ -165,12 +188,22 @@ test('session and global agents surface truncated output instead of reporting su
             cacheWriteTokens: 0,
           }
           assert.deepEqual(doneUsage, expectedUsage)
-          manager.addMessagePair(
-            chat.id,
-            { content: common.userMessage },
-            { content: scenario.text, tokenUsage: doneUsage }
-          )
-          assert.deepEqual(manager.getAIChatTokenUsage(chat.id), expectedUsage)
+          if (kind === 'CLI command') {
+            const messages = manager.getMessages(chat.id)
+            assert.deepEqual(
+              messages.map((message) => message.content),
+              [common.userMessage, scenario.text]
+            )
+            assert.ok(messages[1].contentBlocks?.some((block) => block.type === 'think'))
+            assert.equal(
+              messages[1].contentBlocks?.some((block) => block.type === 'error'),
+              truncated
+            )
+            assert.deepEqual(manager.getAIChatTokenUsage(chat.id), expectedUsage)
+            if (scenario.text) {
+              assert.equal(manager.getHistoryForAgent(chat.id).at(-1)?.content, scenario.text)
+            }
+          }
         })
       }
     }
