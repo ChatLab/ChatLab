@@ -14,7 +14,7 @@ const ENGLISH_TOOL_METADATA: Record<string, EnglishToolMetadata> = {
   },
   search_messages: {
     description:
-      'Search chat messages by keywords, with optional time-range and sender filters. Use this for topic or keyword lookup.',
+      'Search chat messages by keywords, with optional time-range and sender filters. Keywords of 3 or more characters use the full-text index and are ranked by relevance; shorter keywords fall back to substring matching. Use this for topic or keyword lookup.',
     properties: {
       keywords: 'Keywords to search for.',
       sender_id: 'Filter by sender ID obtained from get_members.',
@@ -25,7 +25,7 @@ const ENGLISH_TOOL_METADATA: Record<string, EnglishToolMetadata> = {
   },
   deep_search_messages: {
     description:
-      'Search messages using slower substring matching. Use this for exact phrase matches or when regular search misses results.',
+      'Scan every message with substring matching (LIKE), unranked and newest first. Use this when search_messages returns nothing or the keyword is shorter than 3 characters.',
     properties: {
       keywords: 'Keywords to search for.',
       sender_id: 'Filter by sender ID obtained from get_members.',

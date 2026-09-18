@@ -162,6 +162,7 @@ const zeroTimings = (): ImportStageTimings => ({
   messageWriteMs: 0,
   nicknameHistoryMs: 0,
   indexCreationMs: 0,
+  searchIndexMs: 0,
   checkpointMs: 0,
   sessionIndexMs: 0,
   postImportHookMs: 0,
@@ -316,8 +317,12 @@ export function inspectDatabase(dbPath: string): {
       `SELECT message_id, segment_id, topic_id
        FROM message_context ORDER BY message_id`
     )
-    const legacyFts = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'message_fts'").get()
-    if (legacyFts) throw new Error('Benchmark database unexpectedly contains message_fts')
+    // The importer defers message_fts to the index stage and backfills it there;
+    // an index that does not cover every message would make search miss rows.
+    const indexed = db.prepare('SELECT COUNT(*) AS count FROM message_fts_docsize').get() as { count: number }
+    if (indexed.count !== messages) {
+      throw new Error(`Search index covers ${indexed.count} of ${messages} messages`)
+    }
     return { messages, members, signature: hash.digest('hex') }
   } finally {
     db.close()
@@ -614,6 +619,7 @@ function buildMedianResult(results: BenchmarkResult[]): BenchmarkResult {
       messageWriteMs: medianTiming('messageWriteMs'),
       nicknameHistoryMs: medianTiming('nicknameHistoryMs'),
       indexCreationMs: medianTiming('indexCreationMs'),
+      searchIndexMs: medianTiming('searchIndexMs'),
       checkpointMs: medianTiming('checkpointMs'),
       sessionIndexMs: medianTiming('sessionIndexMs'),
       postImportHookMs: medianTiming('postImportHookMs'),

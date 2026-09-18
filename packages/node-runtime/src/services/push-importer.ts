@@ -9,6 +9,7 @@ import * as fs from 'fs'
 import { DataDirCompatibilityError } from '../data-dir-compat'
 import {
   CHAT_DB_SCHEMA,
+  ensureMessageSearchIndex,
   generateSessionIndex,
   generateIncrementalSessionIndex,
   getSessionIndexStats,
@@ -420,8 +421,23 @@ function fullImport(
   } catch {
     /* non-fatal */
   }
+  ensureSearchIndex(db, 'push-import full')
 
   return { writtenCount: stats.messageCount, duplicateCount }
+}
+
+/**
+ * Keep the message full-text index usable after a push write. Normally the
+ * triggers have already done the work and this is two COUNT(*); it only rebuilds
+ * when the index was missing, e.g. the first push into a pre-v11 database.
+ */
+function ensureSearchIndex(db: DatabaseAdapter, context: string): void {
+  const result = ensureMessageSearchIndex(db)
+  if (!result.rebuilt) return
+  appLogger.info('push-import', `Message search index rebuilt (${context})`, {
+    rows: result.rows,
+    durationMs: result.durationMs,
+  })
 }
 
 interface IncrementalImportStats {
@@ -516,6 +532,7 @@ function writeIncrementalImport(db: DatabaseAdapter, payload: PushImportPayload)
   if (!metaUpdated) {
     db.prepare('UPDATE meta SET imported_at = ?').run(Math.floor(Date.now() / 1000))
   }
+  ensureSearchIndex(db, 'push-import incremental')
 
   return {
     writtenCount,

@@ -197,8 +197,13 @@ export interface SearchMessagesOptions {
   matchMode?: 'any' | 'all'
   /** Blacklist pushdown: rows containing any keyword are excluded from results and total. */
   excludeKeywords?: string[]
-  /** Timestamp ordering, default 'desc'. */
-  sort?: 'asc' | 'desc'
+  /**
+   * Result ordering, default 'desc'. 'relevance' ranks by full-text score and
+   * only applies when the search index answers the query.
+   */
+  sort?: 'asc' | 'desc' | 'relevance'
+  /** Force the LIKE substring scan even when the full-text index is available. */
+  forceLike?: boolean
 }
 
 export interface ToolDataProvider {

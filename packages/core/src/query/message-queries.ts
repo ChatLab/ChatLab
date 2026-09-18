@@ -16,6 +16,8 @@ import {
   type FullMessageRow,
   type MappedMessage,
 } from './message-sql'
+import { MESSAGE_FTS_TABLE } from '../schema/tables'
+import { buildFtsMatchExpression, canUseFtsKeywords, hasMessageSearchIndex } from './search-index'
 
 export interface MessageResult {
   id: number
@@ -139,64 +141,17 @@ export function queryMessages(db: DatabaseAdapter, options?: QueryMessagesOption
 }
 
 /**
- * 基于 LIKE 的简单关键词搜索
- * 使用 LIKE 子串匹配，适用于 CLI/MCP 场景。
+ * 单关键词搜索（CLI/MCP 场景）
+ *
+ * 与 searchMessagesByKeywords 共用一条实现，因此同样会在索引可用时走全文索引，
+ * 并且 LIKE 通配符会被正确转义。
  */
 export function searchMessagesLike(
   db: DatabaseAdapter,
   keyword: string,
   options?: { limit?: number; offset?: number }
 ): PaginatedMessages {
-  const limit = options?.limit ?? 50
-  const offset = options?.offset ?? 0
-
-  const countRow = db
-    .prepare(
-      `SELECT COUNT(*) as total
-       FROM message msg
-       JOIN member m ON msg.sender_id = m.id
-       WHERE msg.content LIKE ? AND COALESCE(m.account_name, '') != '系统消息'`
-    )
-    .get(`%${keyword}%`) as { total: number }
-
-  const rows = db
-    .prepare(
-      `SELECT
-        msg.id as id,
-        m.id as senderId,
-        COALESCE(m.group_nickname, m.account_name, m.platform_id) as senderName,
-        m.platform_id as senderPlatformId,
-        msg.content as content,
-        msg.ts as timestamp,
-        msg.type as type
-      FROM message msg
-      JOIN member m ON msg.sender_id = m.id
-      WHERE msg.content LIKE ? AND COALESCE(m.account_name, '') != '系统消息'
-      ORDER BY msg.ts DESC
-      LIMIT ? OFFSET ?`
-    )
-    .all(`%${keyword}%`, limit + 1, offset) as Array<{
-    id: number
-    senderId: number
-    senderName: string
-    senderPlatformId: string
-    content: string
-    timestamp: number
-    type: number
-  }>
-
-  const hasMore = rows.length > limit
-  const messages = rows.slice(0, limit).map((row) => ({
-    id: Number(row.id),
-    senderId: Number(row.senderId),
-    senderName: String(row.senderName || ''),
-    senderPlatformId: String(row.senderPlatformId || ''),
-    content: row.content != null ? String(row.content) : '',
-    timestamp: Number(row.timestamp),
-    type: Number(row.type),
-  }))
-
-  return { messages, hasMore, total: countRow.total }
+  return searchMessagesByKeywords(db, [keyword], { limit: options?.limit, offset: options?.offset })
 }
 
 /**
@@ -219,33 +174,59 @@ export function searchMessagesByKeywords(
     matchMode?: 'any' | 'all'
     /** Blacklist pushdown: rows containing any keyword are excluded from results and total. */
     excludeKeywords?: string[]
-    /** Timestamp ordering, default 'desc' (most recent first). */
-    sort?: 'asc' | 'desc'
+    /**
+     * Result ordering, default 'desc' (most recent first). 'relevance' orders by
+     * bm25 score and only applies when the full-text index answers the query;
+     * otherwise it falls back to 'desc'.
+     */
+    sort?: 'asc' | 'desc' | 'relevance'
+    /** Force the LIKE substring scan even when the full-text index is available. */
+    forceLike?: boolean
   }
 ): PaginatedMessages {
   const limit = options?.limit ?? 50
   const offset = options?.offset ?? 0
-  const order = options?.sort === 'asc' ? 'ASC' : 'DESC'
   const cleaned = keywords.map((k) => k.trim()).filter((k) => k.length > 0)
+  const useFts = !options?.forceLike && canUseFtsKeywords(cleaned) && hasMessageSearchIndex(db)
+  const order = options?.sort === 'asc' ? 'ASC' : 'DESC'
+  const byRelevance = options?.sort === 'relevance' && useFts
 
   const { clause, params } = buildMsgConditions({
     startTs: options?.startTs,
     endTs: options?.endTs,
     senderId: options?.senderId,
     senderIds: options?.senderIds,
-    keywords: cleaned.length > 0 ? cleaned : undefined,
+    // The relevance page joins the FTS table directly, so its keyword condition
+    // is in the JOIN rather than in the shared clause.
+    keywords: cleaned.length > 0 && !byRelevance ? cleaned : undefined,
     matchMode: options?.matchMode,
+    keywordMode: useFts ? 'fts' : 'like',
     excludeKeywords: options?.excludeKeywords,
     systemFilter: true,
   })
 
-  const countRow = db
-    .prepare(`SELECT COUNT(*) as total FROM message msg JOIN member m ON msg.sender_id = m.id WHERE 1=1 ${clause}`)
-    .get(...params) as { total: number }
+  const match = byRelevance ? buildFtsMatchExpression(cleaned, options?.matchMode === 'all' ? 'all' : 'any') : null
 
-  const rows = db
-    .prepare(`${FULL_MSG_SELECT} WHERE 1=1 ${clause} ORDER BY msg.ts ${order}, msg.id ${order} LIMIT ? OFFSET ?`)
-    .all(...params, limit + 1, offset) as unknown as FullMessageRow[]
+  const countClause =
+    match === null
+      ? clause
+      : `${clause} AND msg.id IN (SELECT rowid FROM ${MESSAGE_FTS_TABLE} WHERE ${MESSAGE_FTS_TABLE} MATCH ?)`
+  const countRow = db
+    .prepare(`SELECT COUNT(*) as total FROM message msg JOIN member m ON msg.sender_id = m.id WHERE 1=1 ${countClause}`)
+    .get(...params, ...(match === null ? [] : [match])) as { total: number }
+
+  // bm25() needs the FTS table in the FROM list, so relevance paging joins it
+  // instead of filtering through the IN-subquery the other paths use.
+  const pageSql =
+    match === null
+      ? `${FULL_MSG_SELECT} WHERE 1=1 ${clause} ORDER BY msg.ts ${order}, msg.id ${order} LIMIT ? OFFSET ?`
+      : `${FULL_MSG_SELECT}
+       JOIN ${MESSAGE_FTS_TABLE} ON ${MESSAGE_FTS_TABLE}.rowid = msg.id
+       WHERE ${MESSAGE_FTS_TABLE} MATCH ? ${clause}
+       ORDER BY bm25(${MESSAGE_FTS_TABLE}), msg.ts DESC, msg.id DESC
+       LIMIT ? OFFSET ?`
+  const pageParams = match === null ? params : [match, ...params]
+  const rows = db.prepare(pageSql).all(...pageParams, limit + 1, offset) as unknown as FullMessageRow[]
 
   const hasMore = rows.length > limit
   const messages = rows.slice(0, limit).map((row) => {

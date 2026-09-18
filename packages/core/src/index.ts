@@ -140,6 +140,11 @@ export {
   ensureAvatarColumn,
   updateSessionOwnerId,
   renameSession,
+  hasMessageSearchIndex,
+  hasMessageSearchIndexAsync,
+  ensureMessageSearchIndex,
+  canUseFtsKeywords,
+  buildFtsMatchExpression,
 } from './query'
 
 // 查询类型
@@ -262,6 +267,7 @@ export type {
   TableSchema,
   ResponseTimeMessage,
   ResponseTimeStat,
+  MessageSearchIndexResult,
 } from './query'
 
 // 消息类型语义映射
@@ -399,6 +405,8 @@ export {
   CHAT_DB_TABLES,
   CHAT_DB_INDEXES,
   CHAT_DB_SCHEMA,
+  MESSAGE_FTS_TABLE,
+  MESSAGE_FTS_DDL,
   getSchemaVersion,
   setSchemaVersion,
   needsMigration,

@@ -5,12 +5,25 @@ import path from 'node:path'
 import test from 'node:test'
 import Database from 'better-sqlite3'
 import type { PathProvider } from '@openchatlab/core'
-import { CHAT_DB_SCHEMA, CURRENT_SCHEMA_VERSION, getSessionInfo } from '@openchatlab/core'
+import { CHAT_DB_SCHEMA, CHAT_DB_TABLES, CURRENT_SCHEMA_VERSION, getSessionInfo } from '@openchatlab/core'
 import { DataDirCompatibilityError, readDataDirCompatibilityMeta } from './data-dir-compat'
 import { DatabaseManager, listDatabaseCandidateIds } from './database-manager'
 import { ChatTopicStore, getChatTopicsDbPath } from './services/topics'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
+
+/** Assert message_fts exists as a trigram index covering every message row. */
+function assertMessageSearchIndex(db: { prepare: (sql: string) => { get: (...params: unknown[]) => unknown } }): void {
+  const table = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'message_fts'").get() as
+    | { sql: string }
+    | undefined
+  assert.ok(table, 'message_fts should exist')
+  assert.match(table.sql, /trigram/)
+
+  const messages = db.prepare('SELECT COUNT(*) AS count FROM message').get() as { count: number }
+  const indexed = db.prepare('SELECT COUNT(*) AS count FROM message_fts_docsize').get() as { count: number }
+  assert.equal(indexed.count, messages.count, 'every message should be indexed')
+}
 
 function makeTempDir(): string {
   const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
@@ -194,8 +207,7 @@ test('open upgrades v3 sessions without building the removed FTS index', () => {
     { type: 0, content: 'hello searchable history' },
     { type: 1, content: 'image message ignored' },
   ])
-  const ftsTable = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'message_fts'").get()
-  assert.equal(ftsTable, undefined)
+  assertMessageSearchIndex(db)
 
   manager.closeAll()
 })
@@ -207,7 +219,9 @@ test('open removes a populated v8 FTS table without changing canonical chat data
   const dbPath = path.join(dbDir, 'v8-with-fts.db')
 
   const rawDb = new Database(dbPath, { nativeBinding })
-  rawDb.exec(CHAT_DB_SCHEMA)
+  // Tables only: a v8 database predates the v11 search index, and carried the
+  // obsolete contentless FTS table created below instead.
+  rawDb.exec(CHAT_DB_TABLES)
   rawDb.exec(`
     INSERT INTO meta (name, platform, type, imported_at, schema_version)
     VALUES ('V8 Chat', 'qq', 'group', 1000, 8);
@@ -229,10 +243,8 @@ test('open removes a populated v8 FTS table without changing canonical chat data
   const version = db.prepare('SELECT schema_version FROM meta LIMIT 1').get() as { schema_version: number }
   assert.equal(version.schema_version, CURRENT_SCHEMA_VERSION)
   assert.deepEqual(db.prepare('SELECT id, content FROM message').get(), { id: 1, content: 'canonical message' })
-  assert.equal(
-    db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'message_fts'").get(),
-    undefined
-  )
+  // v9 drops the old contentless table; v11 recreates it as the trigram index.
+  assertMessageSearchIndex(db)
 
   const compatibility = readDataDirCompatibilityMeta(path.join(root, 'data'))
   assert.equal(compatibility?.minRuntimeVersion, '0.25.1')
@@ -248,7 +260,7 @@ test('open safely upgrades a v8 session that has no FTS table', () => {
   const dbPath = path.join(dbDir, 'v8-without-fts.db')
 
   const rawDb = new Database(dbPath, { nativeBinding })
-  rawDb.exec(CHAT_DB_SCHEMA)
+  rawDb.exec(CHAT_DB_TABLES)
   rawDb.exec(`
     INSERT INTO meta (name, platform, type, imported_at, schema_version)
     VALUES ('V8 Chat', 'qq', 'group', 1000, 8);
@@ -267,10 +279,7 @@ test('open safely upgrades a v8 session that has no FTS table', () => {
     name: 'V8 Chat',
   })
   assert.equal((db.prepare('SELECT COUNT(*) AS count FROM message').get() as { count: number }).count, 1)
-  assert.equal(
-    db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'message_fts'").get(),
-    undefined
-  )
+  assertMessageSearchIndex(db)
 
   manager.closeAll()
 })
@@ -326,6 +335,35 @@ test('open adds summary coverage metadata without trusting legacy summaries', ()
     summary: 'legacy summary',
     summary_message_count: null,
   })
+
+  manager.closeAll()
+})
+
+test('open backfills the message search index when upgrading a v10 session', () => {
+  const root = makeTempDir()
+  const dbDir = path.join(root, 'data', 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  const dbPath = path.join(dbDir, 'v10-search-index.db')
+
+  const rawDb = new Database(dbPath, { nativeBinding })
+  rawDb.exec(CHAT_DB_TABLES)
+  rawDb.exec(`
+    INSERT INTO meta (name, platform, type, imported_at, schema_version)
+    VALUES ('V10 Chat', 'wechat', 'group', 1000, 10);
+    INSERT INTO member (id, platform_id, account_name) VALUES (1, 'u1', 'Alice');
+    INSERT INTO message (id, sender_id, ts, type, content) VALUES (1, 1, 1000, 0, '周末一起打球吗');
+    INSERT INTO message (id, sender_id, ts, type, content) VALUES (2, 1, 1001, 0, '老地方见');
+  `)
+  rawDb.close()
+
+  const manager = new DatabaseManager(createPathProvider(root), { nativeBinding, allowMissingRuntimeForTests: true })
+  const db = manager.open('v10-search-index')
+  assert.ok(db)
+
+  assert.deepEqual(db.prepare('SELECT schema_version FROM meta').get(), { schema_version: CURRENT_SCHEMA_VERSION })
+  assertMessageSearchIndex(db)
+  // Messages written before the upgrade must be findable through the index.
+  assert.deepEqual(db.prepare(`SELECT rowid FROM message_fts WHERE message_fts MATCH '"老地方"'`).all(), [{ rowid: 2 }])
 
   manager.closeAll()
 })

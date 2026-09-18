@@ -5,6 +5,7 @@
  * Migration scripts use only DatabaseAdapter — no Electron or Node-specific APIs.
  */
 
+import { ensureMessageSearchIndex } from '@openchatlab/core'
 import type { DatabaseAdapter } from '@openchatlab/core'
 import type { PathProvider } from '@openchatlab/core'
 import type { Migration as CoreMigration } from '@openchatlab/core'
@@ -387,6 +388,13 @@ export function getChatDbMigrations(): CoreMigration[] {
         // Existing summaries may have been truncated or preserved after incremental imports.
         // Keep their text for users to review, but leave coverage unknown so the new runtime marks them stale.
         if (hasTable(db, 'segment')) addColumnIfMissing(db, 'segment', 'summary_message_count', 'INTEGER')
+      },
+    },
+    {
+      version: 11,
+      description: 'Add trigram full-text index for message search',
+      up: (db: DatabaseAdapter) => {
+        ensureMessageSearchIndex(db)
       },
     },
   ]

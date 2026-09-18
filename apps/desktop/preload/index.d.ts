@@ -50,6 +50,7 @@ interface ImportDiagnostics {
       messageWriteMs: number
       nicknameHistoryMs: number
       indexCreationMs: number
+      searchIndexMs: number
       checkpointMs: number
       sessionIndexMs: number
       postImportHookMs: number

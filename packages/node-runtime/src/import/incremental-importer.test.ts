@@ -184,14 +184,15 @@ test('imports ChatLab JSONL messages with numeric string timestamps consistently
 
   const db = openBetterSqliteDatabase(dbPath, { readonly: true, nativeBinding })
   const row = db.prepare('SELECT ts, content FROM message').get() as { ts: number; content: string } | undefined
-  const ftsTable = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'message_fts'").get()
+  const indexed = db.prepare('SELECT COUNT(*) AS count FROM message_fts_docsize').get() as { count: number }
   db.close()
 
   assert.deepEqual(row, {
     ts: 1780330832,
     content: 'hello from CipherTalk',
   })
-  assert.equal(ftsTable, undefined)
+  // The appended message must reach the search index, or it stays unfindable.
+  assert.equal(indexed.count, 1)
 })
 
 test('continues incremental session indexing with the stored gap threshold', async (t) => {

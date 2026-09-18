@@ -9,7 +9,13 @@
  */
 
 import type { DatabaseAdapter, PreparedStatement } from '@openchatlab/core'
-import { generateSessionIndex, generateIncrementalSessionIndex, getSessionIndexStats } from '@openchatlab/core'
+import {
+  ensureMessageSearchIndex,
+  generateSessionIndex,
+  generateIncrementalSessionIndex,
+  getSessionIndexStats,
+} from '@openchatlab/core'
+import { appLogger } from '../logging/app-logger'
 import {
   streamParseFile,
   detectFormat,
@@ -637,6 +643,17 @@ export async function incrementalImport(
       } catch {
         /* non-fatal */
       }
+    }
+
+    // Normally the triggers have already indexed the appended rows and this is
+    // two COUNT(*); it only rebuilds when the index was missing, e.g. the first
+    // incremental import into a pre-v11 database.
+    const searchIndex = ensureMessageSearchIndex(db)
+    if (searchIndex.rebuilt) {
+      appLogger.info('incremental-import', 'Message search index rebuilt', {
+        rows: searchIndex.rows,
+        durationMs: searchIndex.durationMs,
+      })
     }
 
     const sessionStats = db

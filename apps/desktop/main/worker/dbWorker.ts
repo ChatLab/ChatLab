@@ -215,7 +215,7 @@ const syncHandlers: Record<string, (payload: any) => any> = {
   getRelationshipStats: (p) => getRelationshipStats(p.sessionId, p.filter, p.options),
 
   // AI 查询
-  searchMessages: (p) => searchMessages(p.sessionId, p.keywords, p.filter, p.limit, p.offset, p.senderId),
+  searchMessages: (p) => searchMessages(p.sessionId, p.keywords, p.filter, p.limit, p.offset, p.senderId, p.options),
   getMessageContext: (p) => getMessageContext(p.sessionId, p.messageIds, p.contextSize),
   getSearchMessageContext: (p) => getSearchMessageContext(p.sessionId, p.messageIds, p.contextBefore, p.contextAfter),
   getRecentMessages: (p) => getRecentMessages(p.sessionId, p.filter, p.limit),
@@ -250,7 +250,7 @@ const syncHandlers: Record<string, (payload: any) => any> = {
   segmentText: (p) => segmentText(p.text, p.locale, p.minLength),
   getPosTags: () => getPosTagDefinitions(),
 
-  // 深度搜索（LIKE 子串匹配）
+  // 深度搜索（强制 LIKE 逐条子串扫描）
   deepSearchMessages: (p) => deepSearchMessages(p.sessionId, p.keywords, p.filter, p.limit, p.offset, p.senderId),
 }
 
