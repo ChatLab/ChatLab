@@ -9,18 +9,27 @@ import type { ImportProgress } from '@/types/base'
 
 // ==================== 导入选项 ====================
 
+/** Where the user asked an import to land. Omitted means automatic matching decides. */
+export type ImportTarget = { mode: 'auto' } | { mode: 'session'; sessionId: string } | { mode: 'new' }
+
 export interface ImportOptions {
   formatId?: string
   chatIndex?: number
   /** Session split threshold used when the created session index is built. */
   sessionGapThreshold?: number
+  target?: ImportTarget
 }
 
 // ==================== 导入结果 ====================
 
 export type AutoImportMode = 'created' | 'incremental'
 export type AutoImportMatchMethod = 'source-session-id' | 'stable-id' | 'trailing-messages'
-export type AutoImportCreateReason = 'no-match' | 'ambiguous'
+export type AutoImportCreateReason = 'no-match' | 'ambiguous' | 'user-choice'
+
+/** What automatic matching would do with this file, used to preselect the import target. */
+export type AutoImportDecision =
+  | { action: 'incremental'; sessionId: string; matchedBy?: AutoImportMatchMethod; newMessageCount?: number }
+  | { action: 'create'; reason: AutoImportCreateReason }
 
 export interface ImportResult {
   success: boolean
@@ -231,6 +240,9 @@ export interface ImportAdapter {
 
   /** 导入 Demo 数据 */
   importDemo(locale: string, onProgress?: (p: DemoProgress) => void, options?: ImportOptions): Promise<DemoImportResult>
+
+  /** 预览自动匹配会选择哪个目标（导入目标对话框的默认值） */
+  analyzeAutoImport(file: File | string, options?: ImportOptions): Promise<AutoImportDecision>
 
   /** 分析增量导入（预览去重后可新增多少消息） */
   analyzeIncrementalImport(sessionId: string, file: File | string): Promise<IncrementalAnalysis>

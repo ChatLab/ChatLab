@@ -69,6 +69,32 @@
       "incremental": "Added {newCount} messages and skipped {duplicateCount} duplicates",
       "unchanged": "Already imported; no new messages"
     },
+    "target": {
+      "title": "Choose an import target",
+      "hint": "Choose where this import should land.",
+      "hintWithFile": "Choose where {file} should land.",
+      "auto": "Decide automatically",
+      "autoAppend": "Will append to “{session}” (matched by {method})",
+      "autoCreate": "Will create a separate session ({reason})",
+      "session": "Append to a specific session",
+      "sessionHint": "Merge this file into an existing session; duplicate messages are skipped",
+      "new": "Create a separate session",
+      "newHint": "Always create a new session, even when an existing one matches",
+      "searchPlaceholder": "Search sessions",
+      "noSessions": "No sessions imported yet",
+      "noMatches": "No matching sessions",
+      "confirm": "Start import",
+      "matchedBy": {
+        "source-session-id": "the session ID in the export",
+        "stable-id": "the group ID or member set",
+        "trailing-messages": "overlapping trailing messages"
+      },
+      "createReason": {
+        "no-match": "no existing session matched",
+        "ambiguous": "several sessions matched",
+        "user-choice": "you asked for a new session"
+      }
+    },
     "batch": {
       "importing": "Batch importing",
       "progressCount": "{current} of {total}",

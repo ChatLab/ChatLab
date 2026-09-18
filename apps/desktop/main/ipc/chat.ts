@@ -183,6 +183,16 @@ export function registerChatHandlers(ctx: IpcContext): void {
 
   // ==================== 导入 ====================
 
+  /** Map the renderer's import target onto the auto importer's own options. */
+  function resolveImportTarget(target: unknown): { sessionId?: string; forceCreate?: boolean } {
+    if (!target || typeof target !== 'object') return {}
+    const mode = (target as { mode?: unknown }).mode
+    if (mode === 'new') return { forceCreate: true }
+    if (mode !== 'session') return {}
+    const sessionId = (target as { sessionId?: unknown }).sessionId
+    return typeof sessionId === 'string' && sessionId ? { sessionId } : {}
+  }
+
   ipcMain.handle('chat:import', async (_, filePath: string) => {
     try {
       win.webContents.send('chat:importProgress', { stage: 'detecting', progress: 5, message: '' })
@@ -220,18 +230,29 @@ export function registerChatHandlers(ctx: IpcContext): void {
     try {
       win.webContents.send('chat:importProgress', { stage: 'detecting', progress: 5, message: '' })
 
-      const { sessionGapThreshold, ...formatOptions } = options
+      const { sessionGapThreshold, target, ...formatOptions } = options
+      const importTarget = resolveImportTarget(target)
       const result = await worker.autoImport(
         filePath,
         forwardImportProgress,
         formatOptions,
-        undefined,
-        typeof sessionGapThreshold === 'number' ? sessionGapThreshold : undefined
+        importTarget.sessionId,
+        typeof sessionGapThreshold === 'number' ? sessionGapThreshold : undefined,
+        importTarget.forceCreate
       )
       return finishAutoImport(result)
     } catch (error) {
       win.webContents.send('chat:importProgress', { stage: 'error', progress: 0, message: String(error) })
       return { success: false, error: String(error) }
+    }
+  })
+
+  ipcMain.handle('chat:analyzeAutoImport', async (_, filePath: string, options?: Record<string, unknown>) => {
+    try {
+      const { sessionGapThreshold: _ignored, target: _target, ...formatOptions } = options ?? {}
+      return await worker.analyzeAutoImport(filePath, formatOptions)
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) }
     }
   })
 

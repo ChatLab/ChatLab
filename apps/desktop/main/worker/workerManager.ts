@@ -7,7 +7,7 @@ import { Worker } from 'worker_threads'
 import { app } from 'electron'
 import * as path from 'path'
 import type { ParseProgress } from '@openchatlab/parser'
-import type { AutoImportResult, StreamImportResult } from './import'
+import type { AutoImportAnalysisResult, AutoImportResult, StreamImportResult } from './import'
 
 import { getDatabaseDir, getCacheDir, getTempDir, getLogsDir, ensureDir } from '../paths/locations'
 import { resolveDesktopNativeBinding } from '../runtime/native-sqlite'
@@ -591,7 +591,8 @@ export async function autoImport(
   onProgress?: (progress: ParseProgress) => void,
   formatOptions?: Record<string, unknown>,
   explicitSessionId?: string,
-  sessionGapThreshold?: number
+  sessionGapThreshold?: number,
+  forceCreate?: boolean
 ): Promise<AutoImportResult> {
   try {
     return await withDataDirImportLock(getPathProvider().getUserDataDir(), async () => {
@@ -599,7 +600,7 @@ export async function autoImport(
 
       const result = await sendToWorkerWithProgress<AutoImportResult>(
         'autoImport',
-        { filePath, formatOptions, explicitSessionId, sessionGapThreshold },
+        { filePath, formatOptions, explicitSessionId, sessionGapThreshold, forceCreate },
         onProgress
       )
       if (!result.success || !result.sessionId || result.importMode !== 'created') return result
@@ -1173,4 +1174,14 @@ export interface AnalyzeNewImportResult {
  */
 export async function analyzeNewImport(filePath: string): Promise<AnalyzeNewImportResult> {
   return sendToWorker('analyzeNewImport', { filePath })
+}
+
+/**
+ * Preview the target automatic matching would pick, without writing to DB.
+ */
+export async function analyzeAutoImport(
+  filePath: string,
+  formatOptions?: Record<string, unknown>
+): Promise<AutoImportAnalysisResult> {
+  return sendToWorker('analyzeAutoImport', { filePath, formatOptions })
 }

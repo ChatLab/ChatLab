@@ -66,6 +66,8 @@ export interface StreamImportOptions {
   onProgress?: (progress: StreamImportProgress) => void
   /** Fix the target session ID instead of auto-generating one. Used by sync/pull adapters. */
   sessionId?: string
+  /** Import into a separate new session even when automatic matching would find a target. */
+  forceCreate?: boolean
 }
 
 function generateSessionId(): string {
@@ -219,7 +221,7 @@ async function autoImportUnlocked(
   options?: StreamImportOptions,
   updateCompatibilityGate = true
 ): Promise<AutoImportResult> {
-  const { formatId, chatIndex, onProgress, sessionId } = options ?? {}
+  const { formatId, chatIndex, onProgress, sessionId, forceCreate } = options ?? {}
   const formatOptions: Record<string, unknown> = {}
   if (formatId) formatOptions.formatId = formatId
   if (chatIndex !== undefined) formatOptions.chatIndex = chatIndex
@@ -253,6 +255,7 @@ async function autoImportUnlocked(
             ...sourceFormatOptions,
             onProgress: itemProgress ?? progressAdapter,
             platformMessageIdScope: context?.platformMessageIdScope,
+            crossSourceAppend: context?.crossSourceAppend,
             senderPlatformIdMappings: context?.senderPlatformIdMappings,
           },
           updateCompatibilityGate
@@ -260,6 +263,7 @@ async function autoImportUnlocked(
     },
     {
       explicitSessionId: sessionId,
+      forceCreate,
       formatOptions,
     }
   )
@@ -271,6 +275,7 @@ export interface AutoImportBatchRequest {
   formatId?: string
   chatIndex?: number
   sessionId?: string
+  forceCreate?: boolean
 }
 
 export interface AutoImportBatchOptions {
@@ -295,6 +300,7 @@ export async function autoImportBatch(
           filePath: item.filePath,
           options: {
             explicitSessionId: item.sessionId,
+            forceCreate: item.forceCreate,
             formatOptions: {
               ...(item.formatId ? { formatId: item.formatId } : {}),
               ...(item.chatIndex !== undefined ? { chatIndex: item.chatIndex } : {}),
@@ -327,6 +333,7 @@ export async function autoImportBatch(
                 ...sourceFormatOptions,
                 onProgress: itemProgress,
                 platformMessageIdScope: context?.platformMessageIdScope,
+                crossSourceAppend: context?.crossSourceAppend,
                 senderPlatformIdMappings: context?.senderPlatformIdMappings,
               },
               false
@@ -383,7 +390,7 @@ export async function analyzeAutoImport(
   filePath: string,
   options?: StreamImportOptions
 ): Promise<AutoImportAnalysisResult> {
-  const { formatId, chatIndex, onProgress, sessionId } = options ?? {}
+  const { formatId, chatIndex, onProgress, sessionId, forceCreate } = options ?? {}
   const formatOptions: Record<string, unknown> = {}
   if (formatId) formatOptions.formatId = formatId
   if (chatIndex !== undefined) formatOptions.chatIndex = chatIndex
@@ -408,11 +415,13 @@ export async function analyzeAutoImport(
           formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,
           chatIndex: typeof sourceFormatOptions?.chatIndex === 'number' ? sourceFormatOptions.chatIndex : undefined,
           platformMessageIdScope: context?.platformMessageIdScope,
+          crossSourceAppend: context?.crossSourceAppend,
           senderPlatformIdMappings: context?.senderPlatformIdMappings,
         }),
     },
     {
       explicitSessionId: sessionId,
+      forceCreate,
       formatOptions,
     }
   )

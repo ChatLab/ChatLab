@@ -1,6 +1,7 @@
 import type { AnalyticsEventName } from '@openchatlab/shared-types'
 import type { PlatformAdapter } from '../platform/types'
 import type {
+  AutoImportDecision,
   BatchImportItem,
   BatchImportItemResult,
   BatchImportProgress,
@@ -231,6 +232,10 @@ export class TelemetryImportAdapter implements ImportAdapter {
     options?: ImportOptions
   ): Promise<DemoImportResult> {
     return this.delegate.importDemo(locale, onProgress, options)
+  }
+
+  analyzeAutoImport(file: File | string, options?: ImportOptions): Promise<AutoImportDecision> {
+    return this.delegate.analyzeAutoImport(file, options)
   }
 
   async analyzeIncrementalImport(sessionId: string, file: File | string): Promise<IncrementalAnalysis> {

@@ -4,6 +4,9 @@
 
 import type { ImportProgress } from '@/types/base'
 import type {
+  AutoImportCreateReason,
+  AutoImportDecision,
+  AutoImportMatchMethod,
   ImportAdapter,
   ImportOptions,
   ImportResult,
@@ -23,6 +26,26 @@ import { normalizeImportResult } from './types'
 function resolveFilePath(file: File | string): string | null {
   if (typeof file === 'string') return file
   return (window as any).electron?.webUtils?.getPathForFile?.(file) ?? null
+}
+
+/** A failed or inconclusive preview falls back to "no target found", which selects a new session. */
+export function toAutoImportDecision(analysis: {
+  success?: boolean
+  importMode?: string
+  sessionId?: string
+  matchedBy?: AutoImportMatchMethod
+  createReason?: AutoImportCreateReason
+  newMessageCount?: number
+}): AutoImportDecision {
+  if (analysis.success && analysis.importMode === 'incremental' && analysis.sessionId) {
+    return {
+      action: 'incremental',
+      sessionId: analysis.sessionId,
+      ...(analysis.matchedBy ? { matchedBy: analysis.matchedBy } : {}),
+      ...(analysis.newMessageCount !== undefined ? { newMessageCount: analysis.newMessageCount } : {}),
+    }
+  }
+  return { action: 'create', reason: analysis.success ? (analysis.createReason ?? 'no-match') : 'no-match' }
 }
 
 export class ElectronImportAdapter implements ImportAdapter {
@@ -51,8 +74,12 @@ export class ElectronImportAdapter implements ImportAdapter {
       })
 
       const importPromise =
-        options && (options.formatId || options.chatIndex !== undefined || options.sessionGapThreshold !== undefined)
-          ? window.chatApi.importWithOptions(filePath, options as Record<string, unknown>)
+        options &&
+        (options.formatId ||
+          options.chatIndex !== undefined ||
+          options.sessionGapThreshold !== undefined ||
+          options.target !== undefined)
+          ? window.chatApi.importWithOptions(filePath, options as unknown as Record<string, unknown>)
           : window.chatApi.import(filePath)
 
       importPromise
@@ -227,6 +254,16 @@ export class ElectronImportAdapter implements ImportAdapter {
     } finally {
       unlisten()
     }
+  }
+
+  async analyzeAutoImport(file: File | string, options?: ImportOptions): Promise<AutoImportDecision> {
+    const filePath = resolveFilePath(file)
+    if (!filePath) return { action: 'create', reason: 'no-match' }
+    const analysis = await window.chatApi.analyzeAutoImport(filePath, {
+      ...(options?.formatId ? { formatId: options.formatId } : {}),
+      ...(options?.chatIndex !== undefined ? { chatIndex: options.chatIndex } : {}),
+    })
+    return toAutoImportDecision(analysis)
   }
 
   async analyzeIncrementalImport(sessionId: string, file: File | string): Promise<IncrementalAnalysis> {

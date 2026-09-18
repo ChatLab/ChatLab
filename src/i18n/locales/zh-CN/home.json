@@ -69,6 +69,32 @@
       "incremental": "已增量导入 {newCount} 条消息，跳过 {duplicateCount} 条重复消息",
       "unchanged": "内容已导入，没有新增消息"
     },
+    "target": {
+      "title": "选择导入目标",
+      "hint": "选择这次导入落到哪里。",
+      "hintWithFile": "选择 {file} 这次导入落到哪里。",
+      "auto": "自动判断",
+      "autoAppend": "将追加到「{session}」（依据{method}）",
+      "autoCreate": "将新建独立会话（{reason}）",
+      "session": "追加到指定会话",
+      "sessionHint": "把这个文件的消息合并进已有会话，重复消息会自动跳过",
+      "new": "新建独立会话",
+      "newHint": "即使匹配到已有会话，也单独建一个新会话",
+      "searchPlaceholder": "搜索会话",
+      "noSessions": "还没有已导入的会话",
+      "noMatches": "没有匹配的会话",
+      "confirm": "开始导入",
+      "matchedBy": {
+        "source-session-id": "导出文件里的会话 ID",
+        "stable-id": "群 ID / 成员组合",
+        "trailing-messages": "末尾消息重合"
+      },
+      "createReason": {
+        "no-match": "没有匹配到已有会话",
+        "ambiguous": "匹配到多个候选会话",
+        "user-choice": "你选择了新建"
+      }
+    },
     "batch": {
       "importing": "正在批量导入",
       "progressCount": "第 {current} 个 / 共 {total} 个",

@@ -1,6 +1,9 @@
+import { createHash } from 'node:crypto'
 import { generateMessageKey } from '@openchatlab/core'
 
-const SCOPED_PLATFORM_MESSAGE_ID_PATTERN = /^(__chatlab_message_scope__\d+__)(.*)$/
+// The merger numbers its own sources (`0`, `1`, ...); buildPlatformMessageIdScope adds
+// letter-prefixed tokens, so the two kinds of namespace can never collide.
+const SCOPED_PLATFORM_MESSAGE_ID_PATTERN = /^(__chatlab_message_scope__[0-9a-z]+__)(.*)$/
 
 export interface MessageDedupState {
   platformMessageIds: Set<string>
@@ -41,6 +44,15 @@ export function parsePlatformMessageId(id: string): ParsedPlatformMessageId {
   } catch {
     return { rawId: id }
   }
+}
+
+/**
+ * Namespace prefix for one export source's platform message IDs. The token is derived from
+ * the source itself, so re-importing the same export reuses the same namespace and its
+ * messages keep deduplicating by ID.
+ */
+export function buildPlatformMessageIdScope(sourceKey: string): string {
+  return `__chatlab_message_scope__s${createHash('sha256').update(sourceKey).digest('hex').slice(0, 8)}__`
 }
 
 export function applyPlatformMessageIdScope(id: string | undefined, scope: string | undefined): string | undefined {

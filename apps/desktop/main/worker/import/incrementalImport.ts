@@ -27,7 +27,10 @@ import * as fs from 'fs'
 
 export type { ImportOptions, IncrementalAnalyzeResult, IncrementalImportResult }
 
-function buildDeps(requestId: string, onProgress?: ImportProgressCallback): IncrementalImportDeps {
+export function buildIncrementalImportDeps(
+  requestId: string,
+  onProgress?: ImportProgressCallback
+): IncrementalImportDeps {
   return {
     openDatabase(sessionId: string, readonly?: boolean) {
       const dbPath = getDbPath(sessionId)
@@ -61,7 +64,7 @@ export async function analyzeIncrementalImport(
   filePath: string,
   requestId: string
 ): Promise<IncrementalAnalyzeResult> {
-  return sharedAnalyze(sessionId, filePath, buildDeps(requestId))
+  return sharedAnalyze(sessionId, filePath, buildIncrementalImportDeps(requestId))
 }
 
 export async function incrementalImport(
@@ -71,5 +74,5 @@ export async function incrementalImport(
   options?: ImportOptions,
   onProgress?: ImportProgressCallback
 ): Promise<IncrementalImportResult> {
-  return sharedImport(sessionId, filePath, buildDeps(requestId, onProgress), options)
+  return sharedImport(sessionId, filePath, buildIncrementalImportDeps(requestId, onProgress), options)
 }

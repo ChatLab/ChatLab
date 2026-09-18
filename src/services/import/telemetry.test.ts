@@ -21,6 +21,7 @@ function createDelegate(
     releaseImportSource: async () => {},
     getSupportedFormats: async () => [],
     importDemo: async () => ({ success: true }),
+    analyzeAutoImport: async () => ({ action: 'create' as const, reason: 'no-match' as const }),
     analyzeIncrementalImport: async () => ({ newMessageCount: 0, duplicateCount: 0, totalInFile: 0, platform: 'qq' }),
     incrementalImport: async () => ({ success: true, newMessageCount: 0 }),
     importDirectory: async () => importResult,

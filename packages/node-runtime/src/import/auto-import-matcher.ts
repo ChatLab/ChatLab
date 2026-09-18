@@ -9,7 +9,7 @@ import type { ImportProgressCallback } from './streaming-importer'
 const MATCH_WINDOW_SIZE = 5
 
 export type AutoImportMatchMethod = 'source-session-id' | 'stable-id' | 'trailing-messages'
-export type AutoImportCreateReason = 'no-match' | 'ambiguous'
+export type AutoImportCreateReason = 'no-match' | 'ambiguous' | 'user-choice'
 
 export type AutoImportDecision =
   | {

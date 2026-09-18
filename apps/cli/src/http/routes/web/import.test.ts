@@ -6,7 +6,7 @@ import multipart from '@fastify/multipart'
 
 import { registerImportRoutes } from './import'
 
-function multipartPayload(): { payload: Buffer; contentType: string } {
+function multipartPayload(extraFields: Record<string, string> = {}): { payload: Buffer; contentType: string } {
   const boundary = '----chatlab-auto-import-route-test'
   const field = (name: string, value: string) =>
     [`--${boundary}`, `Content-Disposition: form-data; name="${name}"`, '', value].join('\r\n')
@@ -24,6 +24,7 @@ function multipartPayload(): { payload: Buffer; contentType: string } {
         field('formatId', 'telegram-json'),
         field('chatIndex', '2'),
         field('sessionGapThreshold', '7200'),
+        ...Object.entries(extraFields).map(([name, value]) => field(name, value)),
         file,
         `--${boundary}--`,
         '',
@@ -61,9 +62,14 @@ function directoryMultipartPayload(): { payload: Buffer; contentType: string } {
   }
 }
 
-function batchMultipartPayload(): { payload: Buffer; contentType: string } {
+function batchMultipartPayload(targetMode?: string): { payload: Buffer; contentType: string } {
   const boundary = '----chatlab-batch-import-route-test'
-  const field = [`--${boundary}`, 'Content-Disposition: form-data; name="sessionGapThreshold"', '', '7200'].join('\r\n')
+  const fields = [
+    [`--${boundary}`, 'Content-Disposition: form-data; name="sessionGapThreshold"', '', '7200'].join('\r\n'),
+    ...(targetMode === undefined
+      ? []
+      : [[`--${boundary}`, 'Content-Disposition: form-data; name="targetMode"', '', targetMode].join('\r\n')]),
+  ]
   const files = ['first.json', 'second.json'].map((filename, index) =>
     [
       `--${boundary}`,
@@ -74,7 +80,7 @@ function batchMultipartPayload(): { payload: Buffer; contentType: string } {
     ].join('\r\n')
   )
   return {
-    payload: Buffer.from([field, ...files, `--${boundary}--`, ''].join('\r\n')),
+    payload: Buffer.from([...fields, ...files, `--${boundary}--`, ''].join('\r\n')),
     contentType: `multipart/form-data; boundary=${boundary}`,
   }
 }
@@ -367,6 +373,125 @@ describe('CLI Web automatic import route', () => {
       assert.match(response.body, /event: done/)
       assert.match(response.body, /"importMode":"created"/)
       assert.match(response.body, /"createReason":"ambiguous"/)
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('maps the requested import target onto the auto importer options', async () => {
+    const cases: Array<{
+      fields: Record<string, string>
+      expected: { sessionId?: string; forceCreate?: boolean }
+    }> = [
+      { fields: {}, expected: { sessionId: undefined, forceCreate: undefined } },
+      { fields: { targetMode: 'auto' }, expected: { sessionId: undefined, forceCreate: undefined } },
+      { fields: { targetMode: 'new' }, expected: { sessionId: undefined, forceCreate: true } },
+      {
+        fields: { targetMode: 'session', targetSessionId: 'chat_42' },
+        expected: { sessionId: 'chat_42', forceCreate: undefined },
+      },
+    ]
+
+    for (const { fields, expected } of cases) {
+      const app = Fastify()
+      const calls: Array<{ sessionId?: string; forceCreate?: boolean }> = []
+      try {
+        await app.register(multipart)
+        registerImportRoutes(
+          app,
+          {} as any,
+          {
+            runAutoImport: async (_filePath: string, options: Record<string, unknown>) => {
+              calls.push({
+                sessionId: options.sessionId as string | undefined,
+                forceCreate: options.forceCreate as boolean | undefined,
+              })
+              return { success: true, sessionId: 'chat_42', importMode: 'incremental' }
+            },
+          } as any
+        )
+
+        const body = multipartPayload(fields)
+        const response = await app.inject({
+          method: 'POST',
+          url: '/_web/import',
+          headers: { 'content-type': body.contentType },
+          payload: body.payload,
+        })
+
+        assert.equal(response.statusCode, 200)
+        assert.deepEqual(calls, [expected])
+      } finally {
+        await app.close()
+      }
+    }
+  })
+
+  it('rejects an import target that names a session but no session id', async () => {
+    const app = Fastify()
+    try {
+      await app.register(multipart)
+      registerImportRoutes(
+        app,
+        {} as any,
+        {
+          runAutoImport: async () => {
+            throw new Error('import must not start')
+          },
+        } as any
+      )
+
+      const body = multipartPayload({ targetMode: 'session' })
+      const response = await app.inject({
+        method: 'POST',
+        url: '/_web/import',
+        headers: { 'content-type': body.contentType },
+        payload: body.payload,
+      })
+
+      assert.equal(response.statusCode, 400)
+      assert.equal(response.json().error, 'targetSessionId is required when targetMode is "session"')
+    } finally {
+      await app.close()
+    }
+  })
+
+  it('lets a batch ask for separate sessions but refuses one shared session target', async () => {
+    const app = Fastify()
+    const forceCreateFlags: Array<boolean | undefined> = []
+    try {
+      await app.register(multipart)
+      registerImportRoutes(
+        app,
+        {} as any,
+        {
+          runAutoImportBatch: async (items: any[]) => {
+            for (const item of items) forceCreateFlags.push(item.forceCreate)
+            return items.map((item) => ({ id: item.id, status: 'success', result: { success: true } }))
+          },
+        } as any
+      )
+
+      const newBody = batchMultipartPayload('new')
+      const newResponse = await app.inject({
+        method: 'POST',
+        url: '/_web/import/batch',
+        headers: { 'content-type': newBody.contentType },
+        payload: newBody.payload,
+      })
+
+      const sessionBody = batchMultipartPayload('session')
+      const sessionResponse = await app.inject({
+        method: 'POST',
+        url: '/_web/import/batch',
+        headers: { 'content-type': sessionBody.contentType },
+        payload: sessionBody.payload,
+      })
+
+      assert.equal(newResponse.statusCode, 200)
+      assert.deepEqual(forceCreateFlags, [true, true])
+      assert.equal(sessionResponse.statusCode, 400)
+      assert.equal(sessionResponse.json().error, 'targetMode "session" is not supported for batch imports')
     } finally {
       await app.close()
     }

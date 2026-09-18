@@ -14,10 +14,13 @@ import { analyzeAutoImport, autoImport, detectFormat } from './index'
 
 interface ImportCommandOptions {
   sessionId?: string
+  newSession?: boolean
   format?: string
   dryRun?: boolean
   json?: boolean
 }
+
+const CONFLICTING_TARGET_OPTIONS_ERROR = 'Use either --session-id or --new-session, not both'
 
 interface ImportCommandEnvelope {
   ok: boolean
@@ -54,6 +57,13 @@ function normalizeImportError(message: string): NonNullable<ImportCommandEnvelop
       code: 'UNRECOGNIZED_FORMAT',
       message: 'The chat export format could not be recognized.',
       hint: 'Run "clb formats" and retry with --format <id>.',
+    }
+  }
+  if (message === CONFLICTING_TARGET_OPTIONS_ERROR) {
+    return {
+      code: 'CONFLICTING_TARGET_OPTIONS',
+      message,
+      hint: '--session-id appends to an existing session; --new-session always creates a separate one.',
     }
   }
   if (message.includes('sessionId contains invalid characters')) {
@@ -139,10 +149,19 @@ export function registerImportCommand(program: Command): void {
     .command('import <file>')
     .description('Import a chat history file (14+ formats: QQ/WeChat/Telegram/WhatsApp/LINE/Discord, etc.)')
     .option('--session-id <id>', 'Force an existing session target, or create with this ID if missing')
+    .option('--new-session', 'Always create a separate session, even when an existing one matches')
     .option('--format <id>', 'Specify the input format ID (skip auto-detection)')
     .option('--dry-run', 'Analyze the target and message counts without writing data')
     .option('--json', 'Output one machine-readable JSON envelope')
     .action(async (file: string, options: ImportCommandOptions) => {
+      if (options.sessionId && options.newSession) {
+        const result: AutoImportAnalysisResult = { success: false, error: CONFLICTING_TARGET_OPTIONS_ERROR }
+        if (options.json) printJsonResult(result, Boolean(options.dryRun))
+        else printHumanResult(result, Boolean(options.dryRun))
+        process.exitCode = 1
+        return
+      }
+
       if (!fs.existsSync(file)) {
         const result: AutoImportAnalysisResult = { success: false, error: `File not found: ${file}` }
         if (options.json) printJsonResult(result, Boolean(options.dryRun))
@@ -174,6 +193,7 @@ export function registerImportCommand(program: Command): void {
           const importOptions = {
             formatId: options.format,
             sessionId: options.sessionId,
+            forceCreate: options.newSession,
             sessionGapThreshold: runtime.config.ui.session_gap_threshold,
             nativeBinding,
             onProgress: options.json

@@ -2,7 +2,13 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AnalysisSession, ImportProgress, ChatType } from '@/types/base'
 import { useDataService, useImportService, usePlatformService } from '@/services'
-import type { AutoImportCreateReason, AutoImportMatchMethod, AutoImportMode, ImportDiagnosticsInfo } from '@/services'
+import type {
+  AutoImportCreateReason,
+  AutoImportMatchMethod,
+  AutoImportMode,
+  ImportDiagnosticsInfo,
+  ImportOptions,
+} from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
 
 /** 侧边栏筛选类型 */
@@ -266,7 +272,10 @@ export const useSessionStore = defineStore(
     /**
      * 从指定路径执行导入（支持拖拽）
      */
-    async function importFileFromPath(filePath: string): Promise<{
+    async function importFileFromPath(
+      filePath: string,
+      options?: ImportOptions
+    ): Promise<{
       success: boolean
       error?: string
       diagnostics?: ImportDiagnosticsInfo
@@ -313,7 +322,7 @@ export const useSessionStore = defineStore(
 
         const importResult = await useImportService().importFile(
           filePath,
-          { sessionGapThreshold: getSessionGapThreshold() },
+          { ...options, sessionGapThreshold: getSessionGapThreshold() },
           (progress) => {
             if (progress.stage === 'done') return
             queue.push(progress)

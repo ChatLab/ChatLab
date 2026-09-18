@@ -6,6 +6,7 @@
 
 import type { ImportProgress } from '@/types/base'
 import type {
+  AutoImportDecision,
   ImportAdapter,
   ImportOptions,
   ImportResult,
@@ -21,6 +22,7 @@ import type {
   BatchImportProgress,
 } from './types'
 import { normalizeImportResult } from './types'
+import { toAutoImportDecision } from './electron'
 import { get, fetchWithAuth, getBaseUrl } from '../utils/http'
 
 async function consumeSseStream<T>(res: Response, fallback: T, onProgress?: (p: ImportProgress) => void): Promise<T> {
@@ -87,6 +89,10 @@ export class FetchImportAdapter implements ImportAdapter {
     if (options?.sessionGapThreshold !== undefined) {
       form.append('sessionGapThreshold', String(options.sessionGapThreshold))
     }
+    if (options?.target) {
+      form.append('targetMode', options.target.mode)
+      if (options.target.mode === 'session') form.append('targetSessionId', options.target.sessionId)
+    }
 
     const res = await fetchWithAuth(`${getBaseUrl()}/import`, { method: 'POST', body: form })
 
@@ -118,6 +124,7 @@ export class FetchImportAdapter implements ImportAdapter {
     if (options?.sessionGapThreshold !== undefined) {
       form.append('sessionGapThreshold', String(options.sessionGapThreshold))
     }
+    if (options?.target?.mode === 'new') form.append('targetMode', 'new')
 
     const activeBatch = { id: crypto.randomUUID(), cancelRequested: false }
     this.activeBatch = activeBatch
@@ -325,6 +332,19 @@ export class FetchImportAdapter implements ImportAdapter {
         })
         .catch((e) => resolve({ success: false, error: String(e) }))
     })
+  }
+
+  async analyzeAutoImport(file: File | string, options?: ImportOptions): Promise<AutoImportDecision> {
+    if (typeof file === 'string') return { action: 'create', reason: 'no-match' }
+
+    const form = new FormData()
+    form.append('file', file)
+    if (options?.formatId) form.append('formatId', options.formatId)
+    if (options?.chatIndex !== undefined) form.append('chatIndex', String(options.chatIndex))
+
+    const res = await fetchWithAuth(`${getBaseUrl()}/import/analyze-target`, { method: 'POST', body: form })
+    if (!res.ok) return { action: 'create', reason: 'no-match' }
+    return toAutoImportDecision(await res.json())
   }
 
   async analyzeIncrementalImport(sessionId: string, file: File | string): Promise<IncrementalAnalysis> {
