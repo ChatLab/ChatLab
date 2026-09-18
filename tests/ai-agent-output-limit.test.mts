@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import * as nodeRuntime from '@openchatlab/node-runtime'
+import * as nodeRuntime from '../packages/node-runtime/src/index'
 import { runServerAgent } from '../apps/cli/src/ai/agent'
 import { AIChatManager } from '../packages/node-runtime/src/ai/chats'
 import { runCrossChatAgent } from '../packages/node-runtime/src/ai/cross-chat-agent'
@@ -24,7 +24,7 @@ test('session and global agents surface truncated output instead of reporting su
   }
   try {
     // Desktop sources load as CommonJS in tsx; keep the shared ESM runtime unchanged.
-    await t.mock.module('@openchatlab/node-runtime', { namedExports: nodeRuntime })
+    await t.mock.module('../packages/node-runtime/src/index', { namedExports: nodeRuntime })
     // Isolate Desktop host services while keeping its Agent and stream runner real.
     await t.mock.module('../apps/desktop/main/ai/chats', {
       namedExports: {
