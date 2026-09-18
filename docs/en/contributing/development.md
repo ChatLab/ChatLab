@@ -148,6 +148,7 @@ Compatibility-related changes should cover:
 - After changing public docs, run `pnpm docs:build` or targeted formatting checks for the changed Markdown/config files.
 - After changing shared cross-platform logic, confirm Electron and CLI Web entry points do not diverge in behavior.
 - Daily default test command is `pnpm test`; to prioritize related tests, run `pnpm test -- path/to/file.test.ts`.
+- Run `pnpm --filter chatlab-mcp build` before `pnpm test`, and again after changing `packages/mcp-server/src`: `apps/cli` imports the built output of `chatlab-mcp` through the workspace dependency, so the related tests fail with `ERR_MODULE_NOT_FOUND` until it is built and run against stale code when the build is outdated. The CI test workflow already includes this step.
 - `pnpm test` should include only unit/integration tests and must not depend on real LLMs, real Electron, real browsers, real network, or long-running E2E.
 - Unit tests tightly coupled to one business module should live next to the tested file and use `*.test.ts` or `*.test.js`.
 - Cross-module, integration, E2E, test utility, or unclear-ownership tests should live in the root `tests/` directory.
