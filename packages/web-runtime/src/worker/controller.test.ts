@@ -325,6 +325,10 @@ class FakeSessionRuntime implements WorkerSessionRuntime {
     return { members: [], sharedWords: [], similarityScore: 0 }
   }
 
+  async getSharedPhrases(_id: string, _filter?: BrowserTimeFilter, _limit?: number) {
+    return { available: false as const, reason: 'not_private_chat' as const }
+  }
+
   async getWordFrequency(_id: string) {
     return { words: [], totalWords: 0, totalMessages: 0, uniqueWords: 0 }
   }
@@ -821,6 +825,11 @@ describe('WebRuntimeWorkerController', () => {
         id: 'language',
         type: 'analysis.languagePreference',
         payload: { sessionId: 'session-one', locale: 'en-US' },
+      },
+      {
+        id: 'shared-phrases',
+        type: 'analysis.sharedPhrases',
+        payload: { sessionId: 'session-one', filter: { startTs: 1 }, limit: 20 },
       },
       {
         id: 'words',

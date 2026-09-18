@@ -155,6 +155,17 @@
     "watermark": "トピックプロフィール",
     "sharedTopics": "共通のトピック"
   },
+  "sharedPhrases": {
+    "title": "共通のフレーズ",
+    "description": "双方が使い、3 つ以上のターンと 2 回以上の会話に現れたフレーズを、それぞれが使ったターン数の順に表示します。2 人の間だけで使われるフレーズという意味ではありません。",
+    "turns": "{count} ターン",
+    "firstUsed": "初回 {date}",
+    "unavailable": "共通のフレーズを表示するには、2 人ともメッセージを送ったプライベートチャットが必要です。",
+    "empty": "現在の期間に条件を満たすフレーズはありません。",
+    "hasMore": "上位 {count} 件のみ表示しています。",
+    "coverage": "分析したテキストメッセージ {text} 件、対象外のメッセージ {excluded} 件、{turns} ターン、会話 {sessions} 回。",
+    "method": "分かち書き：{tokenizer}／ルールのバージョン：{rule}"
+  },
   "catchphrase": {
     "title": "グループメンバーの口癖",
     "description": "各メンバーを象徴する繰り返しフレーズを確認できます",

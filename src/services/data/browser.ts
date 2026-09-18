@@ -19,6 +19,7 @@ import type {
   WeekdayActivity,
 } from '@/types/analysis'
 import type { LanguagePreferenceResult } from '@/types/quotes/languagePreference'
+import type { SharedPhrasesResult } from '@/types/quotes/sharedPhrases'
 import type { JourneyStats, MemberMonthlyTrend, WordFrequencyParams, WordFrequencyResult } from '@openchatlab/core'
 import type { AnnualSummaryRange, TimeFilter, TimeInvestmentResponse } from '@openchatlab/shared-types'
 import type { BrowserRuntimeRpcPort } from '../browser-runtime/types'
@@ -52,6 +53,7 @@ type BrowserSessionDataAdapter = Pick<
   | 'getRelationshipStats'
   | 'getJourneyStats'
   | 'getLanguagePreferenceAnalysis'
+  | 'getSharedPhrases'
   | 'getWordFrequency'
   | 'getTimeInvestment'
   | 'recomputeTimeInvestment'
@@ -184,6 +186,10 @@ export class BrowserDataAdapter implements BrowserSessionDataAdapter {
       locale,
       filter,
     })) as LanguagePreferenceResult
+  }
+
+  async getSharedPhrases(sessionId: string, filter?: TimeFilter, limit?: number): Promise<SharedPhrasesResult> {
+    return (await this.requestAnalysis('analysis.sharedPhrases', { sessionId, filter, limit })) as SharedPhrasesResult
   }
 
   getWordFrequency(sessionId: string, params: Omit<WordFrequencyParams, 'sessionId'>): Promise<WordFrequencyResult> {
