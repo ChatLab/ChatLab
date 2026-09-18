@@ -3,13 +3,16 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
+import * as nodeRuntime from '@openchatlab/node-runtime'
 import { runServerAgent } from '../apps/cli/src/ai/agent'
 import { AIChatManager } from '../packages/node-runtime/src/ai/chats'
 import { runCrossChatAgent } from '../packages/node-runtime/src/ai/cross-chat-agent'
 import type { AgentStreamChunk } from '../packages/node-runtime/src/ai/agent/event-handler'
 import { buildPiModel } from '../packages/node-runtime/src/ai/llm-builder'
+import { createAiTranslate } from '../packages/node-runtime/src/ai/i18n'
+import type { LLMConfigStore } from '../packages/node-runtime/src/ai/llm-config-store'
 
-// Exercise the real Pi SSE parser and both Node entry points, without a real provider or user data.
+// Exercise the real Pi SSE parser and all Node entry points, without a real provider or user data.
 test('session and global agents surface truncated output instead of reporting successful completion', async (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'chatlab-agent-output-limit-'))
   const manager = new AIChatManager(dir, { nativeBinding: process.env.CHATLAB_TEST_SQLITE_NATIVE_BINDING })
@@ -20,7 +23,52 @@ test('session and global agents surface truncated output instead of reporting su
     apiKey: 'test-placeholder',
   }
   try {
-    for (const kind of ['session', 'global'] as const) {
+    // Desktop sources load as CommonJS in tsx; keep the shared ESM runtime unchanged.
+    await t.mock.module('@openchatlab/node-runtime', { namedExports: nodeRuntime })
+    // Isolate Desktop host services while keeping its Agent and stream runner real.
+    await t.mock.module('../apps/desktop/main/ai/chats', {
+      namedExports: {
+        getManager: () => manager,
+        getHistoryForAgent: manager.getHistoryForAgent.bind(manager),
+        setPendingDebugContext: manager.setPendingDebugContext.bind(manager),
+      },
+    })
+    await t.mock.module('../apps/desktop/main/ai/llm', {
+      namedExports: { buildPiModel, findModelDefinition: () => null, getProviderInfo: () => null },
+    })
+    await t.mock.module('../apps/desktop/main/ai/logger', {
+      namedExports: {
+        aiLogger: {
+          info: () => undefined,
+          warn: () => undefined,
+          error: () => undefined,
+          debug: () => undefined,
+        },
+        isDebugMode: () => false,
+      },
+    })
+    await t.mock.module('../apps/desktop/main/i18n', { namedExports: { t: createAiTranslate('en-US') } })
+    await t.mock.module('../apps/desktop/main/ai/tools', {
+      namedExports: { getAllTools: async () => [], createActivateSkillTool: () => undefined },
+    })
+    await t.mock.module('../apps/desktop/main/ai/assistant/manager', {
+      namedExports: { getAssistantConfig: () => null },
+    })
+    await t.mock.module('../apps/desktop/main/ai/skills/manager', {
+      namedExports: { getSkillConfig: () => null, getSkillMenu: () => '' },
+    })
+    await t.mock.module('../apps/desktop/main/worker/workerManager', {
+      namedExports: { getChatOverview: async () => null },
+    })
+    await t.mock.module('../apps/desktop/main/ai/cross-chat-tool-adapter', {
+      namedExports: { createElectronCrossChatTools: () => [] },
+    })
+    const { createElectronRunAgentStream } = await import('../apps/desktop/main/ai/agent-stream-runner')
+    const runDesktopAgent = createElectronRunAgentStream({
+      getDefaultAssistantConfig: () => config,
+    } as LLMConfigStore)
+
+    for (const kind of ['session', 'global', 'desktop session'] as const) {
       for (const scenario of [
         { name: 'thinking only', text: '', finishReason: 'length' },
         { name: 'partial answer', text: 'The conclusion is', finishReason: 'length' },
@@ -38,6 +86,16 @@ test('session and global agents surface truncated output instead of reporting su
               created: 1,
               model: config.model,
               choices: [{ index: 0, ...choice }],
+              ...(choice.finish_reason
+                ? {
+                    usage: {
+                      prompt_tokens: 100,
+                      completion_tokens: 25,
+                      total_tokens: 125,
+                      prompt_tokens_details: { cached_tokens: 20 },
+                    },
+                  }
+                : {}),
             }))
             return new Response(
               chunks.map((chunk) => `data: ${JSON.stringify(chunk)}\n\n`).join('') + 'data: [DONE]\n\n',
@@ -67,6 +125,12 @@ test('session and global agents surface truncated output instead of reporting su
               tools: [],
               memoryService: { list: () => [] },
             })
+          } else if (kind === 'desktop session') {
+            await runDesktopAgent(
+              { ...common, sessionId: 'session-1', chatType: 'private' },
+              common.onEvent,
+              new AbortController().signal
+            )
           } else {
             await runServerAgent({ ...common, llmConfig: config })
           }
@@ -92,6 +156,21 @@ test('session and global agents surface truncated output instead of reporting su
           )
           assert.equal(events.filter((event) => event.type === 'done').length, 1)
           assert.equal(events.at(-1)?.type, 'done')
+          const doneUsage = events.at(-1)?.usage
+          const expectedUsage = {
+            promptTokens: 80,
+            completionTokens: 25,
+            totalTokens: 125,
+            cacheReadTokens: 20,
+            cacheWriteTokens: 0,
+          }
+          assert.deepEqual(doneUsage, expectedUsage)
+          manager.addMessagePair(
+            chat.id,
+            { content: common.userMessage },
+            { content: scenario.text, tokenUsage: doneUsage }
+          )
+          assert.deepEqual(manager.getAIChatTokenUsage(chat.id), expectedUsage)
         })
       }
     }

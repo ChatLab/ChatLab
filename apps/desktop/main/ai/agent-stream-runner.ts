@@ -353,9 +353,13 @@ export function createElectronRunAgentStream(
       skillCtx
     )
 
+    let lastUsage: AgentStreamChunk['usage']
     try {
       await agent.executeStream(userMessage, (chunk: AgentStreamChunk) => {
         if (abortSignal.aborted) return
+        if (chunk.type === 'status' && chunk.status) {
+          lastUsage = chunk.status.totalUsage
+        }
         onEvent(chunk as SharedAgentStreamChunk)
       })
     } catch (error) {
@@ -368,6 +372,7 @@ export function createElectronRunAgentStream(
       if (!serializedError.url && activeAIConfig.baseUrl) serializedError.url = activeAIConfig.baseUrl
       aiLogger.error('AgentStream', `Agent execution error: ${requestId}`, serializedError)
       onEvent({ type: 'error', error: serializedError, isFinished: true })
+      onEvent({ type: 'done', isFinished: true, usage: lastUsage })
     }
   }
 }
