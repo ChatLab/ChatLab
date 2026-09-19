@@ -10,6 +10,7 @@ import type {
   TokenUsageData,
 } from '@openchatlab/node-runtime'
 import type { ChartPayload, PathProvider } from '@openchatlab/core'
+import { extractToolResultText, truncateToolResultText } from '@openchatlab/core'
 import { getDefaultGeneralAssistantId } from '@openchatlab/shared-types'
 import { createCliRunAgentStream } from './agent-stream-runner'
 
@@ -166,6 +167,7 @@ export async function runChatTurn(
   const streamState: { error: Error | null } = { error: null }
   const events: AgentStreamChunk[] = []
   const contentBlocks: ContentBlock[] = []
+  const toolBlocks = new Map<string, Extract<ContentBlock, { type: 'tool' }>>()
   let hasReplayContentBlocks = false
 
   const runAgentStream = (deps.createRunAgentStream ?? createCliRunAgentStream)(deps.dbManager, deps.aiChatManager)
@@ -292,6 +294,31 @@ export async function runChatTurn(
       }
       if (chunk.type === 'tool_result' && chunk.toolName === 'render_chart') {
         appendChartBlocks(extractChartPayloads(chunk.toolResult))
+        return
+      }
+      if (chunk.type === 'tool_start' && chunk.toolName && chunk.toolName !== 'render_chart' && chunk.toolCallId) {
+        const block: Extract<ContentBlock, { type: 'tool' }> = {
+          type: 'tool',
+          tool: {
+            name: chunk.toolName,
+            displayName: chunk.toolName,
+            status: 'running',
+            toolCallId: chunk.toolCallId,
+            params: chunk.toolParams,
+          },
+        }
+        toolBlocks.set(chunk.toolCallId, block)
+        contentBlocks.push(block)
+        hasReplayContentBlocks = true
+        return
+      }
+      if (chunk.type === 'tool_result' && chunk.toolCallId) {
+        const block = toolBlocks.get(chunk.toolCallId)
+        if (block) {
+          block.tool.status = chunk.toolIsError ? 'error' : 'done'
+          block.tool.isError = chunk.toolIsError === true
+          block.tool.result = truncateToolResultText(extractToolResultText(chunk.toolResult))
+        }
         return
       }
       if (chunk.type === 'content' && chunk.content) {
