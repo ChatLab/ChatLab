@@ -175,6 +175,7 @@ const filteredMemberCount = computed(() => {
               :session-id="currentSessionId!"
               :session-name="session.name"
               chat-type="group"
+              :time-filter="timeFilter"
             />
             <MemoryTab
               v-else-if="activeTab === 'memory'"
