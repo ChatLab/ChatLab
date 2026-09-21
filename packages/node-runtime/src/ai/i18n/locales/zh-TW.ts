@@ -220,14 +220,18 @@ export default {
       response_time_analysis: {
         desc: '分析訊息之間的回應時間，按成員維度統計中位數和平均回覆速度。適用於「大家平均多久回覆訊息」、「誰回覆最快」。',
         params: {
-          days: '統計最近多少天的資料',
+          days: '沒有有效的明確時間或所選時間範圍時，統計最近多少天的資料，預設 30',
+          start_time: '開始時間，格式 "YYYY-MM-DD HH:mm"。明確指定的時間優先於所選範圍和 days',
+          end_time: '結束時間，格式 "YYYY-MM-DD HH:mm"。明確指定的時間優先於所選範圍和 days',
           top_n: '回傳前多少名',
         },
       },
       keyword_frequency: {
         desc: '對指定時間段的文字訊息進行分詞，統計高頻關鍵詞排行。支援中英日文分詞。適用於「大家最常說什麼」、「高頻關鍵詞是什麼」。',
         params: {
-          days: '統計最近多少天的資料',
+          days: '沒有有效的明確時間或所選時間範圍時，統計最近多少天的資料，預設 30',
+          start_time: '開始時間，格式 "YYYY-MM-DD HH:mm"。明確指定的時間優先於所選範圍和 days',
+          end_time: '結束時間，格式 "YYYY-MM-DD HH:mm"。明確指定的時間優先於所選範圍和 days',
           top_n: '回傳前多少個關鍵詞',
         },
       },

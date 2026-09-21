@@ -229,14 +229,18 @@ Returned summaries are brief descriptions of each segment, helping quickly locat
       response_time_analysis: {
         desc: 'Analyze response times between messages, showing median and average reply speed per member. Useful for "how quickly do people reply" or "who replies the fastest".',
         params: {
-          days: 'Number of recent days to analyze',
+          days: 'Recent days to analyze when no explicit or selected time range is available; defaults to 30',
+          start_time: 'Start time, format "YYYY-MM-DD HH:mm". Explicit dates override the selected range and days',
+          end_time: 'End time, format "YYYY-MM-DD HH:mm". Explicit dates override the selected range and days',
           top_n: 'Number of top members to return',
         },
       },
       keyword_frequency: {
         desc: 'Segment text messages and rank high-frequency keywords. Supports Chinese, English, and Japanese. Useful for "what do people talk about most" or "what are the hot keywords".',
         params: {
-          days: 'Number of recent days to analyze',
+          days: 'Recent days to analyze when no explicit or selected time range is available; defaults to 30',
+          start_time: 'Start time, format "YYYY-MM-DD HH:mm". Explicit dates override the selected range and days',
+          end_time: 'End time, format "YYYY-MM-DD HH:mm". Explicit dates override the selected range and days',
           top_n: 'Number of top keywords to return',
         },
       },

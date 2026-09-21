@@ -220,14 +220,18 @@ export default {
       response_time_analysis: {
         desc: '分析消息之间的响应时间，按成员维度统计中位数和平均回复速度。适用于"大家平均多久回复消息"、"谁回复最快"。',
         params: {
-          days: '统计最近多少天的数据',
+          days: '没有有效的显式时间或所选时间范围时，统计最近多少天的数据，默认 30',
+          start_time: '开始时间，格式 "YYYY-MM-DD HH:mm"。显式时间优先于所选范围和 days',
+          end_time: '结束时间，格式 "YYYY-MM-DD HH:mm"。显式时间优先于所选范围和 days',
           top_n: '返回前多少名',
         },
       },
       keyword_frequency: {
         desc: '对指定时间段的文本消息进行分词，统计高频关键词排行。支持中英日文分词。适用于"大家最常说什么"、"高频关键词是什么"。',
         params: {
-          days: '统计最近多少天的数据',
+          days: '没有有效的显式时间或所选时间范围时，统计最近多少天的数据，默认 30',
+          start_time: '开始时间，格式 "YYYY-MM-DD HH:mm"。显式时间优先于所选范围和 days',
+          end_time: '结束时间，格式 "YYYY-MM-DD HH:mm"。显式时间优先于所选范围和 days',
           top_n: '返回前多少个关键词',
         },
       },
