@@ -188,6 +188,7 @@ export async function fetchSearchMessageContext(
   if (messageIds.length === 0) return []
 
   const contextIds = new Set<number>()
+  const segments = new Map<number, { ids: number[]; positions: Map<number, number> }>()
 
   const sessionCheck = await executor.get<Record<string, unknown>>(
     "SELECT 1 FROM sqlite_master WHERE type='table' AND name='message_context'",
@@ -209,27 +210,28 @@ export async function fetchSearchMessageContext(
       )
 
       if (sessionRow) {
-        if (contextBefore > 0) {
+        if (contextBefore <= 0 && contextAfter <= 0) continue
+        let segment = segments.get(sessionRow.segment_id)
+        if (!segment) {
+          // Sort each touched segment once per request, not once per search hit.
           const rows = await executor.all<{ id: number }>(
             `SELECT msg.id FROM message_context mc
              JOIN message msg ON msg.id = mc.message_id
-             JOIN message anchor ON anchor.id = ?
-             WHERE mc.segment_id = ? AND (msg.ts < anchor.ts OR (msg.ts = anchor.ts AND msg.id < anchor.id))
-             ORDER BY msg.ts DESC, msg.id DESC LIMIT ?`,
-            [messageId, sessionRow.segment_id, contextBefore]
+             WHERE mc.segment_id = ? ORDER BY msg.ts ASC, msg.id ASC`,
+            [sessionRow.segment_id]
           )
-          rows.forEach((r) => contextIds.add(r.id))
+          const ids = rows.map((row) => row.id)
+          segment = { ids, positions: new Map(ids.map((id, index) => [id, index])) }
+          segments.set(sessionRow.segment_id, segment)
         }
-        if (contextAfter > 0) {
-          const rows = await executor.all<{ id: number }>(
-            `SELECT msg.id FROM message_context mc
-             JOIN message msg ON msg.id = mc.message_id
-             JOIN message anchor ON anchor.id = ?
-             WHERE mc.segment_id = ? AND (msg.ts > anchor.ts OR (msg.ts = anchor.ts AND msg.id > anchor.id))
-             ORDER BY msg.ts ASC, msg.id ASC LIMIT ?`,
-            [messageId, sessionRow.segment_id, contextAfter]
-          )
-          rows.forEach((r) => contextIds.add(r.id))
+        const position = segment.positions.get(messageId)
+        if (position !== undefined) {
+          for (const id of segment.ids.slice(
+            Math.max(0, position - Math.max(0, contextBefore)),
+            position + Math.max(0, contextAfter) + 1
+          )) {
+            contextIds.add(id)
+          }
         }
         continue
       }

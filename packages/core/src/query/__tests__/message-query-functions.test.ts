@@ -9,6 +9,7 @@ import { describe, it } from 'node:test'
 import Database from 'better-sqlite3'
 import { getMessageContext, getSearchMessageContext } from '../message-queries'
 import { SqliteTestAdapter } from './sqlite-test-adapter'
+import { CHAT_DB_TABLES, CHAT_DB_INDEXES } from '../../schema/tables'
 
 import {
   fetchAllRecentMessages,
@@ -126,6 +127,34 @@ describe('message pagination', () => {
 })
 
 describe('message search and context', () => {
+  // Prevent common-keyword searches in busy segments from blocking the database for seconds.
+  it('expands many hits in a large indexed segment without repeated full-segment work', async () => {
+    const db = new Database(':memory:')
+    try {
+      db.exec(CHAT_DB_TABLES + CHAT_DB_INDEXES)
+      db.exec(`INSERT INTO member (platform_id) VALUES ('synthetic');
+        WITH RECURSIVE seq(id) AS (SELECT 1 UNION ALL SELECT id + 1 FROM seq WHERE id < 50000)
+        INSERT INTO message (id, sender_id, ts, type, content)
+        SELECT id, 1, 1700000000 + (50001 - id) * 10, 0, 'synthetic' FROM seq;
+        INSERT INTO message_context (message_id, segment_id) SELECT id, 1 FROM message;`)
+      const ids = Array.from({ length: 1000 }, (_, i) => 10001 + i)
+      const expected = Array.from({ length: 1004 }, (_, i) => 11002 - i)
+      for (const query of [
+        () => getSearchMessageContext(new SqliteTestAdapter(db), ids, 2, 2),
+        () => fetchSearchMessageContext(createSqliteExecutor(db), ids, 2, 2),
+      ]) {
+        const started = performance.now()
+        const messages = await query()
+        assert.deepEqual(
+          messages.map((message) => message.id),
+          expected
+        )
+        assert.ok(performance.now() - started < 2000, 'Context expansion must not repeatedly scan the entire segment')
+      }
+    } finally {
+      db.close()
+    }
+  })
   it('searches the database and returns the matching total', async () => {
     const db = createMessageDb()
     try {
