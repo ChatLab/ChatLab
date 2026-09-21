@@ -148,8 +148,7 @@ export async function fetchMessageContext(
     if (contextSize > 0) {
       const before = await executor.all<{ id: number }>(
         `SELECT msg.id FROM message msg
-         JOIN message anchor ON anchor.id = ?
-         WHERE msg.ts < anchor.ts OR (msg.ts = anchor.ts AND msg.id < anchor.id)
+         WHERE (msg.ts, msg.id) < (SELECT ts, id FROM message WHERE id = ?)
          ORDER BY msg.ts DESC, msg.id DESC LIMIT ?`,
         [id, contextSize]
       )
@@ -157,8 +156,7 @@ export async function fetchMessageContext(
 
       const after = await executor.all<{ id: number }>(
         `SELECT msg.id FROM message msg
-         JOIN message anchor ON anchor.id = ?
-         WHERE msg.ts > anchor.ts OR (msg.ts = anchor.ts AND msg.id > anchor.id)
+         WHERE (msg.ts, msg.id) > (SELECT ts, id FROM message WHERE id = ?)
          ORDER BY msg.ts ASC, msg.id ASC LIMIT ?`,
         [id, contextSize]
       )
@@ -240,8 +238,7 @@ export async function fetchSearchMessageContext(
     if (contextBefore > 0) {
       const rows = await executor.all<{ id: number }>(
         `SELECT msg.id FROM message msg
-         JOIN message anchor ON anchor.id = ?
-         WHERE msg.ts < anchor.ts OR (msg.ts = anchor.ts AND msg.id < anchor.id)
+         WHERE (msg.ts, msg.id) < (SELECT ts, id FROM message WHERE id = ?)
          ORDER BY msg.ts DESC, msg.id DESC LIMIT ?`,
         [messageId, contextBefore]
       )
@@ -250,8 +247,7 @@ export async function fetchSearchMessageContext(
     if (contextAfter > 0) {
       const rows = await executor.all<{ id: number }>(
         `SELECT msg.id FROM message msg
-         JOIN message anchor ON anchor.id = ?
-         WHERE msg.ts > anchor.ts OR (msg.ts = anchor.ts AND msg.id > anchor.id)
+         WHERE (msg.ts, msg.id) > (SELECT ts, id FROM message WHERE id = ?)
          ORDER BY msg.ts ASC, msg.id ASC LIMIT ?`,
         [messageId, contextAfter]
       )

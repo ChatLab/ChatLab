@@ -616,8 +616,7 @@ export function getMessageContext(
     const beforeRows = db
       .prepare(
         `SELECT msg.id FROM message msg
-         JOIN message anchor ON anchor.id = ?
-         WHERE msg.ts < anchor.ts OR (msg.ts = anchor.ts AND msg.id < anchor.id)
+         WHERE (msg.ts, msg.id) < (SELECT ts, id FROM message WHERE id = ?)
          ORDER BY msg.ts DESC, msg.id DESC LIMIT ?`
       )
       .all(messageId, contextSize) as { id: number }[]
@@ -626,8 +625,7 @@ export function getMessageContext(
     const afterRows = db
       .prepare(
         `SELECT msg.id FROM message msg
-         JOIN message anchor ON anchor.id = ?
-         WHERE msg.ts > anchor.ts OR (msg.ts = anchor.ts AND msg.id > anchor.id)
+         WHERE (msg.ts, msg.id) > (SELECT ts, id FROM message WHERE id = ?)
          ORDER BY msg.ts ASC, msg.id ASC LIMIT ?`
       )
       .all(messageId, contextSize) as { id: number }[]
@@ -697,8 +695,7 @@ export function getSearchMessageContext(
       const rows = db
         .prepare(
           `SELECT msg.id FROM message msg
-           JOIN message anchor ON anchor.id = ?
-           WHERE msg.ts < anchor.ts OR (msg.ts = anchor.ts AND msg.id < anchor.id)
+           WHERE (msg.ts, msg.id) < (SELECT ts, id FROM message WHERE id = ?)
            ORDER BY msg.ts DESC, msg.id DESC LIMIT ?`
         )
         .all(messageId, contextBefore) as { id: number }[]
@@ -708,8 +705,7 @@ export function getSearchMessageContext(
       const rows = db
         .prepare(
           `SELECT msg.id FROM message msg
-           JOIN message anchor ON anchor.id = ?
-           WHERE msg.ts > anchor.ts OR (msg.ts = anchor.ts AND msg.id > anchor.id)
+           WHERE (msg.ts, msg.id) > (SELECT ts, id FROM message WHERE id = ?)
            ORDER BY msg.ts ASC, msg.id ASC LIMIT ?`
         )
         .all(messageId, contextAfter) as { id: number }[]
