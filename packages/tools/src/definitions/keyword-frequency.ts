@@ -6,7 +6,9 @@
  */
 
 import type { ToolDefinition, ToolExecutionContext, ToolResult, JsonSchema } from '../types'
-import { isChineseLocale } from '../utils/format'
+import { formatTimeRange, isChineseLocale } from '../utils/format'
+import { parseExtendedTimeParams, type ExtendedTimeParams } from '../utils/time-params'
+import { timeParamProperties } from '../utils/schemas'
 
 interface TextRow {
   content: string
@@ -15,8 +17,12 @@ interface TextRow {
 const inputSchema: JsonSchema = {
   type: 'object',
   properties: {
-    days: { type: 'number', description: '分析最近多少天的数据，默认 30' },
+    days: {
+      type: 'number',
+      description: 'Recent days to analyze when no explicit or selected time range is available; defaults to 30',
+    },
     top_n: { type: 'number', description: '返回前多少个高频词，默认 50' },
+    ...timeParamProperties,
   },
 }
 
@@ -31,13 +37,20 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
     return { content: text, data: null }
   }
 
+  const effectiveTimeFilter = parseExtendedTimeParams(params as ExtendedTimeParams, context.timeFilter)
+  const timeCondition = effectiveTimeFilter
+    ? 'ts >= @startTs AND ts <= @endTs'
+    : "ts > unixepoch('now', '-' || @days || ' days')"
   const sql = `
     SELECT content FROM message
     WHERE type = 0 AND content IS NOT NULL AND LENGTH(content) > 1
-      AND ts > unixepoch('now', '-' || @days || ' days')
+      AND ${timeCondition}
     LIMIT 50000
   `
-  const rows = await context.dataProvider!.executeParameterizedSql<TextRow>(sql, { days })
+  const rows = await context.dataProvider!.executeParameterizedSql<TextRow>(
+    sql,
+    effectiveTimeFilter ? { ...effectiveTimeFilter } : { days }
+  )
   if (!rows || rows.length === 0) {
     const text = isZh ? '该时间范围内没有文本消息' : 'No text messages in this time range'
     return { content: text, data: null }
@@ -63,8 +76,15 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
     count,
   }))
 
+  const formattedRange = formatTimeRange(effectiveTimeFilter, locale)
+  const period =
+    typeof formattedRange === 'string'
+      ? isZh
+        ? `近${days}天`
+        : `Last ${days} days`
+      : `${formattedRange.start} – ${formattedRange.end}`
   const data = {
-    period: isZh ? `近${days}天` : `Last ${days} days`,
+    period,
     totalMessages: rows.length,
     totalKeywords: ranking.length,
     keywords: ranking.map((r) => `${r.rank}. ${r.word} (${r.count}${isZh ? '次' : ''})`),

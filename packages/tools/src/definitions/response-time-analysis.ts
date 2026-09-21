@@ -6,7 +6,9 @@
 
 import { computeResponseTimeStats } from '@openchatlab/core'
 import type { ToolDefinition, ToolExecutionContext, ToolResult, JsonSchema } from '../types'
-import { isChineseLocale } from '../utils/format'
+import { formatTimeRange, isChineseLocale } from '../utils/format'
+import { parseExtendedTimeParams, type ExtendedTimeParams } from '../utils/time-params'
+import { timeParamProperties } from '../utils/schemas'
 
 interface MsgRow {
   sender_id: number
@@ -17,8 +19,12 @@ interface MsgRow {
 const inputSchema: JsonSchema = {
   type: 'object',
   properties: {
-    days: { type: 'number', description: '分析最近多少天的数据，默认 30' },
+    days: {
+      type: 'number',
+      description: 'Recent days to analyze when no explicit or selected time range is available; defaults to 30',
+    },
     top_n: { type: 'number', description: '返回前多少名，默认 10' },
+    ...timeParamProperties,
   },
 }
 
@@ -28,15 +34,22 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
   const days = (params.days as number) || 30
   const topN = (params.top_n as number) || 10
 
+  const effectiveTimeFilter = parseExtendedTimeParams(params as ExtendedTimeParams, context.timeFilter)
+  const timeCondition = effectiveTimeFilter
+    ? 'msg.ts >= @startTs AND msg.ts <= @endTs'
+    : "msg.ts > unixepoch('now', '-' || @days || ' days')"
   const sql = `
     SELECT msg.sender_id, COALESCE(m.group_nickname, m.account_name) AS name, msg.ts
     FROM message msg
     JOIN member m ON msg.sender_id = m.id
     WHERE msg.type = 0
-      AND msg.ts > unixepoch('now', '-' || @days || ' days')
+      AND ${timeCondition}
     ORDER BY msg.ts ASC
   `
-  const rows = await context.dataProvider!.executeParameterizedSql<MsgRow>(sql, { days })
+  const rows = await context.dataProvider!.executeParameterizedSql<MsgRow>(
+    sql,
+    effectiveTimeFilter ? { ...effectiveTimeFilter } : { days }
+  )
   if (!rows || rows.length < 2) {
     const text = isZh
       ? '该时间范围内消息不足，无法分析响应时间'
@@ -69,8 +82,15 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
     count: s.responseCount,
   }))
 
+  const formattedRange = formatTimeRange(effectiveTimeFilter, locale)
+  const period =
+    typeof formattedRange === 'string'
+      ? isZh
+        ? `近${days}天`
+        : `Last ${days} days`
+      : `${formattedRange.start} – ${formattedRange.end}`
   const data = {
-    period: isZh ? `近${days}天` : `Last ${days} days`,
+    period,
     totalResponders: stats.length,
     ranking: ranking.map(
       (r) =>
