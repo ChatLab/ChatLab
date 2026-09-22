@@ -1,7 +1,61 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { AIServiceConfig } from '../../ai'
+import { completeSimple } from '../../ai/pi-runtime'
 import { createChatTopicModelClient } from './model-client'
+
+// Prevent topic requests from failing with HTTP 400 on Qwen endpoints that reject the developer role.
+for (const { provider, model, expectedRole } of [
+  { provider: 'qwen', model: 'qwen3.8', expectedRole: 'system' },
+  { provider: 'openai-compatible', model: 'qwen3.8', expectedRole: 'system' },
+  { provider: 'openai-compatible', model: 'Qwen/QwQ-32B', expectedRole: 'system' },
+  { provider: 'openai', model: 'o3', expectedRole: 'developer' },
+]) {
+  test(`topic requests preserve the supported prompt role for ${provider}/${model}`, async () => {
+    let messages: Array<{ role: string; content: unknown }> | undefined
+    let reasoning: boolean | undefined
+    const client = createChatTopicModelClient(
+      {
+        id: 'synthetic',
+        name: 'Synthetic',
+        provider,
+        model,
+        baseUrl: 'https://example.invalid/v1',
+        apiKey: 'test-key',
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      {
+        completeSimple: (model, context, options) => {
+          reasoning = model.reasoning
+          return completeSimple(model, context, {
+            ...options,
+            onPayload: async (payload, model) => {
+              const normalized = (await options?.onPayload?.(payload, model)) ?? payload
+              messages = (normalized as { messages: typeof messages }).messages
+              // Capture the real SDK serialization, then stop before any network request.
+              throw new Error('Captured topic request before network')
+            },
+          })
+        },
+      }
+    )
+    await assert.rejects(
+      () =>
+        client.complete(
+          { systemPrompt: 'Synthetic system prompt', userPrompt: 'Synthetic user prompt' },
+          { signal: new AbortController().signal, sessionId: 'synthetic' }
+        ),
+      /Captured topic request before network/
+    )
+    assert.equal(reasoning, true)
+    assert.deepEqual(
+      messages?.map((message) => message.role),
+      [expectedRole, 'user']
+    )
+    assert.equal(messages?.[0].content, 'Synthetic system prompt')
+  })
+}
 
 test('topic model calls disable reasoning and constrain the DeepSeek payload', async () => {
   let capturedOptions: Parameters<typeof import('../../ai').completeSimple>[2]

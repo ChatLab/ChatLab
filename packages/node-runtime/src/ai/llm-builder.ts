@@ -156,6 +156,10 @@ export function buildPiModel(config: PiModelConfig, options?: BuildPiModelOption
       : baseUrl
 
   const { reasoning, compat, thinkingLevelMap } = inferReasoning(config.provider, modelId, modelDef)
+  // Qwen chat-completions endpoints reject developer messages, even for reasoning models.
+  // Override Pi's default for official and custom-hosted Qwen models without disabling thinking.
+  const requiresSystemRole =
+    apiFormat === 'openai-completions' && (config.provider.toLowerCase() === 'qwen' || /\bqwen|qwq/i.test(modelId))
 
   return {
     id: modelId,
@@ -171,6 +175,6 @@ export function buildPiModel(config: PiModelConfig, options?: BuildPiModelOption
     contextWindow,
     // Reasoning and visible text share the output budget on compatible APIs.
     maxTokens: config.maxTokens ?? (reasoning ? 16_384 : 4096),
-    compat,
+    compat: requiresSystemRole ? { ...compat, supportsDeveloperRole: false } : compat,
   }
 }

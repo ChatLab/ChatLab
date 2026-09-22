@@ -121,7 +121,7 @@ describe('buildPiModel', () => {
       baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     })
     assert.equal(model.reasoning, true)
-    assert.deepEqual(model.compat, { thinkingFormat: 'qwen' })
+    assert.deepEqual(model.compat, { thinkingFormat: 'qwen', supportsDeveloperRole: false })
   })
 
   it('auto-infers reasoning=true and compat.thinkingFormat=qwen for custom self-hosted qwen3 model', () => {
@@ -131,7 +131,7 @@ describe('buildPiModel', () => {
       { findModelFn: () => null }
     )
     assert.equal(model.reasoning, true)
-    assert.deepEqual(model.compat, { thinkingFormat: 'qwen' })
+    assert.deepEqual(model.compat, { thinkingFormat: 'qwen', supportsDeveloperRole: false })
   })
 
   it('auto-infers reasoning=true for custom model saved with only capabilities:["chat"]', () => {
@@ -155,7 +155,7 @@ describe('buildPiModel', () => {
       }
     )
     assert.equal(model.reasoning, true)
-    assert.deepEqual(model.compat, { thinkingFormat: 'qwen' })
+    assert.deepEqual(model.compat, { thinkingFormat: 'qwen', supportsDeveloperRole: false })
   })
 
   it('auto-infers reasoning=false and compat=undefined for non-reasoning Anthropic model', () => {
