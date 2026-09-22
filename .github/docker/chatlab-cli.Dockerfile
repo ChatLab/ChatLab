@@ -9,10 +9,13 @@ ENV CHATLAB_NLP_DICT_DIR=/opt/chatlab/nlp
 ADD --checksum=sha256:139519822fe8ab9e10d9d07e68ea0451045380aedaf54ecc51e2a28c6b42a13f --chmod=0644 \
     https://chatlab.fun/assets/nlp/zh-CN.dict /opt/chatlab/nlp/zh-CN.dict
 
+COPY chatlab-cli-${CHATLAB_VERSION}.tgz /tmp/chatlab-cli.tgz
+
 RUN test -n "$CHATLAB_VERSION" \
     && apt-get update \
     && apt-get install --yes --no-install-recommends g++ make python3 \
-    && npm install --global --omit=dev "chatlab-cli@${CHATLAB_VERSION}" \
+    && npm install --global --omit=dev /tmp/chatlab-cli.tgz \
+    && rm /tmp/chatlab-cli.tgz \
     && CHATLAB_SKIP_UPDATE_CHECK=1 clb runtime install local-embedding \
     && npm cache clean --force \
     && apt-get purge --yes --auto-remove g++ make python3 \

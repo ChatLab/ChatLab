@@ -547,15 +547,30 @@ jobs:
           name: ChatLab-cli-build
           path: apps/cli
 
-      - name: Copy README for npm publish
-        run: cp README.md apps/cli/README.md
+      - name: Prepare package documentation
+        run: node apps/cli/scripts/sync-release-docs.mjs
+
+      - name: Pack CLI release
+        working-directory: apps/cli
+        run: npm pack --ignore-scripts
+
+      - name: Upload CLI package
+        uses: actions/upload-artifact@v6
+        with:
+          name: ChatLab-cli-package
+          path: apps/cli/chatlab-cli-${{ needs.prepare_release.outputs.version }}.tgz
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Publish to npm
         working-directory: apps/cli
-        run: npm publish --ignore-scripts --provenance --tag ${{ needs.prepare_release.outputs.npm_tag }}
+        env:
+          CHATLAB_VERSION: ${{ needs.prepare_release.outputs.version }}
+          NPM_TAG: ${{ needs.prepare_release.outputs.npm_tag }}
+        run: npm publish "./chatlab-cli-${CHATLAB_VERSION}.tgz" --ignore-scripts --provenance --tag "$NPM_TAG"
 
   publish-docker:
-    # The image installs the published npm package and does not consume desktop release artifacts.
+    # Install the exact tarball sent to npm without waiting for registry propagation.
     needs: [prepare_release, publish-cli]
     if: needs.prepare_release.outputs.is_prerelease == 'false'
     runs-on: ubuntu-latest
@@ -565,28 +580,14 @@ jobs:
       packages: write
 
     steps:
-      - name: Wait for npm package availability
-        timeout-minutes: 5
-        shell: bash
-        env:
-          CHATLAB_VERSION: ${{ needs.prepare_release.outputs.version }}
-        run: |
-          for attempt in {1..30}; do
-            published_version="$(npm view "chatlab-cli@${CHATLAB_VERSION}" version --registry=https://registry.npmjs.org --prefer-online --fetch-timeout=10000 --fetch-retries=0 2>/dev/null || true)"
-            if [ "$published_version" = "$CHATLAB_VERSION" ]; then
-              echo "chatlab-cli@${CHATLAB_VERSION} is available on npm"
-              exit 0
-            fi
-
-            echo "Waiting for chatlab-cli@${CHATLAB_VERSION} to become available on npm (${attempt}/30)"
-            sleep 10
-          done
-
-          echo "::error::chatlab-cli@${CHATLAB_VERSION} was not available on npm after 5 minutes"
-          exit 1
-
       - name: Checkout image definition
         uses: actions/checkout@v5
+
+      - name: Download CLI package
+        uses: actions/download-artifact@v8
+        with:
+          name: ChatLab-cli-package
+          path: .github/docker
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -617,7 +618,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
-          context: .
+          context: .github/docker
           file: .github/docker/chatlab-cli.Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
