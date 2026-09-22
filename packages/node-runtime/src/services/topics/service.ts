@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { PathProvider } from '@openchatlab/core'
 import type { ChatTopicDay, ChatTopicPreflight, ChatTopicRun, CreateChatTopicsRequest } from '@openchatlab/shared-types'
 import { appLogger } from '../../logging/app-logger'
+import { createAiTranslate } from '../../ai/i18n'
 import { isRuntimeVersionAtLeast, raiseDataDirMinRuntimeVersion, type RuntimeIdentity } from '../../data-dir-compat'
 import type { SessionRuntimeAdapter } from '../adapters'
 import {
@@ -542,6 +543,12 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
             }
       const response = await modelClient.complete(attemptPrompts, { signal, sessionId })
       run = recordModelUsage(run, response)
+      if (response.outputLimit) {
+        const t = createAiTranslate(run.locale ?? undefined)
+        throw new Error(
+          t(response.outputLimit === 'reasoning' ? 'ai.topics.reasoningLimitReached' : 'ai.topics.outputLimitReached')
+        )
+      }
       try {
         return { run, value: validate(response.text) }
       } catch (error) {

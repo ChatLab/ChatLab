@@ -11,6 +11,7 @@ export interface ChatTopicModelResult {
   text: string
   inputTokens: number
   outputTokens: number
+  outputLimit?: 'reasoning' | 'text'
 }
 
 export interface ChatTopicModelClient {
@@ -57,20 +58,35 @@ export function createChatTopicModelClient(
       if (result.stopReason === 'error' || result.stopReason === 'aborted') {
         throw new Error(result.errorMessage || `Topic model request ${result.stopReason}`)
       }
+      const text = result.content
+        .filter((item): item is PiTextContent => item.type === 'text')
+        .map((item) => item.text)
+        .join('')
+      const outputLimit: ChatTopicModelResult['outputLimit'] =
+        result.stopReason === 'length'
+          ? !text.trim() && result.content.some((item) => item.type === 'thinking')
+            ? 'reasoning'
+            : 'text'
+          : undefined
       return {
-        text: result.content
-          .filter((item): item is PiTextContent => item.type === 'text')
-          .map((item) => item.text)
-          .join(''),
+        text,
         inputTokens: result.usage.input,
         outputTokens: result.usage.output,
+        ...(outputLimit ? { outputLimit } : {}),
       }
     },
   }
 }
 
-function normalizeTopicModelPayload(payload: unknown, model: { provider: string; baseUrl: string }): unknown {
-  if (!isRecord(payload) || !isDeepSeekEndpoint(model)) return undefined
+function normalizeTopicModelPayload(payload: unknown, model: ReturnType<typeof buildPiModel>): unknown {
+  if (!isRecord(payload)) return undefined
+
+  // Qwen's Anthropic-compatible endpoint may enable thinking when the field is omitted.
+  // Topic extraction needs JSON, not reasoning; keep this override out of interactive AI requests.
+  if (model.api === 'anthropic-messages' && /\bqwen/i.test(model.id)) {
+    return { ...payload, thinking: { type: 'disabled' } }
+  }
+  if (!isDeepSeekEndpoint(model)) return undefined
 
   // The DeepSeek chat-completions endpoint ignored max_completion_tokens in a real topic run and emitted more than
   // 15k output tokens. Keep this compatibility correction local to the topic runtime until the SDK fixes detection.

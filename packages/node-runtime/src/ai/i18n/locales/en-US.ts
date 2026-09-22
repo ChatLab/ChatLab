@@ -3,6 +3,12 @@
  */
 export default {
   ai: {
+    topics: {
+      reasoningLimitReached:
+        'The model reached its output limit with only reasoning and no topic result. Use a different fast model or an endpoint that supports disabling thinking.',
+      outputLimitReached:
+        'The topic response reached the model output limit and may be incomplete. Use a different fast model and retry.',
+    },
     tools: {
       search_messages: {
         desc: 'Search chat records by keywords. This is the primary evidence tool for factual questions about keywords, member messages, or whether a topic appeared. Can specify time range and sender to filter messages. Supports minute-level time queries.',

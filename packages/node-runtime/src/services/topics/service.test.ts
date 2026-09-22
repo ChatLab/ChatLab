@@ -390,6 +390,45 @@ test('generation does not resume a checkpoint created in another timezone', asyn
   }
 })
 
+// Do not retry a truncated response as malformed JSON or replace an existing successful topic snapshot.
+for (const outputLimit of ['reasoning', 'text'] as const) {
+  test(`truncated ${outputLimit} fails clearly, records usage, and preserves existing topics`, async () => {
+    let truncate = false
+    const modelClient: ChatTopicModelClient = {
+      modelId: 'test/model',
+      async complete(prompts) {
+        if (!truncate) return successfulTopicResult(prompts)
+        return {
+          text: outputLimit === 'reasoning' ? '' : '{"operations":[],"assignments":[]}',
+          inputTokens: 120,
+          outputTokens: 4096,
+          outputLimit,
+        }
+      },
+    }
+    const { service, manager } = createHarness(modelClient, 1)
+    try {
+      const first = service.generateDay('group', '2026-08-09', 'Asia/Shanghai', 'en-US')
+      await waitForRun(service, 'group', first.id, 'completed')
+      const originalDay = service.getDay('group', '2026-08-09', 'Asia/Shanghai')
+      assert.ok(originalDay?.topics.length)
+
+      truncate = true
+      const next = service.generateDay('group', '2026-08-09', 'Asia/Shanghai', 'en-US')
+      const failed = await waitForRun(service, 'group', next.id, 'failed')
+      assert.match(failed.lastError ?? '', /output limit/i)
+      if (outputLimit === 'reasoning') assert.match(failed.lastError ?? '', /reasoning/i)
+      assert.equal(failed.modelCalls, 1)
+      assert.equal(failed.inputTokens, 120)
+      assert.equal(failed.outputTokens, 4096)
+      assert.deepEqual(service.getDay('group', '2026-08-09', 'Asia/Shanghai'), originalDay)
+    } finally {
+      service.close()
+      manager.closeAll()
+    }
+  })
+}
+
 test('a paused model request resumes from the persisted day checkpoint', async () => {
   let calls = 0
   const modelClient: ChatTopicModelClient = {

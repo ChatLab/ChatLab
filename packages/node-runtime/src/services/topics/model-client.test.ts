@@ -1,8 +1,106 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import type { AssistantMessage } from '@earendil-works/pi-ai'
 import type { AIServiceConfig } from '../../ai'
 import { completeSimple } from '../../ai/pi-runtime'
 import { createChatTopicModelClient } from './model-client'
+
+const anthropicConfig: AIServiceConfig = {
+  id: 'synthetic',
+  name: 'Synthetic',
+  provider: 'anthropic',
+  apiFormat: 'anthropic-messages',
+  model: 'qwen3.8-flash',
+  baseUrl: 'https://test.cn-beijing.maas.aliyuncs.com/apps/anthropic',
+  apiKey: 'test-key',
+  createdAt: 1,
+  updatedAt: 1,
+}
+
+// Prevent provider-default thinking from consuming the topic result budget, without changing other APIs/models.
+for (const { config, expectedThinking } of [
+  { config: anthropicConfig, expectedThinking: { type: 'disabled' } },
+  {
+    config: { ...anthropicConfig, provider: 'openai-compatible', baseUrl: 'https://example.invalid/anthropic/v1' },
+    expectedThinking: { type: 'disabled' },
+  },
+  { config: { ...anthropicConfig, model: 'claude-sonnet-4-5' }, expectedThinking: undefined },
+  { config: { ...anthropicConfig, apiFormat: 'openai-completions' as const }, expectedThinking: undefined },
+]) {
+  test(`topic thinking payload for ${config.provider}/${config.apiFormat}/${config.model}`, async () => {
+    let request: Record<string, unknown> | undefined
+    const client = createChatTopicModelClient(config, {
+      completeSimple: (model, context, options) =>
+        completeSimple(model, context, {
+          ...options,
+          onPayload: async (payload, model) => {
+            request = ((await options?.onPayload?.(payload, model)) ?? payload) as Record<string, unknown>
+            throw new Error('Captured topic request before network')
+          },
+        }),
+    })
+    await assert.rejects(
+      () =>
+        client.complete(
+          { systemPrompt: 'Return JSON only.', userPrompt: 'Synthetic messages' },
+          { signal: new AbortController().signal, sessionId: 'synthetic' }
+        ),
+      /Captured topic request before network/
+    )
+    assert.ok(request)
+    assert.deepEqual(request.thinking, expectedThinking)
+    if (config.apiFormat === 'anthropic-messages') assert.equal(request.max_tokens, 4096)
+  })
+}
+
+// Truncated output must remain distinguishable from invalid JSON, while retaining billable usage.
+for (const { content, stopReason, expectedLimit } of [
+  {
+    content: [{ type: 'thinking', thinking: 'Synthetic reasoning' }],
+    stopReason: 'length',
+    expectedLimit: 'reasoning',
+  },
+  { content: [{ type: 'text', text: '{"operations":' }], stopReason: 'length', expectedLimit: 'text' },
+  {
+    content: [{ type: 'text', text: '{"operations":[],"assignments":[]}' }],
+    stopReason: 'stop',
+    expectedLimit: undefined,
+  },
+] satisfies Array<{
+  content: AssistantMessage['content']
+  stopReason: AssistantMessage['stopReason']
+  expectedLimit?: string
+}>) {
+  test(`topic response preserves ${stopReason}/${expectedLimit ?? 'complete'} and usage`, async () => {
+    const client = createChatTopicModelClient(anthropicConfig, {
+      completeSimple: async (model) => ({
+        role: 'assistant',
+        content,
+        api: model.api,
+        provider: model.provider,
+        model: model.id,
+        usage: {
+          input: 120,
+          output: 4096,
+          cacheRead: 0,
+          cacheWrite: 0,
+          totalTokens: 4216,
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+        },
+        stopReason,
+        timestamp: Date.now(),
+      }),
+    })
+    const result = await client.complete(
+      { systemPrompt: 'Return JSON only.', userPrompt: 'Synthetic messages' },
+      { signal: new AbortController().signal, sessionId: 'synthetic' }
+    )
+    assert.equal(result.outputLimit, expectedLimit)
+    assert.equal(result.inputTokens, 120)
+    assert.equal(result.outputTokens, 4096)
+    assert.equal(result.text, content[0].type === 'text' ? content[0].text : '')
+  })
+}
 
 // Prevent topic requests from failing with HTTP 400 on Qwen endpoints that reject the developer role.
 for (const { provider, model, expectedRole } of [
