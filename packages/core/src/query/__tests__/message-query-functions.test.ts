@@ -7,6 +7,9 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import Database from 'better-sqlite3'
+import { getMessageContext, getSearchMessageContext } from '../message-queries'
+import { SqliteTestAdapter } from './sqlite-test-adapter'
+import { CHAT_DB_TABLES, CHAT_DB_INDEXES } from '../../schema/tables'
 
 import {
   fetchAllRecentMessages,
@@ -124,6 +127,39 @@ describe('message pagination', () => {
 })
 
 describe('message search and context', () => {
+  // Prevent common-keyword searches in busy segments from blocking the database for seconds.
+  for (const indexed of [true, false]) {
+    it(`expands many hits without repeated scans (indexed=${indexed})`, async () => {
+      const db = new Database(':memory:')
+      try {
+        db.exec(CHAT_DB_TABLES + CHAT_DB_INDEXES)
+        db.exec(`INSERT INTO member (platform_id) VALUES ('synthetic');
+        WITH RECURSIVE seq(id) AS (SELECT 1 UNION ALL SELECT id + 1 FROM seq WHERE id < 200000)
+        INSERT INTO message (id, sender_id, ts, type, content)
+        SELECT id, 1, 1700000000 + (200001 - id) * 10, 0, 'synthetic' FROM seq;`)
+        if (indexed) db.exec('INSERT INTO message_context (message_id, segment_id) SELECT id, 1 FROM message')
+        const ids = Array.from({ length: 1000 }, (_, i) => 10001 + i)
+        const expected = Array.from({ length: 1004 }, (_, i) => 11002 - i)
+        for (const query of [
+          () => getSearchMessageContext(new SqliteTestAdapter(db), ids, 2, 2),
+          () => fetchSearchMessageContext(createSqliteExecutor(db), ids, 2, 2),
+        ]) {
+          const started = performance.now()
+          const messages = await query()
+          assert.deepEqual(
+            messages.map((message) => message.id),
+            expected
+          )
+          assert.ok(
+            performance.now() - started < 2000,
+            'Context expansion must not repeatedly scan the message history'
+          )
+        }
+      } finally {
+        db.close()
+      }
+    })
+  }
   it('searches the database and returns the matching total', async () => {
     const db = createMessageDb()
     try {
@@ -142,17 +178,28 @@ describe('message search and context', () => {
   it('loads chronological context instead of insertion order', async () => {
     const db = createBackfilledMessageDb()
     try {
-      const messages = await fetchMessageContext(createSqliteExecutor(db), 1, 2)
-      assert.deepEqual(
-        messages.map((message) => message.id),
-        [3, 4, 1, 2]
-      )
+      const adapter = new SqliteTestAdapter(db)
+      const executor = createSqliteExecutor(db)
+      for (const messages of [getMessageContext(adapter, [1], 2), await fetchMessageContext(executor, 1, 2)]) {
+        assert.deepEqual(
+          messages.map((message) => message.id),
+          [3, 4, 1, 2]
+        )
+      }
+      db.exec(`INSERT INTO message (id, sender_id, ts, type, content) VALUES
+        (5, 1, 300, 0, 'same-second backfill'), (6, 1, 300, 0, 'same-second later');`)
+      for (const messages of [getMessageContext(adapter, [5], 1), await fetchMessageContext(executor, 5, 1)]) {
+        assert.deepEqual(
+          messages.map((message) => message.id),
+          [1, 5, 6]
+        )
+      }
     } finally {
       db.close()
     }
   })
 
-  it('falls back to neighboring message ids without a message_context table', async () => {
+  it('falls back to chronological neighbors without a message_context table', async () => {
     const db = createMessageDb()
     try {
       const result = await fetchSearchMessageContext(createSqliteExecutor(db), [3], 1, 1)
@@ -164,6 +211,43 @@ describe('message search and context', () => {
       db.close()
     }
   })
+
+  for (const indexed of [false, true]) {
+    it(`loads backfilled search context in time order and respects segments (indexed=${indexed})`, async () => {
+      const db = createBackfilledMessageDb()
+      try {
+        db.exec(`INSERT INTO message (id, sender_id, ts, type, content) VALUES
+          (5, 1, 300, 0, 'same-second backfill'), (6, 1, 300, 0, 'same-second later'),
+          (7, 1, 5000, 0, 'another segment');`)
+        if (indexed) {
+          db.exec(`CREATE TABLE message_context (message_id INTEGER PRIMARY KEY, segment_id INTEGER);
+            INSERT INTO message_context SELECT id, CASE WHEN id = 7 THEN 2 ELSE 1 END FROM message;`)
+        }
+        const adapter = new SqliteTestAdapter(db)
+        const executor = createSqliteExecutor(db)
+        for (const { ids, before, after, expected } of [
+          { ids: [1], before: 1, after: 1, expected: [4, 1, 5] },
+          { ids: [5], before: 1, after: 1, expected: [1, 5, 6] },
+          { ids: [6], before: 1, after: 1, expected: [5, 6, 2] },
+          { ids: [2], before: 1, after: 1, expected: indexed ? [6, 2] : [6, 2, 7] },
+          { ids: [1, 5], before: 1, after: 1, expected: [4, 1, 5, 6] },
+          { ids: [1], before: 0, after: 1, expected: [1, 5] },
+        ]) {
+          for (const messages of [
+            getSearchMessageContext(adapter, ids, before, after),
+            await fetchSearchMessageContext(executor, ids, before, after),
+          ]) {
+            assert.deepEqual(
+              messages.map((message) => message.id),
+              expected
+            )
+          }
+        }
+      } finally {
+        db.close()
+      }
+    })
+  }
 })
 
 describe('recent messages', () => {

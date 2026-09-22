@@ -133,7 +133,8 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
       systemPrompt,
       llmAdapter,
       aiChatManager,
-      aiLogger ?? undefined
+      aiLogger ?? undefined,
+      { signal: abortSignal }
     )
     if (compressionResult.compressed) {
       onEvent({
@@ -252,6 +253,8 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
       maxToolRounds: DEFAULT_MAX_TOOL_ROUNDS,
       abortSignal,
       providerSessionId: aiChatId,
+      locale,
+      logger: aiLogger ?? undefined,
       steerMessage,
       thinkingLevel: thinkingLevel as import('@openchatlab/core').ThinkingLevel | undefined,
       onConvertToLlm: (filteredMessages) => {
@@ -267,12 +270,17 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
       },
     })
 
-    if (result.error) {
+    if (result.error && !abortSignal?.aborted) {
       const friendlyMessage = formatAIError(result.error)
-      onEvent({ type: 'error', error: { name: 'AgentError', message: friendlyMessage } })
+      onEvent({
+        type: 'error',
+        error: { name: result.stopReason === 'length' ? 'OutputLimitError' : 'AgentError', message: friendlyMessage },
+      })
     }
 
-    handler.emitStatus('completed', cachedMessages, { force: true })
+    handler.emitStatus(abortSignal?.aborted ? 'aborted' : result.error ? 'error' : 'completed', cachedMessages, {
+      force: true,
+    })
     onEvent({ type: 'done', isFinished: true, usage: result.usage })
   } catch (error) {
     const friendlyMessage = formatAIError(error)

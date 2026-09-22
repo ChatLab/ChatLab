@@ -498,6 +498,99 @@ describe('runChatTurn', () => {
 })
 
 describe('runChatCommand', () => {
+  it('keeps the first truncated turn in the same interactive conversation for continuation', async () => {
+    const stdout = new MemoryWritable()
+    const stderr = new MemoryWritable()
+    const stdin = new PromptDrivenReadable(['first', 'continue', 'exit'])
+    const aiChatManager = createAIChatManager()
+    const chatIds: string[] = []
+    stdout.onChunk = (text) => {
+      if (text.includes('chatlab> ')) stdin.pushNext()
+    }
+    await runChatCommand(
+      { sessionId: 'session-1' },
+      {
+        dbManager: createDbManager(['session-1']),
+        pathProvider: {} as never,
+        aiChatManager,
+        stdout,
+        stderr,
+        stdin,
+        createRunAgentStream: () => async (params, onEvent) => {
+          chatIds.push(params.aiChatId)
+          onEvent({ type: 'content', content: params.userMessage === 'first' ? 'Partial answer' : 'Continued answer' })
+          if (params.userMessage === 'first') {
+            onEvent({ type: 'error', error: { name: 'OutputLimitError', message: 'Output limit reached' } })
+          }
+          onEvent({ type: 'done', isFinished: true })
+        },
+      }
+    )
+    assert.deepEqual(chatIds, ['ai_chat_1', 'ai_chat_1'])
+    assert.match(stderr.text(), /Output limit reached/)
+    assert.deepEqual(
+      (aiChatManager as unknown as { __messages: Array<{ content: string }> }).__messages.map(
+        (message) => message.content
+      ),
+      ['first', 'Partial answer', 'continue', 'Continued answer']
+    )
+  })
+
+  it('outputs a persisted partial JSON result but still fails a one-shot truncated command', async () => {
+    const stdout = new MemoryWritable()
+    const aiChatManager = createAIChatManager()
+    await assert.rejects(
+      () =>
+        runChatCommand(
+          { sessionId: 'session-1', question: 'hello', json: true },
+          {
+            dbManager: createDbManager(['session-1']),
+            pathProvider: {} as never,
+            aiChatManager,
+            stdout,
+            createRunAgentStream: () => async (_params, onEvent) => {
+              onEvent({
+                type: 'plan',
+                plan: {
+                  type: 'plan',
+                  version: 1,
+                  status: 'executing',
+                  plan: {
+                    version: 1,
+                    title: 'Review the evidence',
+                    route: 'planned_execution',
+                    intent: 'summary',
+                    steps: [{ goal: 'Summarize the evidence', suggestedTools: [], evidenceNeeded: 'Recent messages' }],
+                    successCriteria: ['Provide a complete summary'],
+                  },
+                },
+              })
+              onEvent({ type: 'content', content: 'Partial answer' })
+              onEvent({ type: 'error', error: { name: 'OutputLimitError', message: 'Output limit reached' } })
+              onEvent({
+                type: 'done',
+                isFinished: true,
+                usage: {
+                  promptTokens: 10,
+                  completionTokens: 10,
+                  totalTokens: 20,
+                  cacheReadTokens: 0,
+                  cacheWriteTokens: 0,
+                },
+              })
+            },
+          }
+        ),
+      { name: 'OutputLimitError' }
+    )
+    const result = JSON.parse(stdout.text())
+    assert.equal(result.aiChatId, 'ai_chat_1')
+    assert.equal(result.answer, 'Partial answer')
+    assert.equal(result.error.name, 'OutputLimitError')
+    assert.equal(result.contentBlocks.find((block: ContentBlock) => block.type === 'plan')?.status, 'skipped')
+    assert.equal((aiChatManager as unknown as { __messages: unknown[] }).__messages.length, 2)
+  })
+
   it('keeps interactive mode alive after a single failed turn', async () => {
     const stdout = new MemoryWritable()
     const stderr = new MemoryWritable()

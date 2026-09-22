@@ -9,7 +9,7 @@ import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mc
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { getSessionMeta, getSessionOverview, getDatabaseSchema } from '@openchatlab/core'
-import { MCP_TOOL_REGISTRY, CoreDataProvider } from '@openchatlab/tools'
+import { MCP_TOOL_REGISTRY, CoreDataProvider, getLocalizedToolMetadata } from '@openchatlab/tools'
 import type { SessionListContext } from '@openchatlab/tools/src/definitions/sessions'
 import type { McpDatabaseManager, McpServerOptions } from './types'
 import { jsonSchemaToZod } from './schema'
@@ -30,17 +30,18 @@ function applyFormat(content: string, format: string | undefined, toolName: stri
   return textResult ?? content
 }
 
-function registerTools(server: McpServer, dbManager: McpDatabaseManager): void {
+function registerTools(server: McpServer, dbManager: McpDatabaseManager, locale?: string): void {
   for (const tool of MCP_TOOL_REGISTRY) {
     const mcpName = `${MCP_TOOL_PREFIX}${tool.name}`
+    const { description, inputSchema } = getLocalizedToolMetadata(tool, locale)
 
     if (tool.name === 'list_sessions') {
       const zodShape = {
-        ...jsonSchemaToZod(tool.inputSchema.properties, tool.inputSchema.required),
+        ...jsonSchemaToZod(inputSchema.properties, inputSchema.required),
         format: FORMAT_PARAM,
       }
 
-      server.tool(mcpName, tool.description, zodShape, async (params) => {
+      server.tool(mcpName, description, zodShape, async (params) => {
         const format = params.format as string | undefined
         const context: SessionListContext = {
           db: null as any,
@@ -59,11 +60,11 @@ function registerTools(server: McpServer, dbManager: McpDatabaseManager): void {
 
     const zodShape = {
       session_id: z.string().describe('Session ID'),
-      ...jsonSchemaToZod(tool.inputSchema.properties, tool.inputSchema.required),
+      ...jsonSchemaToZod(inputSchema.properties, inputSchema.required),
       format: FORMAT_PARAM,
     }
 
-    server.tool(mcpName, tool.description, zodShape, async (params) => {
+    server.tool(mcpName, description, zodShape, async (params) => {
       const sessionId = params.session_id as string
       const format = params.format as string | undefined
       const db = dbManager.open(sessionId)
@@ -162,11 +163,11 @@ function registerResources(server: McpServer, dbManager: McpDatabaseManager): vo
 }
 
 export async function startMcpServer(options: McpServerOptions): Promise<void> {
-  const { version, name = 'chatlab', dbManager } = options
+  const { version, name = 'chatlab', dbManager, locale } = options
 
   const server = new McpServer({ name, version })
 
-  registerTools(server, dbManager)
+  registerTools(server, dbManager, locale)
   registerResources(server, dbManager)
 
   const transport = new StdioServerTransport()

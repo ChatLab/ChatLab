@@ -1144,8 +1144,34 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         completeTurn,
         settleProcessDuration,
         flushPendingText,
-        discardPendingText,
       } = createStreamBlockHelpers(targetBuffer, () => aiMessageIndex)
+
+      const persistStoppedTurn = async (): Promise<SendMessageResult> => {
+        appendTextToBlocks('\n\n_（已停止生成）_')
+        settleProcessDuration()
+        removePlanDraftsFromBlocks()
+        updatePlanBlockStatus('skipped')
+        for (const block of targetBuffer.messages[aiMessageIndex].contentBlocks || []) {
+          if (block.type === 'tool' && block.tool.status === 'running') block.tool.status = 'error'
+        }
+        updateAIMessage({ isStreaming: false })
+        const savedMessages = await saveAIChatMessages(
+          resolvedAIChatId,
+          userMessage,
+          targetBuffer.messages[aiMessageIndex],
+          lastDoneUsage,
+          [...changedMemoryIds],
+          memoryProvenanceToken
+        )
+        if (!savedMessages) return { success: false, reason: 'error' }
+        Object.assign(userMessage, savedMessages.userMessage)
+        targetBuffer.messages[aiMessageIndex] = {
+          ...targetBuffer.messages[aiMessageIndex],
+          ...savedMessages.assistantMessage,
+          isStreaming: false,
+        }
+        return { success: false, reason: 'aborted' }
+      }
 
       const currentAssistantId = targetBuffer.assistantId ?? getDefaultGeneralAssistantId(state.locale)
       if (!resolvedAIChatId) {
@@ -1187,6 +1213,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         searchContextBefore: aiGlobalSettings.value.searchContextBefore,
         searchContextAfter: aiGlobalSettings.value.searchContextAfter,
       }
+
+      if (state.isAborted) return await persistStoppedTurn()
 
       const { requestId: agentReqId, promise: agentPromise } = useAgentStreamService().runStream(
         {
@@ -1412,9 +1440,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
       const result = await agentPromise
       if (state.isAborted) {
-        discardPendingText()
-        clearActiveTask(chatKey, agentReqId)
-        return { success: false, reason: 'aborted' }
+        return await persistStoppedTurn()
       }
       flushPendingText()
 
@@ -1826,6 +1852,11 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         searchContextAfter: aiGlobalSettings.value.searchContextAfter,
       }
 
+      if (state.isAborted) {
+        restoreOriginal()
+        return { success: false, reason: 'aborted' }
+      }
+
       const { requestId: agentReqId, promise: agentPromise } = useAgentStreamService().runStream(
         {
           userMessage: content,
@@ -1993,7 +2024,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         return { success: false, reason: 'busy', activeTask: activeTask.value }
       }
 
-      if (result.success && result.result) {
+      const wasTruncated = result.error?.name === 'OutputLimitError'
+      if ((result.success || wasTruncated) && result.result) {
         updateAIMessage({
           dataSource: { toolsUsed: result.result.toolsUsed, toolRounds: result.result.toolRounds },
           isStreaming: false,
@@ -2005,7 +2037,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         updateAIMessage({ contentBlocks: [...blocks], isStreaming: false })
       }
 
-      if (!result.success) {
+      // A completed provider stream can be incomplete without invalidating its generated content.
+      if (!result.success && !wasTruncated) {
         restoreOriginal()
         return { success: false, reason: 'error' }
       }
@@ -2034,7 +2067,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
       targetBuffer.sessionTokenUsage = toTokenUsage(await useAIService().getAIChatTokenUsage(state.currentAIChatId!))
       state.sessionTokenUsage = { ...targetBuffer.sessionTokenUsage }
-      return { success: true }
+      return result.success ? { success: true } : { success: false, reason: 'error' }
     } catch (error) {
       if (state.isAborted) {
         restoreOriginal()
@@ -2075,21 +2108,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     state.currentToolStatus = null
     setAgentPhase(state, 'aborted')
 
-    // 停止时优先定位真实仍在流式写入的会话缓冲，而不是当前页面正在查看的缓冲。
-    const runningBufferKey =
-      activeTask.value?.chatKey === chatKey
-        ? (activeTask.value.aiChatId ?? DRAFT_AI_CHAT_KEY)
-        : getDisplayedBufferKey(state)
-    const runningBuffer = state.aiChatBuffers[runningBufferKey]
-    const lastMessage = runningBuffer ? runningBuffer.messages[runningBuffer.messages.length - 1] : undefined
-    if (lastMessage && lastMessage.role === 'assistant' && lastMessage.isStreaming) {
-      const durationMs = lastMessage.processDurationMs ?? Math.max(0, Date.now() - lastMessage.timestamp)
-      lastMessage.processDurationMs = durationMs
-      lastMessage.contentBlocks = persistProcessDurationMs(lastMessage.contentBlocks, durationMs)
-      lastMessage.isStreaming = false
-      lastMessage.content += '\n\n_（已停止生成）_'
-    }
-
     if (state.currentAgentRequestId) {
       try {
         await useAgentStreamService().abort(state.currentAgentRequestId)
@@ -2098,9 +2116,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       }
     }
 
-    state.currentRequestId = ''
-    state.currentAgentRequestId = ''
-    clearActiveTask(chatKey)
     return true
   }
 

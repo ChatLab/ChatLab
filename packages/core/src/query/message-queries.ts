@@ -592,14 +592,14 @@ function hydrateMessagesByIds(db: DatabaseAdapter, ids: number[]): MappedMessage
   if (ids.length === 0) return []
   const placeholders = ids.map(() => '?').join(', ')
   const rows = db
-    .prepare(`${FULL_MSG_SELECT} WHERE msg.id IN (${placeholders}) ORDER BY msg.id ASC`)
+    .prepare(`${FULL_MSG_SELECT} WHERE msg.id IN (${placeholders}) ORDER BY msg.ts ASC, msg.id ASC`)
     .all(...ids) as unknown as FullMessageRow[]
   return rows.map(mapMessageRow)
 }
 
 /**
  * Get surrounding context messages for given message IDs.
- * Uses simple id-based ordering (not session-aware).
+ * Uses chronological (timestamp, id) ordering (not session-aware).
  */
 export function getMessageContext(
   db: DatabaseAdapter,
@@ -614,12 +614,20 @@ export function getMessageContext(
     contextIds.add(messageId)
 
     const beforeRows = db
-      .prepare('SELECT id FROM message WHERE id < ? ORDER BY id DESC LIMIT ?')
+      .prepare(
+        `SELECT msg.id FROM message msg
+         WHERE (msg.ts, msg.id) < (SELECT ts, id FROM message WHERE id = ?)
+         ORDER BY msg.ts DESC, msg.id DESC LIMIT ?`
+      )
       .all(messageId, contextSize) as { id: number }[]
     beforeRows.forEach((r) => contextIds.add(r.id))
 
     const afterRows = db
-      .prepare('SELECT id FROM message WHERE id > ? ORDER BY id ASC LIMIT ?')
+      .prepare(
+        `SELECT msg.id FROM message msg
+         WHERE (msg.ts, msg.id) > (SELECT ts, id FROM message WHERE id = ?)
+         ORDER BY msg.ts ASC, msg.id ASC LIMIT ?`
+      )
       .all(messageId, contextSize) as { id: number }[]
     afterRows.forEach((r) => contextIds.add(r.id))
   }
@@ -629,7 +637,7 @@ export function getMessageContext(
 
 /**
  * Get context messages around search results.
- * Session-aware when message_context table is available, falls back to id-based ordering.
+ * Uses chronological neighbors within the indexed segment, or across the chat when unindexed.
  */
 export function getSearchMessageContext(
   db: DatabaseAdapter,
@@ -640,6 +648,7 @@ export function getSearchMessageContext(
   if (messageIds.length === 0) return []
 
   const contextIds = new Set<number>()
+  const segments = new Map<number, { ids: number[]; positions: Map<number, number> }>()
 
   const hasSessionData =
     hasTable(db, 'message_context') &&
@@ -654,25 +663,29 @@ export function getSearchMessageContext(
         | undefined
 
       if (sessionRow) {
-        if (contextBefore > 0) {
+        if (contextBefore <= 0 && contextAfter <= 0) continue
+        let segment = segments.get(sessionRow.segment_id)
+        if (!segment) {
+          // Sort each touched segment once per request, not once per search hit.
           const rows = db
             .prepare(
-              `SELECT mc.message_id as id FROM message_context mc
-               WHERE mc.segment_id = ? AND mc.message_id < ?
-               ORDER BY mc.message_id DESC LIMIT ?`
+              `SELECT msg.id FROM message_context mc
+               JOIN message msg ON msg.id = mc.message_id
+               WHERE mc.segment_id = ? ORDER BY msg.ts ASC, msg.id ASC`
             )
-            .all(sessionRow.segment_id, messageId, contextBefore) as { id: number }[]
-          rows.forEach((r) => contextIds.add(r.id))
+            .all(sessionRow.segment_id) as { id: number }[]
+          const ids = rows.map((row) => row.id)
+          segment = { ids, positions: new Map(ids.map((id, index) => [id, index])) }
+          segments.set(sessionRow.segment_id, segment)
         }
-        if (contextAfter > 0) {
-          const rows = db
-            .prepare(
-              `SELECT mc.message_id as id FROM message_context mc
-               WHERE mc.segment_id = ? AND mc.message_id > ?
-               ORDER BY mc.message_id ASC LIMIT ?`
-            )
-            .all(sessionRow.segment_id, messageId, contextAfter) as { id: number }[]
-          rows.forEach((r) => contextIds.add(r.id))
+        const position = segment.positions.get(messageId)
+        if (position !== undefined) {
+          for (const id of segment.ids.slice(
+            Math.max(0, position - Math.max(0, contextBefore)),
+            position + Math.max(0, contextAfter) + 1
+          )) {
+            contextIds.add(id)
+          }
         }
         continue
       }
@@ -680,13 +693,21 @@ export function getSearchMessageContext(
 
     if (contextBefore > 0) {
       const rows = db
-        .prepare('SELECT id FROM message WHERE id < ? ORDER BY id DESC LIMIT ?')
+        .prepare(
+          `SELECT msg.id FROM message msg
+           WHERE (msg.ts, msg.id) < (SELECT ts, id FROM message WHERE id = ?)
+           ORDER BY msg.ts DESC, msg.id DESC LIMIT ?`
+        )
         .all(messageId, contextBefore) as { id: number }[]
       rows.forEach((r) => contextIds.add(r.id))
     }
     if (contextAfter > 0) {
       const rows = db
-        .prepare('SELECT id FROM message WHERE id > ? ORDER BY id ASC LIMIT ?')
+        .prepare(
+          `SELECT msg.id FROM message msg
+           WHERE (msg.ts, msg.id) > (SELECT ts, id FROM message WHERE id = ?)
+           ORDER BY msg.ts ASC, msg.id ASC LIMIT ?`
+        )
         .all(messageId, contextAfter) as { id: number }[]
       rows.forEach((r) => contextIds.add(r.id))
     }

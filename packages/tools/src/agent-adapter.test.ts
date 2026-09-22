@@ -161,3 +161,28 @@ test('cross-chat tool adapters share entities resolved during the current Agent 
   assert.equal(afterResolve.isError, undefined)
   assert.deepEqual((afterResolve.details as { entries: AIMemoryEntry[] }).entries, [memory])
 })
+
+test('cross-chat tool adapters follow the locale for parameter descriptions', () => {
+  const base = {
+    analysisService: {} as CrossChatAnalysisToolService,
+    memoryService: {} as AIMemoryToolService,
+    aiChatId: 'global-chat-locale',
+    maxToolResultTokens: 16_000,
+    preprocessMessagesBySession: async (_sessionId: string, messages: never[]) => messages,
+    preprocessSummariesBySession: async (_sessionId: string, summaries: never[]) => summaries,
+    preprocessModelLabel: (value: string) => value,
+  } as unknown as Parameters<typeof createCrossChatAgentToolAdapters>[0]
+
+  // All thirteen cross-chat tool descriptions are already English; the shared time parameters are the
+  // part that is Chinese in the definitions, so they are what shows whether the locale reached the adapter.
+  const startTimeOf = (locale: string): string | undefined => {
+    const tool = createCrossChatAgentToolAdapters({ ...base, locale }).find(
+      (candidate) => candidate.name === 'search_messages_globally'
+    )
+    assert.ok(tool)
+    return (tool.parameters.properties.start_time as { description?: string }).description
+  }
+
+  assert.equal(startTimeOf('zh-CN'), '起始时间, 格式: YYYY-MM-DD HH:mm')
+  assert.equal(startTimeOf('en-US'), 'Start time in YYYY-MM-DD HH:mm format.')
+})

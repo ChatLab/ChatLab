@@ -12,7 +12,7 @@ import {
   hasPendingElectronDataWarning,
   verifyCliDataPath,
 } from '@openchatlab/node-runtime'
-import { startMcpServer } from 'chatlab-mcp'
+import { resolveMcpLocale, startMcpServer } from 'chatlab-mcp'
 import { getVersion } from './version'
 import { resolveCliPath } from './paths'
 import { assertCliDataDirCompatible } from './runtime-compat'
@@ -43,5 +43,5 @@ export function initMcpRuntime(): DatabaseManager {
 
 export async function startCliMcpServer(): Promise<void> {
   const dbManager = initMcpRuntime()
-  await startMcpServer({ version: getVersion(), dbManager })
+  await startMcpServer({ version: getVersion(), dbManager, locale: resolveMcpLocale(loadConfig()) })
 }

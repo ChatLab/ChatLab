@@ -29,6 +29,18 @@ describe('normalizeOpenAICompatibleBaseUrl', () => {
 })
 
 describe('buildPiModel', () => {
+  it('reserves output space for reasoning while preserving explicit limits', () => {
+    for (const config of [
+      { provider: 'deepseek', model: 'deepseek-v4-flash' },
+      { provider: 'openai', model: 'o3' },
+      { provider: 'openai-compatible', model: 'qwen3:8b' },
+    ]) {
+      assert.equal(buildPiModel(config).maxTokens, 16_384)
+      assert.equal(buildPiModel({ ...config, maxTokens: 4096 }).maxTokens, 4096)
+    }
+    assert.equal(buildPiModel({ provider: 'openai', model: 'gpt-4o' }).maxTokens, 4096)
+  })
+
   it('builds a Google Generative AI model', () => {
     const model = buildPiModel({
       provider: 'gemini',
@@ -109,7 +121,7 @@ describe('buildPiModel', () => {
       baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     })
     assert.equal(model.reasoning, true)
-    assert.deepEqual(model.compat, { thinkingFormat: 'qwen' })
+    assert.deepEqual(model.compat, { thinkingFormat: 'qwen', supportsDeveloperRole: false })
   })
 
   it('auto-infers reasoning=true and compat.thinkingFormat=qwen for custom self-hosted qwen3 model', () => {
@@ -119,7 +131,7 @@ describe('buildPiModel', () => {
       { findModelFn: () => null }
     )
     assert.equal(model.reasoning, true)
-    assert.deepEqual(model.compat, { thinkingFormat: 'qwen' })
+    assert.deepEqual(model.compat, { thinkingFormat: 'qwen', supportsDeveloperRole: false })
   })
 
   it('auto-infers reasoning=true for custom model saved with only capabilities:["chat"]', () => {
@@ -143,7 +155,7 @@ describe('buildPiModel', () => {
       }
     )
     assert.equal(model.reasoning, true)
-    assert.deepEqual(model.compat, { thinkingFormat: 'qwen' })
+    assert.deepEqual(model.compat, { thinkingFormat: 'qwen', supportsDeveloperRole: false })
   })
 
   it('auto-infers reasoning=false and compat=undefined for non-reasoning Anthropic model', () => {

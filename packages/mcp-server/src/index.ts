@@ -6,4 +6,5 @@
  */
 
 export { startMcpServer } from './server'
+export { resolveMcpLocale } from './standalone-runtime'
 export type { McpServerOptions, McpDatabaseManager } from './types'

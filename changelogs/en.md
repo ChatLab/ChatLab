@@ -1,5 +1,41 @@
 # Changelog
 
+## v0.37.3 (2026-09-22)
+
+> Fix AI time filters, Qwen compatibility, and conversation continuation, and improve multilingual support and message context retrieval.
+
+### ✨ Features
+
+- Improve Chinese and English AI tool descriptions and unify language handling across Desktop, CLI Web, and MCP (by [@Zycheng114514](https://github.com/Zycheng114514))
+
+### 🐛 Bug Fixes
+
+- Fix AI word frequency and reply speed analysis ignoring the selected time range, and clarify the priority of explicitly requested dates, page filters, and defaults (by [@liuyy2](https://github.com/liuyy2))
+- Fix message role compatibility errors with some Qwen models in AI chats and topic summaries
+- Fix incorrect message context after backfilling older messages and improve context retrieval performance (by [@Sanssssssssssssssss](https://github.com/Sanssssssssssssssss))
+- Add missing Japanese labels to the language preference card (by [@Zycheng114514](https://github.com/Zycheng114514))
+- [CLI] Preserve completed tool results and error states when continuing AI conversations so follow-up questions retain the full tool history (by [@Sanssssssssssssssss](https://github.com/Sanssssssssssssssss))
+- [CLI] Fix Docker image publishing failures caused by delays in the new npm version becoming available
+
+## v0.37.2 (2026-09-18)
+
+> Fix issues resuming AI conversations after truncated or stopped replies, and improve emoji recognition, skill entry points, and download safety.
+
+### ✨ Features
+
+- Recognize Douyin emoji codes in word frequency and language preference analysis so emoji names no longer appear as frequent words (by [@babybitter](https://github.com/babybitter))
+
+### 🐛 Bug Fixes
+
+- Fix cases where truncated AI replies lost generated content or token usage, allowing saved conversations to be continued
+- Save content received before an AI reply is stopped manually, preserving context for follow-up questions (by [@Sanssssssssssssssss](https://github.com/Sanssssssssssssssss))
+- Cancel context compression when an AI request is stopped to prevent further model calls and summary writes (by [@Sanssssssssssssssss](https://github.com/Sanssssssssssssssss))
+- Validate filenames in the download endpoint to prevent writes outside the downloads directory (by [@ttsdj](https://github.com/ttsdj))
+
+### ♻️ Refactoring
+
+- Unify external Agent skills for import, conversion, and analysis, follow the user's language, and retain compatibility with import skill installation commands from released versions
+
 ## v0.37.1 (2026-09-04)
 
 > Add contributor attribution, improve Docker startup, and fix AI tool loops, text statistics, and relationship graph resource usage.

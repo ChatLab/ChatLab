@@ -10,6 +10,7 @@ import type {
   TokenUsageData,
 } from '@openchatlab/node-runtime'
 import type { ChartPayload, PathProvider } from '@openchatlab/core'
+import { extractToolResultText, truncateToolResultText } from '@openchatlab/core'
 import { getDefaultGeneralAssistantId } from '@openchatlab/shared-types'
 import { createCliRunAgentStream } from './agent-stream-runner'
 
@@ -45,6 +46,8 @@ export interface ChatTurnResult {
   aiChatId: string
   question: string
   answer: string
+  /** Present for a persisted but incomplete turn, never for a successful completion. */
+  error?: { name: string; message: string }
   events?: AgentStreamChunk[]
   contentBlocks?: ContentBlock[]
   usage: {
@@ -161,9 +164,10 @@ export async function runChatTurn(
   const startedAt = Date.now()
   let answer = ''
   let tokenUsage: TokenUsageData | null = null
-  let streamError: Error | null = null
+  const streamState: { error: Error | null } = { error: null }
   const events: AgentStreamChunk[] = []
   const contentBlocks: ContentBlock[] = []
+  const toolBlocks = new Map<string, Extract<ContentBlock, { type: 'tool' }>>()
   let hasReplayContentBlocks = false
 
   const runAgentStream = (deps.createRunAgentStream ?? createCliRunAgentStream)(deps.dbManager, deps.aiChatManager)
@@ -269,7 +273,7 @@ export async function runChatTurn(
       }
       if (chunk.type === 'error') {
         removePlanDraftBlocks()
-        streamError = createAgentStreamError(chunk.error)
+        streamState.error = createAgentStreamError(chunk.error)
         return
       }
       if (chunk.type === 'plan_delta' && chunk.planDelta) {
@@ -292,6 +296,31 @@ export async function runChatTurn(
         appendChartBlocks(extractChartPayloads(chunk.toolResult))
         return
       }
+      if (chunk.type === 'tool_start' && chunk.toolName && chunk.toolName !== 'render_chart' && chunk.toolCallId) {
+        const block: Extract<ContentBlock, { type: 'tool' }> = {
+          type: 'tool',
+          tool: {
+            name: chunk.toolName,
+            displayName: chunk.toolName,
+            status: 'running',
+            toolCallId: chunk.toolCallId,
+            params: chunk.toolParams,
+          },
+        }
+        toolBlocks.set(chunk.toolCallId, block)
+        contentBlocks.push(block)
+        hasReplayContentBlocks = true
+        return
+      }
+      if (chunk.type === 'tool_result' && chunk.toolCallId) {
+        const block = toolBlocks.get(chunk.toolCallId)
+        if (block) {
+          block.tool.status = chunk.toolIsError ? 'error' : 'done'
+          block.tool.isError = chunk.toolIsError === true
+          block.tool.result = truncateToolResultText(extractToolResultText(chunk.toolResult))
+        }
+        return
+      }
       if (chunk.type === 'content' && chunk.content) {
         answer += chunk.content
         appendTextBlock(chunk.content)
@@ -302,7 +331,7 @@ export async function runChatTurn(
         for (let index = contentBlocks.length - 1; index >= 0; index--) {
           const block = contentBlocks[index]
           if (block.type === 'plan') {
-            block.status = 'done'
+            block.status = streamState.error ? 'skipped' : 'done'
             break
           }
         }
@@ -311,7 +340,15 @@ export async function runChatTurn(
     new AbortController().signal
   )
 
-  if (streamError) throw streamError
+  const streamError = streamState.error
+  if (streamError && streamError.name !== 'OutputLimitError') throw streamError
+  if (streamError) {
+    contentBlocks.push({
+      type: 'error',
+      error: { name: streamError.name, message: streamError.message, stack: null },
+    })
+    hasReplayContentBlocks = true
+  }
 
   if (!options.json && options.stream !== false && answer && !answer.endsWith('\n')) {
     write(stdout, '\n')
@@ -332,6 +369,7 @@ export async function runChatTurn(
     aiChatId: target.aiChatId,
     question: options.question,
     answer,
+    ...(streamError ? { error: { name: streamError.name, message: streamError.message } } : {}),
     ...(options.includeEvents ? { events } : {}),
     ...(hasReplayContentBlocks ? { contentBlocks } : {}),
     usage: {
@@ -352,6 +390,7 @@ export async function runChatCommand(options: ChatCommandOptions, deps: ChatComm
     } else if (options.stream === false) {
       write(stdout, `${result.answer}\n`)
     }
+    if (result.error) throw createAgentStreamError(result.error)
     return
   }
 
@@ -368,6 +407,7 @@ export async function runChatCommand(options: ChatCommandOptions, deps: ChatComm
       try {
         const result = await runChatTurn({ ...options, aiChatId, question, json: false, stream: true }, deps)
         aiChatId = result.aiChatId
+        if (result.error) write(stderr, `${result.error.message}\n`)
       } catch (error) {
         write(stderr, `${error instanceof Error ? error.message : String(error)}\n`)
       }

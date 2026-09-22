@@ -175,6 +175,8 @@ export async function runCrossChatAgent(options: RunCrossChatAgentOptions): Prom
       maxToolRounds: DEFAULT_MAX_TOOL_ROUNDS,
       abortSignal,
       providerSessionId: aiChatId,
+      locale,
+      logger,
       steerMessage: createAiTranslate(locale)('ai.agent.answerWithoutTools'),
       thinkingLevel,
       onConvertToLlm: (messages) => {
@@ -194,11 +196,18 @@ export async function runCrossChatAgent(options: RunCrossChatAgentOptions): Prom
       return
     }
     if (result.error) {
-      onEvent({ type: 'error', error: { name: 'AgentError', message: formatAIError(result.error) } })
+      onEvent({
+        type: 'error',
+        error: {
+          name: result.stopReason === 'length' ? 'OutputLimitError' : 'AgentError',
+          message: formatAIError(result.error),
+        },
+      })
     }
-    handler.emitStatus('completed', cachedMessages, { force: true })
-    logger?.info('CrossChatAgent', 'Cross-chat agent execution completed', {
+    handler.emitStatus(result.error ? 'error' : 'completed', cachedMessages, { force: true })
+    logger?.info('CrossChatAgent', 'Cross-chat agent execution ended', {
       aiChatId,
+      stopReason: result.stopReason,
       toolRounds: result.toolRounds,
       toolsUsed: result.toolsUsed.length,
     })

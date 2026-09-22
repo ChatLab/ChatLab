@@ -148,8 +148,7 @@ export async function fetchMessageContext(
     if (contextSize > 0) {
       const before = await executor.all<{ id: number }>(
         `SELECT msg.id FROM message msg
-         JOIN message anchor ON anchor.id = ?
-         WHERE msg.ts < anchor.ts OR (msg.ts = anchor.ts AND msg.id < anchor.id)
+         WHERE (msg.ts, msg.id) < (SELECT ts, id FROM message WHERE id = ?)
          ORDER BY msg.ts DESC, msg.id DESC LIMIT ?`,
         [id, contextSize]
       )
@@ -157,8 +156,7 @@ export async function fetchMessageContext(
 
       const after = await executor.all<{ id: number }>(
         `SELECT msg.id FROM message msg
-         JOIN message anchor ON anchor.id = ?
-         WHERE msg.ts > anchor.ts OR (msg.ts = anchor.ts AND msg.id > anchor.id)
+         WHERE (msg.ts, msg.id) > (SELECT ts, id FROM message WHERE id = ?)
          ORDER BY msg.ts ASC, msg.id ASC LIMIT ?`,
         [id, contextSize]
       )
@@ -177,7 +175,7 @@ export async function fetchMessageContext(
 
 /**
  * Get context messages around search results.
- * Session-aware when message_context table is available, falls back to id-based.
+ * Uses chronological neighbors within the indexed segment, or across the chat when unindexed.
  */
 export async function fetchSearchMessageContext(
   executor: AsyncSqlExecutor,
@@ -188,6 +186,7 @@ export async function fetchSearchMessageContext(
   if (messageIds.length === 0) return []
 
   const contextIds = new Set<number>()
+  const segments = new Map<number, { ids: number[]; positions: Map<number, number> }>()
 
   const sessionCheck = await executor.get<Record<string, unknown>>(
     "SELECT 1 FROM sqlite_master WHERE type='table' AND name='message_context'",
@@ -209,40 +208,49 @@ export async function fetchSearchMessageContext(
       )
 
       if (sessionRow) {
-        if (contextBefore > 0) {
+        if (contextBefore <= 0 && contextAfter <= 0) continue
+        let segment = segments.get(sessionRow.segment_id)
+        if (!segment) {
+          // Sort each touched segment once per request, not once per search hit.
           const rows = await executor.all<{ id: number }>(
-            `SELECT mc.message_id as id FROM message_context mc
-             WHERE mc.segment_id = ? AND mc.message_id < ?
-             ORDER BY mc.message_id DESC LIMIT ?`,
-            [sessionRow.segment_id, messageId, contextBefore]
+            `SELECT msg.id FROM message_context mc
+             JOIN message msg ON msg.id = mc.message_id
+             WHERE mc.segment_id = ? ORDER BY msg.ts ASC, msg.id ASC`,
+            [sessionRow.segment_id]
           )
-          rows.forEach((r) => contextIds.add(r.id))
+          const ids = rows.map((row) => row.id)
+          segment = { ids, positions: new Map(ids.map((id, index) => [id, index])) }
+          segments.set(sessionRow.segment_id, segment)
         }
-        if (contextAfter > 0) {
-          const rows = await executor.all<{ id: number }>(
-            `SELECT mc.message_id as id FROM message_context mc
-             WHERE mc.segment_id = ? AND mc.message_id > ?
-             ORDER BY mc.message_id ASC LIMIT ?`,
-            [sessionRow.segment_id, messageId, contextAfter]
-          )
-          rows.forEach((r) => contextIds.add(r.id))
+        const position = segment.positions.get(messageId)
+        if (position !== undefined) {
+          for (const id of segment.ids.slice(
+            Math.max(0, position - Math.max(0, contextBefore)),
+            position + Math.max(0, contextAfter) + 1
+          )) {
+            contextIds.add(id)
+          }
         }
         continue
       }
     }
 
     if (contextBefore > 0) {
-      const rows = await executor.all<{ id: number }>('SELECT id FROM message WHERE id < ? ORDER BY id DESC LIMIT ?', [
-        messageId,
-        contextBefore,
-      ])
+      const rows = await executor.all<{ id: number }>(
+        `SELECT msg.id FROM message msg
+         WHERE (msg.ts, msg.id) < (SELECT ts, id FROM message WHERE id = ?)
+         ORDER BY msg.ts DESC, msg.id DESC LIMIT ?`,
+        [messageId, contextBefore]
+      )
       rows.forEach((r) => contextIds.add(r.id))
     }
     if (contextAfter > 0) {
-      const rows = await executor.all<{ id: number }>('SELECT id FROM message WHERE id > ? ORDER BY id ASC LIMIT ?', [
-        messageId,
-        contextAfter,
-      ])
+      const rows = await executor.all<{ id: number }>(
+        `SELECT msg.id FROM message msg
+         WHERE (msg.ts, msg.id) > (SELECT ts, id FROM message WHERE id = ?)
+         ORDER BY msg.ts ASC, msg.id ASC LIMIT ?`,
+        [messageId, contextAfter]
+      )
       rows.forEach((r) => contextIds.add(r.id))
     }
   }

@@ -189,6 +189,7 @@ const otherMemberAvatar = computed(() => {
               :session-id="currentSessionId!"
               :session-name="session.name"
               chat-type="private"
+              :time-filter="timeFilter"
             />
             <MemoryTab
               v-else-if="activeTab === 'memory'"
