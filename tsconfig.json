@@ -3,7 +3,8 @@
     "paths": {
       "@/*": ["./src/*"],
       "@electron/*": ["./apps/desktop/*"],
-      "@openchatlab/*": ["./packages/*"]
+      "@openchatlab/*": ["./packages/*"],
+      "chatlab-mcp": ["./packages/mcp-server/src"]
     }
   },
   "files": [],
