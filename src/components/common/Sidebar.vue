@@ -611,7 +611,12 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
         >
           <template v-if="!isCollapsed">
             <p class="text-sm text-gray-600 dark:text-gray-300">{{ t('layout.sessionLoadFailed') }}</p>
-            <p v-if="loadError" class="mt-1 line-clamp-2 text-xs text-gray-400">{{ loadError }}</p>
+            <p
+              v-if="loadError"
+              class="mt-2 text-left text-xs leading-relaxed break-all whitespace-pre-wrap text-gray-400 select-text"
+            >
+              {{ loadError }}
+            </p>
             <UButton size="xs" variant="soft" class="mt-3" @click="sessionStore.loadSessions()">
               {{ t('common.retry') }}
             </UButton>

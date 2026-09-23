@@ -243,8 +243,9 @@ describe('runAgentCore runtime contract', () => {
       })
     )
     assert.equal(result.error, undefined)
-    assert.equal(captured?.messages[0].content[0].type, 'text')
-    assert.equal(captured?.messages[0].content[0].text, historyText)
+    const firstBlock = captured?.messages[0].content[0]
+    assert.ok(typeof firstBlock === 'object' && firstBlock.type === 'text')
+    assert.equal(firstBlock.text, historyText)
     assert.equal(outputBudget, 2048, 'Preserve the configured output budget when the history and answer both fit')
   })
 

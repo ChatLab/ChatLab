@@ -10,7 +10,7 @@
 
 import * as fs from 'fs'
 import * as path from 'path'
-import { extractErrorInfo, extractErrorStack } from '../ai/ai-logger'
+import { extractErrorInfo } from '../ai/ai-logger'
 
 type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'
 
@@ -92,7 +92,7 @@ function formatData(data: unknown): string {
   if (data === undefined) return ''
   if (data instanceof Error) {
     const info = extractErrorInfo(data)
-    const stack = extractErrorStack(data)
+    const stack = data.stack
     return JSON.stringify(info) + (stack ? `\n${stack}` : '')
   }
   if (typeof data === 'string') return data
