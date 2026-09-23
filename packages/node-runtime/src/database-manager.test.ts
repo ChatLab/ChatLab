@@ -999,6 +999,56 @@ test('open repairs the data directory gate for existing current-schema databases
   assert.deepEqual(meta?.reasons, ['segment-schema'])
 })
 
+test('existing sessions remain readable after upgrades when compatible metadata cannot be replaced', (t) => {
+  const root = makeTempDir()
+  const provider = createPathProvider(root)
+  fs.mkdirSync(provider.getDatabaseDir(), { recursive: true })
+  for (const id of ['first', 'second']) {
+    const db = new Database(path.join(provider.getDatabaseDir(), `${id}.db`), { nativeBinding })
+    try {
+      db.exec(CHAT_DB_SCHEMA)
+      db.prepare('INSERT INTO meta (name, platform, type, imported_at) VALUES (?, ?, ?, ?)').run(
+        id,
+        'qq',
+        'group',
+        1000
+      )
+      db.exec(`
+        INSERT INTO member (platform_id, account_name) VALUES ('u1', 'Test Member');
+        INSERT INTO message (sender_id, ts, type, content) VALUES (1, 1000, 0, 'Saved message');
+      `)
+    } finally {
+      db.close()
+    }
+  }
+
+  const previousManager = new DatabaseManager(provider, {
+    nativeBinding,
+    runtime: { version: '0.37.3', kind: 'desktop' },
+  })
+  previousManager.raiseCurrentChatDbCompatibilityGate()
+  const metaPath = path.join(provider.getUserDataDir(), '.chatlab-meta.json')
+  const original = fs.readFileSync(metaPath, 'utf-8')
+  const renameSync = fs.renameSync
+  t.mock.method(fs, 'renameSync', (source: fs.PathLike, target: fs.PathLike) => {
+    if (target === metaPath) throw Object.assign(new Error('Metadata replacement denied'), { code: 'EPERM' })
+    renameSync(source, target)
+  })
+
+  for (const kind of ['desktop', 'cli'] as const) {
+    const manager = new DatabaseManager(provider, { nativeBinding, runtime: { version: '0.37.4', kind } })
+    t.after(() => manager.closeAll())
+    assert.deepEqual(manager.listSessionIds().sort(), ['first', 'second'])
+    for (const id of manager.listSessionIds()) {
+      const db = manager.open(id)
+      assert.ok(db)
+      assert.equal(getSessionInfo(db)?.name, id)
+      assert.deepEqual(db.prepare('SELECT content FROM message').all(), [{ content: 'Saved message' }])
+    }
+    assert.equal(fs.readFileSync(metaPath, 'utf-8'), original)
+  }
+})
+
 test('open keeps a higher existing data directory runtime requirement after migration', () => {
   const root = makeTempDir()
   const dbDir = path.join(root, 'data', 'databases')

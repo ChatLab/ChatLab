@@ -157,6 +157,17 @@ export function raiseDataDirMinRuntimeVersion(
   }
 
   const existing = readDataDirCompatibilityMeta(userDataDir)
+  // This is a migration marker, not a last-open timestamp. Replacing an already sufficient file
+  // can fail on Windows even when the metadata and chat databases are readable.
+  if (
+    existing &&
+    compareStableSemver(existing.minRuntimeVersion, input.minRuntimeVersion) >= 0 &&
+    existing.dataCompatibilityVersion >= input.dataCompatibilityVersion &&
+    existing.reasons.includes(input.reason)
+  ) {
+    return existing
+  }
+
   const minRuntimeVersion =
     existing && compareStableSemver(existing.minRuntimeVersion, input.minRuntimeVersion) > 0
       ? existing.minRuntimeVersion

@@ -291,3 +291,63 @@ test('raising minRuntimeVersion records prerelease runtime by stable core versio
     version: '0.26.4',
   })
 })
+
+test('satisfied compatibility requirements preserve the original metadata across runtime upgrades', () => {
+  for (const minRuntimeVersion of ['0.25.1', '0.26.0']) {
+    const userDataDir = makeTempDir()
+    const provider = makePathProvider(userDataDir)
+    const existing = raiseDataDirMinRuntimeVersion(provider, {
+      minRuntimeVersion,
+      dataCompatibilityVersion: 2,
+      reason: 'segment-schema',
+      runtime: { version: '0.37.3', kind: 'cli' },
+      module: 'chat-db-migration',
+      now: () => 1000,
+    })
+    const metaPath = path.join(userDataDir, '.chatlab-meta.json')
+    const original = fs.readFileSync(metaPath, 'utf-8')
+
+    const result = raiseDataDirMinRuntimeVersion(provider, {
+      minRuntimeVersion: '0.25.1',
+      dataCompatibilityVersion: 1,
+      reason: 'segment-schema',
+      runtime: { version: '0.37.4', kind: 'desktop' },
+      module: 'chat-db-migration',
+      now: () => 2000,
+    })
+
+    assert.deepEqual(result, existing)
+    assert.equal(fs.readFileSync(metaPath, 'utf-8'), original)
+  }
+})
+
+test('required compatibility updates propagate replacement failures and preserve the previous metadata', (t) => {
+  const userDataDir = makeTempDir()
+  const provider = makePathProvider(userDataDir)
+  const input = {
+    minRuntimeVersion: '0.25.1',
+    dataCompatibilityVersion: 1,
+    reason: 'segment-schema',
+    runtime: { version: '0.37.4', kind: 'desktop' as const },
+    module: 'chat-db-migration',
+  }
+  const existing = raiseDataDirMinRuntimeVersion(provider, input)
+  const metaPath = path.join(userDataDir, '.chatlab-meta.json')
+  const original = fs.readFileSync(metaPath, 'utf-8')
+  const denied = Object.assign(new Error('Metadata replacement denied'), { code: 'EPERM' })
+  const renameSync = fs.renameSync
+  t.mock.method(fs, 'renameSync', (source: fs.PathLike, target: fs.PathLike) => {
+    if (target === metaPath) throw denied
+    renameSync(source, target)
+  })
+
+  for (const update of [{ minRuntimeVersion: '0.26.0' }, { dataCompatibilityVersion: 2 }, { reason: 'new-schema' }]) {
+    assert.throws(
+      () => raiseDataDirMinRuntimeVersion(provider, { ...input, ...update }),
+      (error) => error === denied
+    )
+    assert.equal(fs.readFileSync(metaPath, 'utf-8'), original)
+    assert.deepEqual(readDataDirCompatibilityMeta(userDataDir), existing)
+    assert.deepEqual(fs.readdirSync(userDataDir), ['.chatlab-meta.json'])
+  }
+})
