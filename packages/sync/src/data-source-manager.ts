@@ -7,13 +7,17 @@
  * DataSource (remote server) → ImportSession[] (subscribed conversations)
  */
 
-import * as fs from 'fs'
+import fs from 'node:fs'
 import * as path from 'path'
 import * as crypto from 'crypto'
 import { NOOP_LOGGER } from './types'
 import type { DataSource, DataSourceUpdatable, ImportSession, SyncLogger } from './types'
 
 const CONFIG_FILE = 'data-sources.json'
+
+export class DataSourceConfigError extends Error {
+  override name = 'DataSourceConfigError'
+}
 
 function generateId(prefix: string = 'ds'): string {
   return `${prefix}_${crypto.randomBytes(6).toString('hex')}`
@@ -55,34 +59,48 @@ export class DataSourceManager {
   // ==================== Load / Save ====================
 
   loadAll(): DataSource[] {
+    const filePath = this.getConfigPath()
     try {
-      const filePath = this.getConfigPath()
-      if (fs.existsSync(filePath)) {
-        const raw = fs.readFileSync(filePath, 'utf-8')
-        const parsed = JSON.parse(raw)
-
-        if (!isValidDataSourceArray(parsed)) {
-          this.logger.warn('[DataSource] Incompatible config format detected, returning empty.')
-          return []
-        }
-
-        for (const ds of parsed) {
-          if (!ds.pullLimit) ds.pullLimit = 1000
-        }
-        return parsed
+      const raw = fs.readFileSync(filePath, 'utf-8')
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(raw)
+      } catch {
+        // Native JSON errors can include configuration fragments containing access tokens.
+        throw new Error('Invalid JSON. Restore or repair the file before making changes.')
       }
+      if (!isValidDataSourceArray(parsed)) {
+        throw new Error('Invalid data source config format. Restore or repair the file before making changes.')
+      }
+      for (const ds of parsed) {
+        if (!ds.pullLimit) ds.pullLimit = 1000
+      }
+      return parsed
     } catch (err) {
-      this.logger.error('[DataSource] Failed to load config', err)
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
+      const error = new DataSourceConfigError(`Failed to load data source config: ${filePath}`, { cause: err })
+      this.logger.error('[DataSource] Failed to load config', error)
+      throw error
     }
-    return []
   }
 
   private saveAll(sources: DataSource[]): void {
+    const filePath = this.getConfigPath()
+    const tempPath = `${filePath}.tmp-${process.pid}-${crypto.randomUUID()}`
     try {
       this.ensureDir()
-      fs.writeFileSync(this.getConfigPath(), JSON.stringify(sources, null, 2), 'utf-8')
+      fs.writeFileSync(tempPath, JSON.stringify(sources, null, 2), { encoding: 'utf-8', mode: 0o600 })
+      fs.renameSync(tempPath, filePath)
     } catch (err) {
-      this.logger.error('[DataSource] Failed to save config', err)
+      const error = new DataSourceConfigError(`Failed to save data source config: ${filePath}`, { cause: err })
+      this.logger.error('[DataSource] Failed to save config', error)
+      throw error
+    } finally {
+      try {
+        fs.rmSync(tempPath, { force: true })
+      } catch (err) {
+        this.logger.error('[DataSource] Failed to remove temporary config', err)
+      }
     }
   }
 

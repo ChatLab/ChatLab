@@ -36,14 +36,19 @@ function startTimer(ds: DataSource, skipInitialPull = false): void {
   }
 
   const timer = setInterval(() => {
-    const current = _dsManager.loadAll().find((s) => s.id === ds.id)
-    if (!current || !current.enabled || current.sessions.length === 0) {
+    try {
+      const current = _dsManager.loadAll().find((s) => s.id === ds.id)
+      if (!current || !current.enabled || current.sessions.length === 0) {
+        stopTimer(ds.id)
+        return
+      }
+      _pullEngine.pullAllSessions(current).catch((err) => {
+        _logger.error('[Pull] Scheduled pull failed', err)
+      })
+    } catch (err) {
       stopTimer(ds.id)
-      return
+      _logger.error('[Pull] Scheduled pull stopped because data source config could not be loaded', err)
     }
-    _pullEngine.pullAllSessions(current).catch((err) => {
-      _logger.error('[Pull] Scheduled pull failed', err)
-    })
   }, intervalMs)
 
   timers.set(ds.id, timer)
@@ -62,13 +67,19 @@ export function stopTimer(id: string): void {
 
 export function initScheduler(options: SchedulerOptions): void {
   if (initialized) return
-  initialized = true
 
   _dsManager = options.dsManager
   _pullEngine = options.pullEngine
   _logger = options.logger ?? NOOP_LOGGER
 
-  const sources = _dsManager.loadAll()
+  let sources: DataSource[]
+  try {
+    sources = _dsManager.loadAll()
+  } catch (err) {
+    _logger.error('[Pull] Scheduler not started because data source config could not be loaded', err)
+    return
+  }
+  initialized = true
   for (const ds of sources) {
     if (ds.enabled && ds.sessions.length > 0) {
       startTimer(ds)

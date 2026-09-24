@@ -21,7 +21,7 @@ import type {
   PullSessionResult,
   PullProgress,
 } from './types'
-import type { DataSourceManager } from './data-source-manager'
+import { DataSourceConfigError, type DataSourceManager } from './data-source-manager'
 
 const MAX_PAGES_PER_PULL = 5000
 const PULL_OVERLAP_SECONDS = 60
@@ -498,13 +498,20 @@ export class PullEngine {
       if (!sourceUnavailable) {
         this.logger.error(`[Pull] Pull failed for "${sess.name}": ${errMsg}`)
       }
-      this.dsManager.updateSession(sourceId, sess.id, {
-        lastPullAt: Math.floor(Date.now() / 1000),
-        lastStatus: 'error',
-        lastError: errMsg,
-      })
-      this.notifier.onPullResult(sourceId, sess.id, 'error', errMsg)
       this.markProgressDone(sess.id)
+      try {
+        // A failed config commit must not be retried as an error-status write advancing the cursor.
+        if (error instanceof DataSourceConfigError) throw error
+        this.dsManager.updateSession(sourceId, sess.id, {
+          lastPullAt: Math.floor(Date.now() / 1000),
+          lastStatus: 'error',
+          lastError: errMsg,
+        })
+      } catch (configError) {
+        this.notifier.onPullResult(sourceId, sess.id, 'error', getErrorMessage(configError))
+        throw configError
+      }
+      this.notifier.onPullResult(sourceId, sess.id, 'error', errMsg)
       return { success: false, newMessageCount: 0, error: errMsg, sourceUnavailable: !!sourceUnavailable }
     }
   }

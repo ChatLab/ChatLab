@@ -1,9 +1,10 @@
 import { afterEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import * as fs from 'fs'
+import fs from 'node:fs'
 import * as os from 'os'
 import * as path from 'path'
 import { PullEngine } from './pull-engine'
+import { DataSourceManager, DataSourceConfigError } from './data-source-manager'
 import type {
   DataSource,
   DataImporter,
@@ -148,6 +149,45 @@ function createEngine(options: {
 }
 
 describe('PullEngine', () => {
+  it('config write failure reports failure without advancing the cursor or leaving progress running', async (t) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-pull-config-'))
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+    const manager = new DataSourceManager(root)
+    const source = manager.add({ baseUrl: 'https://example.test', token: '', intervalMinutes: 1 })
+    const [session] = manager.addSessions(source.id, [{ name: 'Chat', remoteSessionId: 'remote-1' }])
+    manager.updateSession(source.id, session.id, { lastPullAt: 100, targetSessionId: 'local-1' })
+    const file = path.join(root, 'data-sources.json')
+    const original = fs.readFileSync(file, 'utf-8')
+    const emptyPage = writeTempJson({})
+    const results: string[] = []
+    const engine = new PullEngine({
+      dsManager: manager,
+      fetcher: { fetchToTempFile: async () => emptyPage },
+      importer: { sessionExists: () => true, importFile: async () => ({ success: true, newMessageCount: 0 }) },
+      notifier: {
+        onSessionListChanged: () => {},
+        onPullResult: (_sourceId, _sessionId, status) => results.push(status),
+      },
+    })
+    const writeFileSync = fs.writeFileSync
+    let failNextWrite = true
+    t.mock.method(fs, 'writeFileSync', (...args: Parameters<typeof fs.writeFileSync>) => {
+      if (failNextWrite && typeof args[0] === 'string' && path.dirname(args[0]) === root) {
+        failNextWrite = false
+        throw Object.assign(new Error('No space left on device'), { code: 'ENOSPC' })
+      }
+      return writeFileSync(...args)
+    })
+
+    await withImmediateTimers(async () => {
+      await assert.rejects(engine.triggerPull(source.id, session.id), DataSourceConfigError)
+      assert.deepEqual(engine.getProgress(), [])
+    })
+    assert.deepEqual(results, ['error'])
+    assert.equal(fs.readFileSync(file, 'utf-8'), original)
+    assert.equal(manager.get(source.id)?.sessions[0].lastPullAt, 100)
+  })
+
   it('imports a small final page instead of treating it as empty', async () => {
     const session = createSession()
     const dataSource = createDataSource()
