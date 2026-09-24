@@ -11,12 +11,14 @@
  * - 每写入一个 chunk 即更新游标，保证崩溃后续跑不重复写入（chunk_id UNIQUE）。
  * - embedding 是瓶颈；每 chunk 前检查暂停/取消，embedding 返回后再次检查取消，
  *   避免在清理已取消索引后写入刚完成的向量。
+ * - embedding 前先查其他聊天库里同一段 embedding 文本已有的向量：命中就直接复制
+ *   （合并会话后绝大多数 chunk 的文本未变），只有真正的新文本才调用 embedder。
  *
  * 依赖全部注入，便于单测（fake source/embedder + 真实内存级 SQLite store）。
  */
 
 import type { EmbeddingProvider } from '../embedding/types'
-import { chunkMessages, type ChunkMessageInput, type ChunkSource } from '../chunker'
+import { chunkMessages, type ChildChunk, type ChunkMessageInput, type ChunkSource } from '../chunker'
 import { CHUNKER_VERSION, STRATEGY_ID, composeChunkId, type ChunkerConfig } from '../chunker-config'
 import type { EmbeddingIndexStore } from '../store'
 import type { SemanticIndexStateStore } from '../session-state-store'
@@ -28,6 +30,13 @@ export interface SemanticMessageSource {
   countMessages(): number
   /** 按 ts, id 升序返回全部消息 */
   readAllMessages(): ChunkMessageInput[]
+}
+
+/** chunk 及其在消息流中的位置区间（用于游标推进与断点续跑） */
+interface ChunkRange {
+  chunk: ChildChunk
+  startIndex: number
+  endIndex: number
 }
 
 /** 停止信号：返回 null 继续，'paused' 暂停（可续跑），'cancelled' 取消 */
@@ -48,7 +57,10 @@ export type WarmupStatus = 'completed' | 'paused' | 'cancelled' | 'failed'
 
 export interface WarmupResult {
   status: WarmupStatus
+  /** 写入索引的 chunk 总数（新 embedding + 复用） */
   chunksWritten: number
+  /** 其中直接复用其他聊天库已有向量、未调用 embedder 的 chunk 数 */
+  chunksReused: number
   error?: string
 }
 
@@ -61,6 +73,7 @@ export async function runWarmup(options: WarmupRunnerOptions): Promise<WarmupRes
   const { dbPathHash, modelId, embedder, store, stateStore, source, config, checkStop } = options
 
   let chunksWritten = 0
+  let chunksReused = 0
   try {
     const messages = source.readAllMessages()
     const total = source.countMessages()
@@ -83,7 +96,7 @@ export async function runWarmup(options: WarmupRunnerOptions): Promise<WarmupRes
     }
     const { chunks, chunkerConfigHash } = chunkMessages({ messages, source: source.getSource(), config })
 
-    const chunkRanges = chunks.map((chunk) => ({
+    const chunkRanges: ChunkRange[] = chunks.map((chunk) => ({
       chunk,
       startIndex: streamIndexById.get(chunk.startMessageId) ?? -1,
       endIndex: streamIndexById.get(chunk.endMessageId) ?? -1,
@@ -118,35 +131,66 @@ export async function runWarmup(options: WarmupRunnerOptions): Promise<WarmupRes
 
     const pendingRanges = chunkRanges.filter(({ endIndex }) => endIndex > resumeIndex)
     const batchSize = resolveDocumentBatchSize(embedder)
+    // 复用查找必须指定维度（vec0 每个维度一张表）。本地 provider 直接声明维度；
+    // API provider 首次调用前为 0，那一批照常 embedding，之后用返回向量的维度继续复用。
+    let reuseDim = embedder.dim > 0 ? embedder.dim : (store.getDim(dbPathHash, modelId) ?? 0)
+
     for (let i = 0; i < pendingRanges.length; i += batchSize) {
       const batchRanges = pendingRanges.slice(i, i + batchSize)
 
       const stop = checkStop?.()
       if (stop) {
         stateStore.setIndexStatus(dbPathHash, stop === 'paused' ? 'paused' : 'cancelled')
-        return { status: stop, chunksWritten }
+        return { status: stop, chunksWritten, chunksReused }
       }
 
-      const vectors = await embedder.embedDocuments(batchRanges.map(({ chunk }) => chunk.embeddingInput))
-      if (vectors.length !== batchRanges.length) {
-        throw new Error(`embedding provider returned ${vectors.length} vectors for ${batchRanges.length} inputs`)
+      // 同一段 embedding 文本在别的聊天库里已经有向量时直接复制，只把剩下的送去 embedding。
+      const resolved = new Map<ChunkRange, { embedding: Float32Array | Buffer; dim: number }>()
+      if (reuseDim > 0) {
+        for (const range of batchRanges) {
+          const reusable = store.findReusableVector({
+            modelId,
+            strategyId: STRATEGY_ID,
+            chunkerVersion: CHUNKER_VERSION,
+            chunkerConfigHash,
+            dim: reuseDim,
+            embeddingInputHash: range.chunk.embeddingInputHash,
+            excludeDbPathHash: dbPathHash,
+          })
+          if (reusable) resolved.set(range, { embedding: reusable.embedding, dim: reuseDim })
+        }
       }
+
+      const rangesToEmbed = batchRanges.filter((range) => !resolved.has(range))
+      const vectors = rangesToEmbed.length
+        ? await embedder.embedDocuments(rangesToEmbed.map(({ chunk }) => chunk.embeddingInput))
+        : []
+      if (vectors.length !== rangesToEmbed.length) {
+        throw new Error(`embedding provider returned ${vectors.length} vectors for ${rangesToEmbed.length} inputs`)
+      }
+      if (reuseDim === 0 && vectors.length > 0) reuseDim = vectors[0].length
       const stopAfterEmbedding = checkStop?.()
       if (stopAfterEmbedding === 'cancelled') {
         stateStore.setIndexStatus(dbPathHash, 'cancelled')
-        return { status: 'cancelled', chunksWritten }
+        return { status: 'cancelled', chunksWritten, chunksReused }
       }
 
       // API provider 支持一次提交多个文本；本地 Qwen3 仍声明 batch=1，避免 last_token 污染。
       const indexedAt = Date.now()
-      const inserts: ChunkInsert[] = batchRanges.map(({ chunk }, index) => {
-        const vector = vectors[index]
+      const reusedInBatch = resolved.size
+      rangesToEmbed.forEach((range, index) => {
+        resolved.set(range, { embedding: vectors[index], dim: vectors[index].length })
+      })
+      const inserts: ChunkInsert[] = batchRanges.map((range) => {
+        const { chunk } = range
+        // 每个 range 要么命中复用、要么刚 embedding 完成，两条路径都写进了 resolved
+        const { embedding, dim } = resolved.get(range)!
         const record: ChunkRecord = {
           chunkId: composeChunkId(dbPathHash, modelId, chunk.localChunkId),
           dbPathHash,
           strategyId: STRATEGY_ID,
           modelId,
-          dim: vector.length,
+          dim,
           parentId: chunk.parentId,
           startMessageId: chunk.startMessageId,
           endMessageId: chunk.endMessageId,
@@ -160,9 +204,10 @@ export async function runWarmup(options: WarmupRunnerOptions): Promise<WarmupRes
           indexedAt,
           status: 'indexed',
         }
-        return { record, embedding: vector }
+        return { record, embedding }
       })
       store.insertChunks(inserts)
+      chunksReused += reusedInBatch
       chunksWritten += inserts.length
       storedChunkCount += inserts.length
 
@@ -177,10 +222,10 @@ export async function runWarmup(options: WarmupRunnerOptions): Promise<WarmupRes
 
     stateStore.updateProgress(dbPathHash, { indexedMessages: total, chunkCount: storedChunkCount })
     stateStore.setIndexStatus(dbPathHash, 'completed', null)
-    return { status: 'completed', chunksWritten }
+    return { status: 'completed', chunksWritten, chunksReused }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     stateStore.setIndexStatus(dbPathHash, 'failed', message)
-    return { status: 'failed', chunksWritten, error: message }
+    return { status: 'failed', chunksWritten, chunksReused, error: message }
   }
 }

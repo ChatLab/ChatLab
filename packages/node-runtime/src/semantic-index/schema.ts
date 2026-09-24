@@ -36,12 +36,16 @@ export const CHUNK_VECTOR_INDEX_TABLE = `
  * 范围映射索引：
  * - idx_chunk_range 保留 message_id 领先的旧查询路径和既有数据库兼容性。
  * - idx_chunk_ts_range 支撑当前 `start_ts, start_message_id` 组合查找，避免按会话扫描排序。
+ * - idx_chunk_reuse 支撑跨聊天库复用已有向量（合并会话后不重复 embedding）：
+ *   前缀列即复用条件（同模型 + 同策略 + 同 chunker 身份），末列是 embedding 文本的哈希。
  */
 export const CHUNK_VECTOR_INDEX_INDEXES = `
   CREATE INDEX IF NOT EXISTS idx_chunk_range
     ON chunk_vector_index(db_path_hash, model_id, strategy_id, start_message_id, end_message_id);
   CREATE INDEX IF NOT EXISTS idx_chunk_ts_range
     ON chunk_vector_index(db_path_hash, model_id, strategy_id, start_ts, start_message_id);
+  CREATE INDEX IF NOT EXISTS idx_chunk_reuse
+    ON chunk_vector_index(model_id, strategy_id, chunker_version, chunker_config_hash, embedding_input_hash);
 `
 
 export const EMBEDDING_INDEX_SCHEMA = CHUNK_VECTOR_INDEX_TABLE + CHUNK_VECTOR_INDEX_INDEXES
