@@ -19,6 +19,7 @@ import {
   streamImport,
   incrementalImport,
   analyzeIncrementalImport,
+  analyzeAutoImport,
   analyzeNewImport,
   detectFormat,
   detectAllFormats,
@@ -27,6 +28,7 @@ import {
   findEntryFileInDirectory,
 } from '../../../import'
 import type {
+  AutoImportAnalysisResult,
   AutoImportBatchOptions,
   AutoImportBatchRequest,
   AutoImportResult,
@@ -39,6 +41,7 @@ const ARCHIVE_UPLOAD_LIMIT = 50 * 1024 * 1024 * 1024
 interface ImportRouteOptions {
   sourceManager?: ArchiveImportSourceManager
   runAutoImport?: (filePath: string, options: StreamImportOptions) => Promise<AutoImportResult>
+  runAnalyzeAutoImport?: (filePath: string, options: StreamImportOptions) => Promise<AutoImportAnalysisResult>
   runAutoImportBatch?: (
     items: AutoImportBatchRequest[],
     options: AutoImportBatchOptions
@@ -55,6 +58,31 @@ function parseOptionalInteger(value: unknown): number | undefined {
   if (typeof value !== 'string' || value.trim() === '') return undefined
   const parsed = Number(value)
   return Number.isInteger(parsed) ? parsed : undefined
+}
+
+interface ImportTargetFields {
+  sessionId?: string
+  forceCreate?: boolean
+}
+
+/**
+ * Map the requested import target onto the auto importer's own options.
+ * `allowSession` is false for batch endpoints, where appending several files to one
+ * chosen session has no well-defined meaning.
+ */
+function resolveImportTarget(
+  mode: unknown,
+  sessionId: unknown,
+  allowSession: boolean
+): { target: ImportTargetFields } | { error: string } {
+  if (mode === undefined || mode === '' || mode === 'auto') return { target: {} }
+  if (mode === 'new') return { target: { forceCreate: true } }
+  if (mode !== 'session') return { error: `Unsupported targetMode: ${String(mode)}` }
+  if (!allowSession) return { error: 'targetMode "session" is not supported for batch imports' }
+  if (typeof sessionId !== 'string' || sessionId === '') {
+    return { error: 'targetSessionId is required when targetMode is "session"' }
+  }
+  return { target: { sessionId } }
 }
 
 function cleanupTemp(...paths: string[]) {
@@ -80,6 +108,7 @@ export function registerImportRoutes(
   const activeBatchControllers = new Map<string, AbortController>()
   const sourceManager = options.sourceManager ?? new ArchiveImportSourceManager()
   const runAutoImport = options.runAutoImport ?? autoImport.bind(null, dbManager)
+  const runAnalyzeAutoImport = options.runAnalyzeAutoImport ?? analyzeAutoImport.bind(null, dbManager)
   const runAutoImportBatch = options.runAutoImportBatch ?? autoImportBatch.bind(null, dbManager)
   const runPreparedImport =
     options.runPreparedImport ??
@@ -232,6 +261,15 @@ export function registerImportRoutes(
     const chatIndexStr = (data.fields?.chatIndex as any)?.value as string | undefined
     const chatIndex = chatIndexStr !== undefined ? parseInt(chatIndexStr, 10) : undefined
     const sessionGapThreshold = parseOptionalInteger((data.fields?.sessionGapThreshold as any)?.value)
+    const target = resolveImportTarget(
+      (data.fields?.targetMode as any)?.value,
+      (data.fields?.targetSessionId as any)?.value,
+      true
+    )
+    if ('error' in target) {
+      cleanupTemp(tmpPath, tmpDir)
+      return reply.code(400).send({ error: target.error })
+    }
 
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -249,6 +287,8 @@ export function registerImportRoutes(
         formatId,
         chatIndex,
         sessionGapThreshold,
+        sessionId: target.target.sessionId,
+        forceCreate: target.target.forceCreate,
         nativeBinding,
         onProgress: (p) => sendEvent('progress', p),
       })
@@ -279,6 +319,7 @@ export function registerImportRoutes(
     const tmpDir = createChatLabTempDir('imports', 'batch-')
     const items: AutoImportBatchRequest[] = []
     let sessionGapThreshold: number | undefined
+    let targetMode: unknown
     let completed = false
     const controller = new AbortController()
     activeBatchControllers.set(batchId, controller)
@@ -287,6 +328,10 @@ export function registerImportRoutes(
       for await (const part of parts) {
         if (part.type === 'field' && part.fieldname === 'sessionGapThreshold') {
           sessionGapThreshold = parseOptionalInteger(part.value)
+          continue
+        }
+        if (part.type === 'field' && part.fieldname === 'targetMode') {
+          targetMode = part.value
           continue
         }
         if (part.type !== 'file') continue
@@ -298,6 +343,12 @@ export function registerImportRoutes(
       }
 
       if (items.length === 0) return reply.code(400).send({ error: 'No files uploaded' })
+
+      const target = resolveImportTarget(targetMode, undefined, false)
+      if ('error' in target) return reply.code(400).send({ error: target.error })
+      if (target.target.forceCreate) {
+        for (const item of items) item.forceCreate = true
+      }
 
       reply.raw.writeHead(200, {
         'Content-Type': 'text/event-stream',
@@ -419,6 +470,37 @@ export function registerImportRoutes(
     } finally {
       reply.raw.end()
       cleanupTemp(tmpDir)
+    }
+  })
+
+  // Preview which target automatic matching would pick, so the import dialog can preselect it.
+  server.post('/_web/import/analyze-target', async (request, reply) => {
+    const data = await (request as any).file()
+    if (!data) return reply.code(400).send({ error: 'No file uploaded' })
+
+    const tmpDir = createChatLabTempDir('imports', 'analyze-target-')
+    const tmpPath = path.join(tmpDir, data.filename || 'upload')
+
+    const chunks: Buffer[] = []
+    for await (const chunk of data.file) {
+      chunks.push(chunk)
+    }
+    fs.writeFileSync(tmpPath, Buffer.concat(chunks))
+
+    const formatId = (data.fields?.formatId as any)?.value as string | undefined
+    const chatIndexStr = (data.fields?.chatIndex as any)?.value as string | undefined
+    const chatIndex = chatIndexStr !== undefined ? parseInt(chatIndexStr, 10) : undefined
+
+    try {
+      return await runAnalyzeAutoImport(tmpPath, {
+        formatId,
+        chatIndex,
+        nativeBinding: resolveNativeBinding(),
+      })
+    } catch (err) {
+      return reply.code(500).send({ error: err instanceof Error ? err.message : String(err) })
+    } finally {
+      cleanupTemp(tmpPath, tmpDir)
     }
   })
 

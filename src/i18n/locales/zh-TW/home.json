@@ -69,6 +69,32 @@
       "incremental": "已增量匯入 {newCount} 則訊息，略過 {duplicateCount} 則重複訊息",
       "unchanged": "內容已匯入，沒有新增訊息"
     },
+    "target": {
+      "title": "選擇匯入目標",
+      "hint": "選擇這次匯入要放到哪裡。",
+      "hintWithFile": "選擇 {file} 這次匯入要放到哪裡。",
+      "auto": "自動判斷",
+      "autoAppend": "將附加到「{session}」（依據{method}）",
+      "autoCreate": "將新建獨立工作階段（{reason}）",
+      "session": "附加到指定工作階段",
+      "sessionHint": "把這個檔案的訊息合併進既有工作階段，重複訊息會自動略過",
+      "new": "新建獨立工作階段",
+      "newHint": "即使配對到既有工作階段，也另外建立一個新的",
+      "searchPlaceholder": "搜尋工作階段",
+      "noSessions": "還沒有已匯入的工作階段",
+      "noMatches": "沒有符合的工作階段",
+      "confirm": "開始匯入",
+      "matchedBy": {
+        "source-session-id": "匯出檔案裡的工作階段 ID",
+        "stable-id": "群組 ID / 成員組合",
+        "trailing-messages": "末尾訊息重疊"
+      },
+      "createReason": {
+        "no-match": "沒有配對到既有工作階段",
+        "ambiguous": "配對到多個候選工作階段",
+        "user-choice": "你選擇了新建"
+      }
+    },
     "batch": {
       "importing": "批次匯入中",
       "progressCount": "第 {current} / {total} 個",

@@ -391,3 +391,47 @@ test('dry-run analysis rejects an unsafe explicit session id before parsing', as
   assert.deepEqual(calls.create, [])
   assert.deepEqual(calls.append, [])
 })
+
+test('forceCreate imports into a separate session even when a target matches', async () => {
+  const { deps, calls } = createDeps({
+    existingSessionIds: ['existing'],
+    decision: { action: 'incremental', sessionId: 'existing', matchedBy: 'stable-id' },
+  })
+
+  const result = await autoImportFile('source.json', deps, { forceCreate: true })
+
+  assert.equal(result.success, true)
+  assert.equal(result.importMode, 'created')
+  assert.equal(result.createReason, 'user-choice')
+  assert.equal(calls.match, 0)
+  assert.deepEqual(calls.append, [])
+  assert.deepEqual(calls.create, [{ filePath: 'source.json', sessionId: undefined }])
+})
+
+test('forceCreate overrides a decision the batch coordinator already resolved', async () => {
+  const { deps, calls } = createDeps({ existingSessionIds: ['existing'] })
+
+  const result = await autoImportFile('source.json', deps, {
+    forceCreate: true,
+    resolvedDecision: { action: 'incremental', sessionId: 'existing', matchedBy: 'trailing-messages' },
+  })
+
+  assert.equal(result.importMode, 'created')
+  assert.equal(result.createReason, 'user-choice')
+  assert.deepEqual(calls.append, [])
+})
+
+test('dry-run analysis previews the separate session forceCreate would produce', async () => {
+  const { deps, calls } = createAnalysisDeps({
+    existingSessionIds: ['existing'],
+    decision: { action: 'incremental', sessionId: 'existing', matchedBy: 'stable-id' },
+  })
+
+  const result = await analyzeAutoImportFile('source.json', deps, { forceCreate: true })
+
+  assert.equal(result.success, true)
+  assert.equal(result.importMode, 'created')
+  assert.equal(result.createReason, 'user-choice')
+  assert.deepEqual(calls.append, [])
+  assert.deepEqual(calls.create, [{ filePath: 'source.json', formatOptions: undefined }])
+})

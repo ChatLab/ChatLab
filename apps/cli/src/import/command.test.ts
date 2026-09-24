@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildImportCommandEnvelope, withJsonDiagnosticsOnStderr } from './command'
+import { Command } from 'commander'
+import { buildImportCommandEnvelope, registerImportCommand, withJsonDiagnosticsOnStderr } from './command'
 
 test('buildImportCommandEnvelope exposes a stable dry-run success contract', () => {
   assert.deepEqual(
@@ -65,4 +66,38 @@ test('withJsonDiagnosticsOnStderr keeps runtime diagnostics out of machine-reada
 
   assert.deepEqual(stdout, [])
   assert.deepEqual(stderr, ['[Parser V2] Using parser: ChatLab JSON'])
+})
+
+test('import rejects --session-id together with --new-session before touching the data directory', async () => {
+  const program = new Command()
+  program.exitOverride()
+  registerImportCommand(program)
+
+  const stdout: string[] = []
+  const originalWrite = process.stdout.write.bind(process.stdout)
+  const originalExitCode = process.exitCode
+  process.stdout.write = ((chunk: string) => {
+    stdout.push(String(chunk))
+    return true
+  }) as typeof process.stdout.write
+
+  try {
+    await program.parseAsync(['import', 'missing-file.json', '--json', '--session-id', 'target', '--new-session'], {
+      from: 'user',
+    })
+  } finally {
+    process.stdout.write = originalWrite
+    process.exitCode = originalExitCode
+  }
+
+  assert.deepEqual(JSON.parse(stdout.join('')), {
+    ok: false,
+    command: 'import',
+    error: {
+      code: 'CONFLICTING_TARGET_OPTIONS',
+      message: 'Use either --session-id or --new-session, not both',
+      hint: '--session-id appends to an existing session; --new-session always creates a separate one.',
+    },
+    meta: { dryRun: false, apiVersion: 1 },
+  })
 })

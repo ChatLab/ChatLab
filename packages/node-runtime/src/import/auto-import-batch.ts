@@ -52,7 +52,10 @@ function preserveSerialTargetMatching(planned: PlannedItem[]): void {
 
   for (const plannedItem of planned) {
     let plan = plannedItem.plan
-    if (priorPlannedWrite && !plannedItem.item.options?.explicitSessionId && !plan.exclusive) {
+    const hasChosenTarget = Boolean(
+      plannedItem.item.options?.explicitSessionId || plannedItem.item.options?.forceCreate
+    )
+    if (priorPlannedWrite && !hasChosenTarget && !plan.exclusive) {
       plan = {
         ...plan,
         concurrencyKey: `unresolved:${plannedItem.itemIndex}`,
@@ -87,6 +90,18 @@ export async function autoImportBatch(
       onTaskStart: ({ item, itemIndex }) => options.onItemStart?.(item, itemIndex),
       run: async ({ item, itemIndex }) => {
         const itemOptions = item.options ?? {}
+        if (itemOptions.forceCreate) {
+          return {
+            item,
+            itemIndex,
+            plan: {
+              decision: { action: 'create', reason: 'user-choice' },
+              concurrencyKey: `create:${itemIndex}`,
+              exclusive: false,
+              coalesceCreate: false,
+            },
+          } satisfies PlannedItem
+        }
         if (itemOptions.explicitSessionId) {
           const sessionId = itemOptions.explicitSessionId
           const decision: AutoImportDecision = deps.sessionExists(sessionId)

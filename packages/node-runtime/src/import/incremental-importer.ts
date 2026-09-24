@@ -9,16 +9,23 @@
  */
 
 import type { DatabaseAdapter, PreparedStatement } from '@openchatlab/core'
-import { generateSessionIndex, generateIncrementalSessionIndex, getSessionIndexStats } from '@openchatlab/core'
+import {
+  generateSessionIndex,
+  generateIncrementalSessionIndex,
+  getSessionIndexStats,
+  getSessionMeta,
+} from '@openchatlab/core'
 import {
   streamParseFile,
   detectFormat,
   getFormatFeatureById,
+  type ParsedMeta,
   type ParseProgress,
   type StreamParseCallbacks,
 } from '@openchatlab/parser'
 import {
   applyPlatformMessageIdScope,
+  buildPlatformMessageIdScope,
   createMessageDedupState,
   generateFallbackMessageKey,
   registerMessageAndCheckDuplicate,
@@ -46,6 +53,13 @@ export interface ImportOptions {
   chatIndex?: number
   /** Internal scope selected by automatic matching for merger-namespaced message IDs. */
   platformMessageIdScope?: string
+  /**
+   * The user picked this target, so the file may be an export of the same chat taken from
+   * another account. When its owner differs from the session's, the incoming platform
+   * message IDs are namespaced and dedup falls back to the content fingerprint, which is
+   * how the same message exported from both sides is recognized. Issue #358.
+   */
+  crossSourceAppend?: boolean
   /** Source-to-target sender IDs proven by automatic platform-message matching. */
   senderPlatformIdMappings?: SenderPlatformIdMapping[]
 }
@@ -133,6 +147,22 @@ function applyMessageIdScope<T extends { platformMessageId?: string; replyToMess
     platformMessageId: applyPlatformMessageIdScope(message.platformMessageId, scope),
     replyToMessageId: applyPlatformMessageIdScope(message.replyToMessageId, scope),
   }
+}
+
+function usableOwnerId(ownerId: string | null | undefined): string | null {
+  return ownerId && ownerId.toLowerCase() !== 'system' ? ownerId : null
+}
+
+/**
+ * Two exports of the same chat taken from different accounts number their messages
+ * independently, so the incoming IDs must not be compared against the stored ones.
+ * Returns the scope that namespaces them, or undefined when both sides share an owner.
+ */
+function resolveCrossSourceScope(sessionOwnerId: string | null, meta: ParsedMeta): string | undefined {
+  const sourceOwnerId = usableOwnerId(meta.ownerId)
+  const targetOwnerId = usableOwnerId(sessionOwnerId)
+  if (!sourceOwnerId || !targetOwnerId || sourceOwnerId === targetOwnerId) return undefined
+  return buildPlatformMessageIdScope(`${meta.platform}\0${sourceOwnerId}`)
 }
 
 function createPlatformIdMapper(mappings: SenderPlatformIdMapping[] | undefined): (platformId: string) => string {
@@ -237,7 +267,8 @@ function isExistingMessageDuplicate(
   message: DedupMessage,
   existingBatchPlatformIds: Set<string>,
   candidateCache: CandidateCache,
-  preserveFallbackMultiplicity: boolean
+  preserveFallbackMultiplicity: boolean,
+  crossSourcePlatformIds: boolean
 ): boolean {
   if (
     message.platformMessageId &&
@@ -249,19 +280,23 @@ function isExistingMessageDuplicate(
 
   const fallbackKey = generateFallbackMessageKey(message)
   if (message.platformMessageId) {
-    if (!lookup.hasFallbackOnlyMessages) return false
-    const matchingFallbackOnlyCount = getExistingCandidates(lookup, message, candidateCache).filter(
-      (candidate) => !candidate.platform_message_id && candidateFallbackKey(message, candidate) === fallbackKey
+    // The incoming IDs come from another source's ID space, so a stored ID proves nothing
+    // about this message: compare every candidate by content instead of only the ID-less ones.
+    if (!crossSourcePlatformIds && !lookup.hasFallbackOnlyMessages) return false
+    const matchingCount = getExistingCandidates(lookup, message, candidateCache).filter(
+      (candidate) =>
+        (crossSourcePlatformIds || !candidate.platform_message_id) &&
+        candidateFallbackKey(message, candidate) === fallbackKey
     ).length
     const consumedCount = lookup.consumedFallbackOnlyOccurrenceCounts.get(fallbackKey) ?? 0
-    const matchesFallbackOnly = preserveFallbackMultiplicity
-      ? consumedCount < matchingFallbackOnlyCount
-      : consumedCount === 0 && matchingFallbackOnlyCount > 0
-    if (matchesFallbackOnly) {
+    const matchesExisting = preserveFallbackMultiplicity
+      ? consumedCount < matchingCount
+      : consumedCount === 0 && matchingCount > 0
+    if (matchesExisting) {
       lookup.consumedFallbackOnlyOccurrenceCounts.set(fallbackKey, consumedCount + 1)
       lookup.bridgedPlatformMessageIds.add(message.platformMessageId)
     }
-    return matchesFallbackOnly
+    return matchesExisting
   }
 
   const matchingCount = getExistingCandidates(lookup, message, candidateCache).filter(
@@ -281,10 +316,18 @@ function isDuplicate(
   message: DedupMessage,
   existingBatchPlatformIds: Set<string>,
   candidateCache: CandidateCache,
-  preserveFallbackMultiplicity: boolean
+  preserveFallbackMultiplicity: boolean,
+  crossSourcePlatformIds: boolean
 ): boolean {
   if (
-    isExistingMessageDuplicate(lookup, message, existingBatchPlatformIds, candidateCache, preserveFallbackMultiplicity)
+    isExistingMessageDuplicate(
+      lookup,
+      message,
+      existingBatchPlatformIds,
+      candidateCache,
+      preserveFallbackMultiplicity,
+      crossSourcePlatformIds
+    )
   )
     return true
   return registerMessageAndCheckDuplicate(message, incomingState)
@@ -322,6 +365,9 @@ export async function analyzeIncrementalImport(
   const mapPlatformId = createPlatformIdMapper(options?.senderPlatformIdMappings)
   const preserveFallbackMultiplicity = shouldPreserveFallbackMultiplicity(formatFeature.id)
 
+  const sessionOwnerId = options?.crossSourceAppend ? (getSessionMeta(db)?.ownerId ?? null) : null
+  let activeScope = options?.platformMessageIdScope
+
   try {
     const existingLookup = createExistingMessageLookup(db)
     const incomingState = createMessageDedupState([], [], [], { preserveFallbackMultiplicity })
@@ -332,6 +378,9 @@ export async function analyzeIncrementalImport(
         formatOptions: options?.chatIndex === undefined ? undefined : { chatIndex: options.chatIndex },
         onMeta: (meta) => {
           platform = meta.platform
+          if (options?.crossSourceAppend && !options.platformMessageIdScope) {
+            activeScope = resolveCrossSourceScope(sessionOwnerId, meta)
+          }
         },
         onMembers: () => {},
         onProgress: (progress: ParseProgress) => {
@@ -340,7 +389,7 @@ export async function analyzeIncrementalImport(
         onLog: deps.onParserLog,
         onMessageBatch: (batch) => {
           const scopedBatch = batch.map((message) =>
-            applyMessageIdScope(applySenderPlatformIdMapping(message, mapPlatformId), options?.platformMessageIdScope)
+            applyMessageIdScope(applySenderPlatformIdMapping(message, mapPlatformId), activeScope)
           )
           const existingBatchPlatformIds = findExistingPlatformMessageIds(
             existingLookup,
@@ -360,7 +409,8 @@ export async function analyzeIncrementalImport(
                 { ...msg, timestamp },
                 existingBatchPlatformIds,
                 candidateCache,
-                preserveFallbackMultiplicity
+                preserveFallbackMultiplicity,
+                Boolean(activeScope)
               )
             ) {
               duplicateCount++
@@ -403,6 +453,9 @@ export async function incrementalImport(
   const memberUpdateMode = options?.memberUpdateMode ?? 'upsert'
   const mapPlatformId = createPlatformIdMapper(options?.senderPlatformIdMappings)
   const preserveFallbackMultiplicity = shouldPreserveFallbackMultiplicity(formatFeature.id)
+  const sessionOwnerId = options?.crossSourceAppend ? (getSessionMeta(db)?.ownerId ?? null) : null
+  let activeScope = options?.platformMessageIdScope
+  let appendedFromAnotherOwner = false
 
   try {
     const existingLookup = createExistingMessageLookup(db)
@@ -480,12 +533,19 @@ export async function incrementalImport(
       {
         formatOptions: options?.chatIndex === undefined ? undefined : { chatIndex: options.chatIndex },
         onMeta: (meta) => {
+          if (options?.crossSourceAppend && !options.platformMessageIdScope) {
+            const crossSourceScope = resolveCrossSourceScope(sessionOwnerId, meta)
+            appendedFromAnotherOwner = Boolean(crossSourceScope)
+            if (crossSourceScope) activeScope = crossSourceScope
+          }
           if (metaUpdateMode === 'none') return
           updateMeta.run(
             meta.name || '',
             meta.groupId || '',
             meta.groupAvatar || '',
-            meta.ownerId ? mapPlatformId(meta.ownerId) : '',
+            // This export belongs to the other participant. Keep the session's own owner so that
+            // "me" does not flip, and so re-importing the same export reuses the same ID namespace.
+            appendedFromAnotherOwner ? '' : meta.ownerId ? mapPlatformId(meta.ownerId) : '',
             Math.floor(Date.now() / 1000)
           )
           metaUpdated = true
@@ -520,7 +580,7 @@ export async function incrementalImport(
         onLog: deps.onParserLog,
         onMessageBatch: (batch) => {
           const scopedBatch = batch.map((message) =>
-            applyMessageIdScope(applySenderPlatformIdMapping(message, mapPlatformId), options?.platformMessageIdScope)
+            applyMessageIdScope(applySenderPlatformIdMapping(message, mapPlatformId), activeScope)
           )
           const existingBatchPlatformIds = findExistingPlatformMessageIds(
             existingLookup,
@@ -552,7 +612,8 @@ export async function incrementalImport(
                 { ...msg, timestamp },
                 existingBatchPlatformIds,
                 candidateCache,
-                preserveFallbackMultiplicity
+                preserveFallbackMultiplicity,
+                Boolean(activeScope)
               )
             ) {
               duplicateCount++
