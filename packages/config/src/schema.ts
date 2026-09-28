@@ -48,6 +48,7 @@ export const cliConfigSchema = z.object({
 
 export const desktopConfigSchema = z.object({
   close_behavior: z.enum(['background', 'quit']).default('background'),
+  ui_scale: z.number().min(0.9).max(1.5).default(1),
 })
 
 export const configSchema = z.object({

@@ -123,5 +123,9 @@ export const extendedApi = {
     setDesktopCloseBehavior: (behavior: DesktopCloseBehavior): Promise<{ success: boolean; error?: string }> => {
       return ipcRenderer.invoke('app:setDesktopCloseBehavior', behavior)
     },
+    getDesktopUiScale: (): Promise<number> => ipcRenderer.invoke('app:getDesktopUiScale'),
+    setDesktopUiScale: (scale: number): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke('app:setDesktopUiScale', scale)
+    },
   },
 }

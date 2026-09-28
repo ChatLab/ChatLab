@@ -273,8 +273,8 @@ onUnmounted(() => {
         {{ session.name }}
       </h2>
 
-      <div class="mt-4 flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-24">
-        <div class="min-w-0 flex flex-col gap-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+      <div class="mt-4 flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:items-start sm:gap-x-24">
+        <div class="min-w-0 flex shrink-0 flex-col gap-2 text-sm font-medium text-gray-500 dark:text-gray-400">
           <div class="flex items-center gap-2">
             <div class="flex h-6 w-6 shrink-0 items-center justify-center">
               <UIcon v-if="session.type === 'group'" name="i-heroicons-user-group" class="h-4 w-4 opacity-70" />

@@ -34,6 +34,7 @@
     "appearance": {
       "title": "外觀設定",
       "themeMode": "主題模式",
+      "uiScale": "介面縮放",
       "insightCardTheme": "洞察卡片配色",
       "insightCardThemeOption": "配色 {index}",
       "auto": "依系統設定",

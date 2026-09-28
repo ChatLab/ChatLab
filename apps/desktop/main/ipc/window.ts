@@ -4,7 +4,8 @@
 
 import { ipcMain, app, dialog, clipboard, shell, nativeTheme } from 'electron'
 import * as fs from 'fs/promises'
-import { loadConfig, setConfigField } from '@openchatlab/config'
+import { desktopConfigSchema, loadConfig, setConfigField } from '@openchatlab/config'
+import { appLogger } from '@openchatlab/node-runtime'
 import type { DesktopCloseBehavior } from '@openchatlab/shared-types'
 import type { IpcContext } from './types'
 import { simulateUpdateDialog, manualCheckForUpdates } from '../update/manager'
@@ -221,6 +222,26 @@ export function registerWindowHandlers(ctx: IpcContext): void {
       return { success: true }
     } catch (error) {
       return { success: false, error: String(error) }
+    }
+  })
+
+  // ==================== Desktop UI scale ====================
+  ipcMain.handle('app:getDesktopUiScale', () => loadConfig().desktop.ui_scale)
+
+  ipcMain.handle('app:setDesktopUiScale', (_, scale: number) => {
+    const parsed = desktopConfigSchema.shape.ui_scale.safeParse(scale)
+    if (typeof scale !== 'number' || !parsed.success) {
+      return { success: false, error: 'Unsupported desktop UI scale' }
+    }
+
+    try {
+      setConfigField('desktop.ui_scale', String(parsed.data))
+      win.webContents.setZoomFactor(parsed.data)
+      appLogger.info('window', `Desktop UI scale changed to ${parsed.data}`)
+      return { success: true }
+    } catch (error) {
+      appLogger.error('window', 'Failed to change desktop UI scale', error)
+      return { success: false, error: error instanceof Error ? error.message : String(error) }
     }
   })
 

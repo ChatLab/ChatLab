@@ -194,6 +194,8 @@ interface Api {
     setOpenAtLogin: (enabled: boolean) => Promise<{ success: boolean; error?: string }>
     getDesktopCloseBehavior: () => Promise<DesktopCloseBehavior>
     setDesktopCloseBehavior: (behavior: DesktopCloseBehavior) => Promise<{ success: boolean; error?: string }>
+    getDesktopUiScale: () => Promise<number>
+    setDesktopUiScale: (scale: number) => Promise<{ success: boolean; error?: string }>
   }
 }
 

@@ -38,7 +38,7 @@ const currentTab = computed({
     @update:open="emit('update:open', $event)"
   >
     <template #content>
-      <div class="flex h-[100dvh] min-h-0 flex-col overflow-hidden sm:h-[85vh] sm:min-h-[650px]">
+      <div class="flex h-[100dvh] min-h-0 flex-col overflow-hidden sm:h-[85vh] sm:min-h-[min(650px,calc(100dvh-4rem))]">
         <div class="shrink-0 border-b border-gray-200 px-4 pt-4 sm:px-6 sm:pt-5 dark:border-gray-800">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">

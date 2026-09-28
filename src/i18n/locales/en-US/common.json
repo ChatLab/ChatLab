@@ -21,6 +21,8 @@
   "presentationFallback": "Appearance preferences couldn't be loaded in time. System theme and the built-in language are in use for this session.",
   "webWasmWorkspaceBusy": "The local workspace is temporarily in use by another tab. Wait a moment and retry.",
   "loading": "Loading...",
+  "loadFailed": "Failed to load",
+  "saveFailed": "Failed to save",
   "initializing": "Initializing...",
   "noResults": "No results found",
   "export": "Export",
