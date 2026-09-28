@@ -21,6 +21,8 @@
   "presentationFallback": "表示設定を時間内に読み込めなかったため、このセッションではシステムテーマと組み込み言語を使用します。",
   "webWasmWorkspaceBusy": "ローカルワークスペースは一時的に別のタブで使用されています。しばらく待ってから再試行してください。",
   "loading": "読み込み中...",
+  "loadFailed": "読み込みに失敗しました",
+  "saveFailed": "保存に失敗しました",
   "initializing": "初期化中...",
   "noResults": "結果が見つかりません",
   "export": "エクスポート",

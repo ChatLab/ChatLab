@@ -45,6 +45,23 @@ describe('cli config section', () => {
 })
 
 describe('setConfigField', () => {
+  it('defaults old desktop configs to 100% and persists UI scale without changing other preferences', () => {
+    mkdirSync(join(tempHome, '.chatlab'), { recursive: true })
+    writeFileSync(configToml, '[desktop]\nclose_behavior = "quit"\n[locale]\nlang = "en-US"\n', 'utf-8')
+
+    assert.equal(loadConfig().desktop.ui_scale, 1)
+    setConfigField('desktop.ui_scale', '1.25')
+
+    const config = loadConfig()
+    assert.equal(config.desktop.ui_scale, 1.25)
+    assert.equal(config.desktop.close_behavior, 'quit')
+    assert.equal(config.locale.lang, 'en-US')
+
+    const saved = readFileSync(configToml, 'utf-8')
+    assert.throws(() => setConfigField('desktop.ui_scale', '0'))
+    assert.equal(readFileSync(configToml, 'utf-8'), saved)
+  })
+
   it('persists the Windows close behavior', () => {
     const result = setConfigField('desktop.close_behavior', 'background')
 

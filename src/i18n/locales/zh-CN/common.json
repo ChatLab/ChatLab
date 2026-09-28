@@ -21,6 +21,8 @@
   "presentationFallback": "外观偏好未能及时加载，本次启动已使用系统主题和内置语言。",
   "webWasmWorkspaceBusy": "本地工作区暂时正由另一个标签页使用。请稍候后重试。",
   "loading": "加载中...",
+  "loadFailed": "加载失败",
+  "saveFailed": "保存失败",
   "initializing": "初始化中...",
   "noResults": "无匹配结果",
   "export": "导出",

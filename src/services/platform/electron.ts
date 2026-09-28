@@ -34,6 +34,14 @@ export class ElectronPlatformAdapter implements PlatformAdapter {
     return window.api.app.setDesktopCloseBehavior(behavior)
   }
 
+  getDesktopUiScale(): Promise<number> {
+    return window.api.app.getDesktopUiScale()
+  }
+
+  setDesktopUiScale(scale: number): Promise<{ success: boolean; error?: string }> {
+    return window.api.app.setDesktopUiScale(scale)
+  }
+
   getAnalyticsEnabled(): Promise<boolean> {
     return window.api.app.getAnalyticsEnabled()
   }

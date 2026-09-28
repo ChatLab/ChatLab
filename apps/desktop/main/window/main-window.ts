@@ -28,6 +28,7 @@ export async function createMainWindow(paths: MainWindowPaths): Promise<BrowserW
       preload: paths.preloadPath,
       sandbox: false,
       devTools: true,
+      zoomFactor: loadConfig().desktop.ui_scale,
     },
   }
 
@@ -100,6 +101,8 @@ function handleWindowsClose(win: BrowserWindow): void {
 
 function registerMainWindowEvents(win: BrowserWindow): void {
   win.webContents.on('did-finish-load', () => {
+    // Reapply the preference after navigation, overriding Chromium's per-origin zoom cache.
+    win.webContents.setZoomFactor(loadConfig().desktop.ui_scale)
     setTimeout(() => {
       currentMainWindow?.webContents.send('app-started')
     }, 500)

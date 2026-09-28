@@ -4,6 +4,8 @@ import { computed, ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useLayoutStore } from '@/stores/layout'
 import { useSettingsStore } from '@/stores/settings'
+import { useToast } from '@/composables/useToast'
+import { reportError } from '@/services/log-report'
 import { useColorMode } from '@vueuse/core'
 import { availableLocales, type LocaleType } from '@/i18n'
 import NetworkSettingsSection from './NetworkSettingsSection.vue'
@@ -14,6 +16,7 @@ import { INSIGHT_CARD_THEMES, type InsightCardThemeId } from '@/utils/insight-ca
 import type { DesktopCloseBehavior } from '@openchatlab/shared-types'
 
 const { t } = useI18n()
+const toast = useToast()
 
 withDefaults(
   defineProps<{
@@ -39,6 +42,12 @@ const isWindowsDesktop =
   IS_ELECTRON && typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('win')
 const desktopCloseBehavior = ref<DesktopCloseBehavior>('background')
 let savedDesktopCloseBehavior: DesktopCloseBehavior = 'background'
+const desktopUiScale = ref(1)
+const savingUiScale = ref(false)
+const uiScaleOptions = [0.9, 1, 1.1, 1.25, 1.5].map((value) => ({
+  label: `${Math.round(value * 100)}%`,
+  value,
+}))
 
 onMounted(async () => {
   if (!IS_ELECTRON) {
@@ -50,6 +59,13 @@ onMounted(async () => {
     openAtLogin.value = enabled
   } catch {
     isPackaged.value = false
+  }
+
+  try {
+    desktopUiScale.value = await usePlatformService().getDesktopUiScale()
+  } catch (error) {
+    reportError(`Failed to load desktop UI scale: ${error}`, error instanceof Error ? error.stack : undefined)
+    toast.fail(t('common.loadFailed'))
   }
 
   if (isWindowsDesktop) {
@@ -81,6 +97,20 @@ async function handleDesktopCloseBehaviorChange(value: string | number) {
     savedDesktopCloseBehavior = nextBehavior
   } else {
     desktopCloseBehavior.value = savedDesktopCloseBehavior
+  }
+}
+
+async function handleDesktopUiScaleChange(value: number) {
+  savingUiScale.value = true
+  try {
+    const result = await usePlatformService().setDesktopUiScale(value)
+    if (!result.success) throw new Error(result.error || 'Failed to save desktop UI scale')
+    desktopUiScale.value = value
+  } catch (error) {
+    reportError(`Failed to save desktop UI scale: ${error}`, error instanceof Error ? error.stack : undefined)
+    toast.fail(t('common.saveFailed'))
+  } finally {
+    savingUiScale.value = false
   }
 }
 
@@ -215,6 +245,22 @@ const desktopCloseBehaviorOptions = computed(() => [
             <UTabs v-model="colorMode" size="sm" class="gap-0" :items="colorModeOptions"></UTabs>
           </div>
         </div>
+        <template v-if="IS_ELECTRON">
+          <div class="border-t border-gray-200 dark:border-gray-700"></div>
+          <div class="flex items-center justify-between p-4">
+            <label for="desktop-ui-scale" class="pr-4 text-sm font-medium text-gray-900 dark:text-white">
+              {{ t('settings.basic.appearance.uiScale') }}
+            </label>
+            <USelect
+              id="desktop-ui-scale"
+              :model-value="desktopUiScale"
+              :items="uiScaleOptions"
+              :disabled="savingUiScale"
+              class="w-28"
+              @update:model-value="handleDesktopUiScaleChange"
+            />
+          </div>
+        </template>
         <div class="border-t border-gray-200 dark:border-gray-700"></div>
         <div class="flex items-center justify-between p-4">
           <div class="flex-1 pr-4">

@@ -34,6 +34,7 @@
     "appearance": {
       "title": "外観設定",
       "themeMode": "テーマモード",
+      "uiScale": "表示倍率",
       "insightCardTheme": "インサイトカードの配色",
       "insightCardThemeOption": "配色 {index}",
       "auto": "システムに従う",
