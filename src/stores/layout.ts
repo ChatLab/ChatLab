@@ -15,14 +15,19 @@ export const useLayoutStore = defineStore(
     const showScreenCaptureModal = ref(false)
     const screenCaptureImage = ref<string | null>(null)
     const sidePanelOpen = ref(false)
-    const sidePanelView = ref<'records' | 'contact' | null>(null)
+    const sidePanelView = ref<'records' | 'contact' | 'topics' | null>(null)
+    const sidePanelDefaultView = ref<'records' | 'topics'>('records')
     const sidePanelSessionId = ref<string | null>(null)
     const sidePanelHasContact = ref(false)
     const chatRecordQuery = ref<ChatRecordQuery | null>(null)
     // Keep the existing persisted preference when replacing the drawer shell.
     const chatRecordDrawerWidth = ref(750)
     const contactPanelWidth = ref(420)
+    const topicsPanelWidth = ref(320)
     const canOpenSidePanel = computed(() => Boolean(sidePanelView.value || sidePanelSessionId.value))
+    const canReturnSidePanel = computed(
+      () => sidePanelView.value === 'records' && (sidePanelHasContact.value || sidePanelDefaultView.value === 'topics')
+    )
 
     const isToolsPanelLocked = ref(false)
     const isToolsPanelMini = ref(false)
@@ -66,9 +71,11 @@ export const useLayoutStore = defineStore(
       }, 300)
     }
 
-    function setSidePanelContext(sessionId: string | null) {
-      sidePanelOpen.value = false
-      sidePanelView.value = null
+    function setSidePanelContext(sessionId: string | null, defaultView: 'records' | 'topics' = 'records') {
+      const showTopics = Boolean(sessionId) && defaultView === 'topics'
+      sidePanelOpen.value = showTopics
+      sidePanelView.value = showTopics ? 'topics' : null
+      sidePanelDefaultView.value = defaultView
       sidePanelHasContact.value = false
       chatRecordQuery.value = null
       sidePanelSessionId.value = sessionId
@@ -89,9 +96,9 @@ export const useLayoutStore = defineStore(
       chatRecordQuery.value = null
     }
 
-    function returnToContactPanel() {
-      if (!sidePanelHasContact.value) return
-      sidePanelView.value = 'contact'
+    function returnToSidePanel() {
+      if (!canReturnSidePanel.value) return
+      sidePanelView.value = sidePanelHasContact.value ? 'contact' : 'topics'
       sidePanelOpen.value = true
     }
 
@@ -157,9 +164,11 @@ export const useLayoutStore = defineStore(
       sidePanelView,
       sidePanelHasContact,
       canOpenSidePanel,
+      canReturnSidePanel,
       chatRecordQuery,
       chatRecordDrawerWidth,
       contactPanelWidth,
+      topicsPanelWidth,
       showSettings,
       settingsTab,
       settingsSubTab,
@@ -173,7 +182,7 @@ export const useLayoutStore = defineStore(
       setSidePanelContext,
       openChatRecords,
       openContactPanel,
-      returnToContactPanel,
+      returnToSidePanel,
       clearContactPanel,
       closeSidePanel,
       toggleSidePanel,
@@ -192,6 +201,7 @@ export const useLayoutStore = defineStore(
           'toolsPanelPosition',
           'chatRecordDrawerWidth',
           'contactPanelWidth',
+          'topicsPanelWidth',
         ],
         storage: localStorage,
       },
