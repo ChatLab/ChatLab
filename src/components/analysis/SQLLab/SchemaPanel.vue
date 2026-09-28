@@ -5,6 +5,7 @@ import type { TableSchema } from './types'
 import { useDataService } from '@/services'
 import { getTableLabel, getColumnLabel } from './types'
 import type { LocaleType } from '@/i18n/types'
+import SidebarCollapseButton from '@/components/common/sidebar/SidebarCollapseButton.vue'
 
 const { t, locale } = useI18n()
 
@@ -43,12 +44,6 @@ function toggleTable(tableName: string) {
   }
 }
 
-// 展开表（从折叠状态点击时使用）
-function expandTable(tableName: string) {
-  isCollapsed.value = false
-  expandedTables.value.add(tableName)
-}
-
 // 处理双击插入列名
 function handleInsertColumn(tableName: string, columnName: string) {
   emit('insertColumn', tableName, columnName)
@@ -67,96 +62,73 @@ onMounted(() => {
 
 <template>
   <div
-    class="m-3 flex h-[calc(100%-1.5rem)] shrink-0 flex-col overflow-hidden rounded-lg bg-white transition-all duration-300 ease-in-out dark:bg-sidebar-dark"
+    class="relative m-3 h-[calc(100%-1.5rem)] shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out motion-reduce:transition-none"
     :class="isCollapsed ? 'w-14' : 'w-56'"
   >
-    <!-- 面板头部 -->
     <div
-      class="flex items-center"
-      :class="
-        isCollapsed
-          ? 'justify-center px-2 pb-2 pt-5'
-          : 'justify-between border-b border-gray-200 py-2 pl-3 pr-2 dark:border-gray-800'
-      "
+      class="absolute inset-y-0 left-0 overflow-hidden rounded-lg bg-white transition-[width] duration-300 ease-in-out motion-reduce:transition-none dark:bg-sidebar-dark"
+      :class="isCollapsed ? 'pointer-events-none w-0' : 'w-56'"
+      :inert="isCollapsed"
+      :aria-hidden="isCollapsed ? 'true' : undefined"
     >
-      <span v-if="!isCollapsed" class="text-xs font-medium text-gray-500 dark:text-gray-400">
-        {{ t('ai.sqlLab.schema.tables') }}
-      </span>
-      <UButton
-        v-if="!isCollapsed"
-        color="neutral"
-        variant="ghost"
-        size="sm"
-        class="group flex h-9 w-9 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-white/[0.06]"
-        @click="isCollapsed = !isCollapsed"
-      >
-        <UIcon name="i-lucide-panel-right" class="size-4 scale-x-[-1] group-hover:hidden" />
-        <UIcon name="i-lucide-panel-right-close" class="size-4 hidden scale-x-[-1] group-hover:block" />
-      </UButton>
-      <button
-        v-else
-        type="button"
-        class="group relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-white/[0.06]"
-        @click="isCollapsed = !isCollapsed"
-      >
-        <UIcon name="i-lucide-panel-right-open" class="size-4 scale-x-[-1]" />
-      </button>
-    </div>
-
-    <!-- Schema 列表 -->
-    <div v-if="!isCollapsed" class="flex-1 overflow-y-auto p-2">
-      <div v-for="table in schema" :key="table.name" class="mb-2">
-        <!-- 表名 -->
-        <button
-          class="flex w-full items-center gap-1 rounded px-2 py-1.5 text-left transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-          @click="toggleTable(table.name)"
-        >
-          <UIcon
-            :name="expandedTables.has(table.name) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
-            class="h-3 w-3 shrink-0 text-gray-400"
-          />
-          <UIcon name="i-heroicons-table-cells" class="h-4 w-4 shrink-0 text-pink-500" />
-          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ table.name }}</span>
-          <span class="flex-1 truncate text-right text-xs text-gray-400">
-            {{ getTableLabel(table.name, locale as LocaleType) }}
+      <div class="flex h-full w-56 flex-col">
+        <div class="flex h-[52px] shrink-0 items-center border-b border-gray-200 pl-12 pr-3 dark:border-gray-800">
+          <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+            {{ t('ai.sqlLab.schema.tables') }}
           </span>
-        </button>
+        </div>
+        <!-- Schema list stays mounted to preserve its scroll position. -->
+        <div class="min-h-0 flex-1 overflow-y-auto p-2">
+          <div v-for="table in schema" :key="table.name" class="mb-2">
+            <!-- 表名 -->
+            <button
+              class="flex w-full items-center gap-1 rounded px-2 py-1.5 text-left transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+              @click="toggleTable(table.name)"
+            >
+              <UIcon
+                :name="expandedTables.has(table.name) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
+                class="h-3 w-3 shrink-0 text-gray-400"
+              />
+              <UIcon name="i-heroicons-table-cells" class="h-4 w-4 shrink-0 text-pink-500" />
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ table.name }}</span>
+              <span class="flex-1 truncate text-right text-xs text-gray-400">
+                {{ getTableLabel(table.name, locale as LocaleType) }}
+              </span>
+            </button>
 
-        <!-- 列列表 -->
-        <div v-if="expandedTables.has(table.name)" class="ml-4 mt-1 space-y-0.5">
-          <button
-            v-for="column in table.columns"
-            :key="column.name"
-            class="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-            :title="t('ai.sqlLab.schema.doubleClickToInsert')"
-            @dblclick="handleInsertColumn(table.name, column.name)"
-          >
-            <UIcon
-              v-if="column.pk"
-              name="i-heroicons-key"
-              class="h-3 w-3 shrink-0 text-yellow-500"
-              :title="t('ai.sqlLab.schema.primaryKey')"
-            />
-            <span class="font-mono text-gray-700 dark:text-gray-300">{{ column.name }}</span>
-            <span class="flex-1 truncate text-right text-[10px] text-gray-400">
-              {{ getColumnLabel(table.name, column.name, locale as LocaleType) }}
-            </span>
-          </button>
+            <!-- 列列表 -->
+            <div v-if="expandedTables.has(table.name)" class="ml-4 mt-1 space-y-0.5">
+              <button
+                v-for="column in table.columns"
+                :key="column.name"
+                class="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+                :title="t('ai.sqlLab.schema.doubleClickToInsert')"
+                @dblclick="handleInsertColumn(table.name, column.name)"
+              >
+                <UIcon
+                  v-if="column.pk"
+                  name="i-heroicons-key"
+                  class="h-3 w-3 shrink-0 text-yellow-500"
+                  :title="t('ai.sqlLab.schema.primaryKey')"
+                />
+                <span class="font-mono text-gray-700 dark:text-gray-300">{{ column.name }}</span>
+                <span class="flex-1 truncate text-right text-[10px] text-gray-400">
+                  {{ getColumnLabel(table.name, column.name, locale as LocaleType) }}
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 折叠时显示图标列表 -->
-    <div v-else class="flex flex-1 flex-col items-center gap-1 overflow-y-auto px-2 pb-2">
-      <button
-        v-for="table in schema"
-        :key="table.name"
-        class="flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-200/40 hover:text-primary-600 dark:text-gray-300 dark:hover:bg-white/[0.06] dark:hover:text-primary-400"
-        :title="`${getTableLabel(table.name, locale as LocaleType)} (${table.name})`"
-        @click="expandTable(table.name)"
-      >
-        <UIcon name="i-heroicons-table-cells" class="h-5 w-5" />
-      </button>
+    <!-- Keep the toggle stationary while the panel shrinks behind it. -->
+    <div class="absolute left-2 top-2 z-10">
+      <SidebarCollapseButton
+        :collapsed="isCollapsed"
+        :accessible-label="t(isCollapsed ? 'common.expandSidebar' : 'common.collapseSidebar')"
+        @click="isCollapsed = !isCollapsed"
+      />
     </div>
   </div>
 </template>
