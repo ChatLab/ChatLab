@@ -9,6 +9,7 @@ import { ChatExplorer } from '@/components/AIChat'
 import PrivateChatInsights from './components/insights/PrivateChatInsights.vue'
 import MemberList from '@/components/common/member/MemberList.vue'
 import SessionAnalysisHeader from '@/components/layout/session/SessionAnalysisHeader.vue'
+import SidePanelLayout from '@/components/layout/SidePanelLayout.vue'
 import SemanticIndexSessionModal from '@/components/analysis/SemanticIndexSessionModal.vue'
 import OwnerPromptModal from '@/components/analysis/member/OwnerPromptModal.vue'
 import IncrementalImportModal from '@/components/analysis/IncrementalImportModal.vue'
@@ -46,7 +47,7 @@ const showMemberManagementModal = ref(false)
 
 // 打开聊天记录查看器
 function openChatRecordViewer() {
-  layoutStore.openChatRecordDrawer({})
+  layoutStore.openChatRecords({})
 }
 
 // Tab 配置 - 私聊包含洞察、AI 对话、记忆和更多工具
@@ -156,56 +157,57 @@ const otherMemberAvatar = computed(() => {
         :initial-time-state="initialTimeState"
         @open-incremental-import="showIncrementalImportModal = true"
         @open-member-management="showMemberManagementModal = true"
-        @open-chat-record="openChatRecordViewer"
         @update:full-range="fullTimeRange = $event"
         @time-range-initialized="handleTimeRangeInitialized"
       />
 
-      <!-- Tab Content -->
-      <div class="relative flex-1 overflow-y-auto">
-        <!-- Loading Overlay -->
-        <LoadingState v-if="isLoading && !isSessionSwitching" variant="overlay" :text="t('common.loading')" />
+      <SidePanelLayout :session-id="currentSessionId">
+        <!-- Tab Content -->
+        <div class="relative flex-1 overflow-y-auto">
+          <!-- Loading Overlay -->
+          <LoadingState v-if="isLoading && !isSessionSwitching" variant="overlay" :text="t('common.loading')" />
 
-        <div class="h-full">
-          <Transition name="tab-slide" mode="out-in">
-            <PrivateChatInsights
-              v-if="activeTab === 'insights'"
-              :key="'insights-' + currentSessionId"
-              :session-id="currentSessionId!"
-              :session="session"
-              :member-activity="memberActivity"
-              :message-types="messageTypes"
-              :hourly-activity="hourlyActivity"
-              :daily-activity="dailyActivity"
-              :time-range="fullTimeRange"
-              :filtered-message-count="filteredMessageCount"
-              :filtered-member-count="filteredMemberCount"
-              :time-filter="timeFilter"
-              @select-tab="trackInsightTab"
-            />
-            <ChatExplorer
-              v-else-if="activeTab === 'ai-chat'"
-              :key="'ai-chat-' + currentSessionId"
-              :session-id="currentSessionId!"
-              :session-name="session.name"
-              chat-type="private"
-              :time-filter="timeFilter"
-            />
-            <MemoryTab
-              v-else-if="activeTab === 'memory'"
-              :key="'memory-' + currentSessionId"
-              :session-id="currentSessionId!"
-              :session-name="session.name"
-            />
-            <MoreTab
-              v-else-if="activeTab === 'more'"
-              :key="'more-' + currentSessionId"
-              :session-id="currentSessionId!"
-              chat-type="private"
-            />
-          </Transition>
+          <div class="h-full">
+            <Transition name="tab-slide" mode="out-in">
+              <PrivateChatInsights
+                v-if="activeTab === 'insights'"
+                :key="'insights-' + currentSessionId"
+                :session-id="currentSessionId!"
+                :session="session"
+                :member-activity="memberActivity"
+                :message-types="messageTypes"
+                :hourly-activity="hourlyActivity"
+                :daily-activity="dailyActivity"
+                :time-range="fullTimeRange"
+                :filtered-message-count="filteredMessageCount"
+                :filtered-member-count="filteredMemberCount"
+                :time-filter="timeFilter"
+                @select-tab="trackInsightTab"
+              />
+              <ChatExplorer
+                v-else-if="activeTab === 'ai-chat'"
+                :key="'ai-chat-' + currentSessionId"
+                :session-id="currentSessionId!"
+                :session-name="session.name"
+                chat-type="private"
+                :time-filter="timeFilter"
+              />
+              <MemoryTab
+                v-else-if="activeTab === 'memory'"
+                :key="'memory-' + currentSessionId"
+                :session-id="currentSessionId!"
+                :session-name="session.name"
+              />
+              <MoreTab
+                v-else-if="activeTab === 'more'"
+                :key="'more-' + currentSessionId"
+                :session-id="currentSessionId!"
+                chat-type="private"
+              />
+            </Transition>
+          </div>
         </div>
-      </div>
+      </SidePanelLayout>
 
       <ActionToolsPanel
         @open-incremental-import="showIncrementalImportModal = true"
@@ -277,6 +279,7 @@ const otherMemberAvatar = computed(() => {
               :session-id="currentSessionId"
               :show-header="false"
               chat-type="private"
+              @view-records="showMemberManagementModal = false"
               @data-changed="invalidateAnalysisData"
             />
           </div>

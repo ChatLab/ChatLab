@@ -43,7 +43,7 @@ const statusDotClass: Record<EvidenceStatus, string> = {
 }
 
 function viewSource(messageId: number): void {
-  layoutStore.openChatRecordDrawer({ scrollToMessageId: messageId })
+  layoutStore.openChatRecords({ scrollToMessageId: messageId })
 }
 </script>
 

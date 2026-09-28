@@ -41,12 +41,11 @@ const LockScreen = IS_ELECTRON ? defineAsyncComponent(() => import('@/components
 const DataDirCleanupNotice = defineAsyncComponent(() => import('@/components/common/DataDirCleanupNotice.vue'))
 const loadScreenCaptureModal = () => import('@/components/common/ScreenCaptureModal.vue')
 const loadSettingsModal = () => import('@/components/common/SettingsModal.vue')
-const loadChatRecordDrawer = () => import('@/components/common/ChatRecord/ChatRecordDrawer.vue')
+const loadChatRecordWorkspace = () => import('@/components/common/ChatRecord/ChatRecordWorkspace.vue')
 const loadGlobalTaskBar = () => import('@/components/AIChat/GlobalTaskBar.vue')
 const loadDebugToolsPanel = () => import('@/components/layout/DebugToolsPanel.vue')
 const ScreenCaptureModal = defineAsyncComponent(loadScreenCaptureModal)
 const SettingsModal = defineAsyncComponent(loadSettingsModal)
-const ChatRecordDrawer = defineAsyncComponent(loadChatRecordDrawer)
 const GlobalTaskBar = defineAsyncComponent(loadGlobalTaskBar)
 const DebugToolsPanel = defineAsyncComponent(loadDebugToolsPanel)
 
@@ -120,7 +119,7 @@ function scheduleNonCriticalUiPrefetch() {
     cancelNonCriticalUiPrefetch = null
     void Promise.allSettled([
       loadSettingsModal(),
-      loadChatRecordDrawer(),
+      loadChatRecordWorkspace(),
       loadScreenCaptureModal(),
       loadDebugToolsPanel(),
     ])
@@ -359,7 +358,7 @@ useWindowsTitleBarOverlay([
   () => route.fullPath,
   () => layoutStore.showSettings,
   () => layoutStore.showScreenCaptureModal,
-  () => layoutStore.showChatRecordDrawer,
+  () => layoutStore.sidePanelOpen,
 ])
 
 onMounted(async () => {
@@ -484,8 +483,6 @@ onUnmounted(() => {
     />
     <!-- 全局设置弹窗 -->
     <SettingsModal v-if="settingsModalMounted" />
-    <!-- 全局聊天记录查看器 -->
-    <ChatRecordDrawer v-if="layoutStore.showChatRecordDrawer || layoutStore.chatRecordQuery" />
     <!-- 全局 AI 后台任务条：允许用户离开当前页面后仍然快速返回进行中的对话。 -->
     <GlobalTaskBar />
     <!-- Desktop 与 CLI Web 迁移后都提醒人工清理。 -->

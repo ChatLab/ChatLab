@@ -430,7 +430,7 @@ watch(locale, () => {
 // 点击词语，打开聊天记录查看器
 function handleWordClick(word: string) {
   if (!props.enableRecordNavigation) return
-  layoutStore.openChatRecordDrawer({
+  layoutStore.openChatRecords({
     keywords: [word],
   })
 }

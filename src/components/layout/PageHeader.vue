@@ -5,6 +5,11 @@
  */
 
 import { IS_ELECTRON } from '@/utils/platform'
+import { useI18n } from 'vue-i18n'
+import { useLayoutStore } from '@/stores/layout'
+
+const { t } = useI18n()
+const layout = useLayoutStore()
 
 const props = withDefaults(
   defineProps<{
@@ -77,6 +82,19 @@ const props = withDefaults(
       <!-- 右侧操作区域 -->
       <div class="header-actions relative z-[40] flex items-center gap-2">
         <slot name="actions" />
+        <UButton
+          v-if="layout.canOpenSidePanel"
+          data-side-panel-toggle
+          icon="i-lucide-panel-right"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          :class="layout.sidePanelOpen ? 'bg-gray-100 dark:bg-white/10' : ''"
+          :aria-label="t(layout.sidePanelOpen ? 'common.sidePanel.collapse' : 'common.sidePanel.expand')"
+          :aria-expanded="layout.sidePanelOpen"
+          aria-controls="app-side-panel"
+          @click="layout.toggleSidePanel()"
+        />
       </div>
     </div>
 

@@ -48,7 +48,7 @@ async function loadRepeatAnalysis() {
  * 查看复读内容的聊天记录上下文
  */
 function viewRepeatContext(item: { content: string; firstMessageId: number }) {
-  layoutStore.openChatRecordDrawer({
+  layoutStore.openChatRecords({
     scrollToMessageId: item.firstMessageId,
     highlightKeywords: [item.content],
   })

@@ -78,7 +78,7 @@ function getMessageIdColumnIndex(columns: string[]): number {
  * 查看消息上下文
  */
 function viewMessageContext(messageId: number) {
-  layoutStore.openChatRecordDrawer({
+  layoutStore.openChatRecords({
     scrollToMessageId: messageId,
   })
 }

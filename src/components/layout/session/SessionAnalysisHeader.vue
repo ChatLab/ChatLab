@@ -36,7 +36,6 @@ const props = withDefaults(
 const emit = defineEmits<{
   (e: 'openIncrementalImport'): void
   (e: 'openMemberManagement'): void
-  (e: 'openChatRecord'): void
   (e: 'update:fullRange', value: { start: number; end: number } | null): void
   (e: 'update:availableYears', value: number[]): void
   (e: 'timeRangeInitialized', hasRange: boolean): void
@@ -59,16 +58,6 @@ const navigationItems = computed(() =>
   <PageHeader :title="title" :avatar="avatar" size="compact" :icon="icon" :icon-class="iconClass">
     <template #actions>
       <template v-if="showSessionActions && layoutStore.effectiveToolsPanelPosition === 'header'">
-        <UTooltip :text="t('analysis.tooltip.viewChatRecord')">
-          <UButton
-            icon="i-heroicons-chat-bubble-bottom-center-text"
-            variant="ghost"
-            color="gray"
-            size="sm"
-            class="hover:bg-gray-100 dark:hover:bg-gray-800"
-            @click="emit('openChatRecord')"
-          />
-        </UTooltip>
         <UTooltip :text="t('analysis.tooltip.incrementalImport')">
           <UButton
             icon="i-heroicons-plus-circle"

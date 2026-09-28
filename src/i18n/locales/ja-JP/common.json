@@ -10,6 +10,11 @@
   "back": "戻る",
   "collapseSidebar": "サイドバーを折りたたむ",
   "expandSidebar": "サイドバーを展開",
+  "sidePanel": {
+    "expand": "右パネルを開く",
+    "collapse": "右パネルを閉じる",
+    "resize": "パネルの幅を調整"
+  },
   "done": "完了",
   "retry": "リトライ",
   "initFailed": "アプリの初期化に失敗しました",
