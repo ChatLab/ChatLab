@@ -223,13 +223,6 @@
       "copied": "已複製到剪貼簿",
       "unknown": "未知錯誤"
     },
-    "dataSource": {
-      "title": "資料來源",
-      "keywords": "關鍵字:",
-      "empty": "暫無資料",
-      "emptyHint": "傳送問題後，相關紀錄會顯示在這裡",
-      "totalRecords": "共 {count} 筆紀錄"
-    },
     "evidence": {
       "title": "依據證據",
       "query": "問題",

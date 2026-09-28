@@ -132,16 +132,6 @@ export interface ChatMessage {
   entityRefs?: AIEntityRef[]
 }
 
-// 搜索结果消息类型（保留用于数据源面板）
-export interface SourceMessage {
-  id: number
-  senderName: string
-  senderPlatformId: string
-  content: string
-  timestamp: number
-  type: number
-}
-
 interface OwnerInfo {
   platformId: string
   displayName: string
@@ -149,8 +139,6 @@ interface OwnerInfo {
 
 interface AIChatBuffer {
   messages: ChatMessage[]
-  sourceMessages: SourceMessage[]
-  currentKeywords: string[]
   assistantId: string | null
   loaded: boolean
   sessionTokenUsage?: TokenUsage
@@ -165,9 +153,6 @@ export interface AIChatSessionState {
   timeFilter?: { startTs: number; endTs: number }
   selectedAssistantId: string | null
   messages: ChatMessage[]
-  sourceMessages: SourceMessage[]
-  currentKeywords: string[]
-  isLoadingSource: boolean
   isAIThinking: boolean
   currentAIChatId: string | null
   currentToolStatus: ToolStatus | null
@@ -287,8 +272,6 @@ function toRuntimeMessage(msg: PersistedAIMessage): ChatMessage {
 function createAIChatBuffer(assistantId: string | null = null): AIChatBuffer {
   return {
     messages: [],
-    sourceMessages: [],
-    currentKeywords: [],
     assistantId,
     loaded: false,
   }
@@ -305,9 +288,6 @@ function createSessionState(params: EnsureAIChatSessionParams): AIChatSessionSta
     timeFilter: params.timeFilter,
     selectedAssistantId: null,
     messages: draftBuffer.messages,
-    sourceMessages: draftBuffer.sourceMessages,
-    currentKeywords: draftBuffer.currentKeywords,
-    isLoadingSource: false,
     isAIThinking: false,
     currentAIChatId: null,
     currentToolStatus: null,
@@ -424,8 +404,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     const buffer = getOrCreateBuffer(state, bufferKey)
     state.currentAIChatId = bufferKey === DRAFT_AI_CHAT_KEY ? null : bufferKey
     state.messages = buffer.messages
-    state.sourceMessages = buffer.sourceMessages
-    state.currentKeywords = buffer.currentKeywords
     state.selectedAssistantId = buffer.assistantId
     state.sessionTokenUsage = buffer.sessionTokenUsage ? { ...buffer.sessionTokenUsage } : createEmptyTokenUsage()
     state.agentStatus = null
@@ -592,8 +570,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         if (!isLatestAIChatSelection(chatKey, selectionGeneration)) return false
 
         buffer.messages.splice(0, buffer.messages.length, ...history.map((msg) => toRuntimeMessage(msg)))
-        buffer.sourceMessages.splice(0, buffer.sourceMessages.length)
-        buffer.currentKeywords.splice(0, buffer.currentKeywords.length)
         buffer.sessionTokenUsage = toTokenUsage(tokenUsage)
         buffer.loaded = true
       }
@@ -693,7 +669,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     bindDisplayedBuffer(state, DRAFT_AI_CHAT_KEY)
     state.currentToolStatus = null
     state.toolsUsedInCurrentRound = []
-    state.isLoadingSource = false
     state.sessionTokenUsage = createEmptyTokenUsage()
     state.agentStatus = null
     state.isAborted = false
@@ -1058,7 +1033,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     const currentEntityRefs = (options?.entityRefs ?? []).map((ref) => ({ ...ref }))
 
     state.isAIThinking = true
-    state.isLoadingSource = true
     state.currentToolStatus = null
     state.toolsUsedInCurrentRound = []
     state.agentStatus = null
@@ -1332,7 +1306,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                   status: toolFailed ? 'error' : 'done',
                 })
               }
-              state.isLoadingSource = false
               break
 
             case 'plan_delta':
@@ -1556,7 +1529,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       return { success: false, reason: 'error' }
     } finally {
       state.isAIThinking = false
-      state.isLoadingSource = false
       state.currentToolStatus = null
       state.isAborted = false
       state.currentRequestId = ''
@@ -1752,7 +1724,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     void ensureOwnerInfo(chatKey)
 
     state.isAIThinking = true
-    state.isLoadingSource = true
     state.currentToolStatus = null
     state.toolsUsedInCurrentRound = []
     state.agentStatus = null
@@ -1951,7 +1922,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                   status: toolFailed ? 'error' : 'done',
                 })
               }
-              state.isLoadingSource = false
               break
             case 'plan_delta':
               if (chunk.planDelta) appendPlanDraftToBlocks(chunk.planDelta)
@@ -2089,7 +2059,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       return { success: false, reason: 'error' }
     } finally {
       state.isAIThinking = false
-      state.isLoadingSource = false
       state.currentToolStatus = null
       state.isAborted = false
       state.currentRequestId = ''
@@ -2104,7 +2073,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
     state.isAborted = true
     state.isAIThinking = false
-    state.isLoadingSource = false
     state.currentToolStatus = null
     setAgentPhase(state, 'aborted')
 

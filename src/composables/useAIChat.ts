@@ -7,7 +7,6 @@ import { toRef } from 'vue'
 import { useAIChatStore } from '@/stores/aiChat'
 import type {
   ChatMessage,
-  SourceMessage,
   ToolStatus,
   ToolCallRecord,
   ToolBlockContent,
@@ -22,7 +21,6 @@ import type { TokenUsage, AgentRuntimeStatus } from '@electron/shared/types'
 export type { TokenUsage, AgentRuntimeStatus }
 export type {
   ChatMessage,
-  SourceMessage,
   ToolStatus,
   ToolCallRecord,
   ToolBlockContent,
@@ -58,9 +56,6 @@ export function useAIChat(
   return {
     initialization,
     messages: toRef(state, 'messages'),
-    sourceMessages: toRef(state, 'sourceMessages'),
-    currentKeywords: toRef(state, 'currentKeywords'),
-    isLoadingSource: toRef(state, 'isLoadingSource'),
     isAIThinking: toRef(state, 'isAIThinking'),
     currentAIChatId: toRef(state, 'currentAIChatId'),
     currentToolStatus: toRef(state, 'currentToolStatus'),
