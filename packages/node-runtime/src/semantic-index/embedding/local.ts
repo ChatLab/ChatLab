@@ -52,9 +52,16 @@ export async function createProxyFetch(proxyUrl: string): Promise<typeof fetch> 
   }
   const { fetch: undiciFetch, ProxyAgent } = await import('undici')
   const dispatcher = new ProxyAgent(proxyUrl)
-  return ((input, init) => {
+  return (async (input, init) => {
     const nextInit: UndiciRequestInit = { ...(init as UndiciRequestInit | undefined), dispatcher }
-    return undiciFetch(input as Parameters<UndiciFetch>[0], nextInit) as unknown as ReturnType<typeof fetch>
+    const response = await undiciFetch(input as Parameters<UndiciFetch>[0], nextInit)
+    // Transformers.js only caches model files for `instanceof Response`; undici's own Response
+    // class fails that check, so re-wrap the stream in a global Response.
+    return new Response(response.body as ReadableStream<Uint8Array> | null, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers as unknown as HeadersInit,
+    })
   }) as typeof fetch
 }
 

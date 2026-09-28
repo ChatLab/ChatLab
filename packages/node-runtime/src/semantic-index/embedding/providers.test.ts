@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import http from 'node:http'
+import net, { type AddressInfo } from 'node:net'
 import test from 'node:test'
 import {
   createProxyFetch,
@@ -98,6 +100,42 @@ test('local provider retries pipeline creation after a failed preload', async ()
 
 test('local model download proxy rejects SOCKS URLs explicitly', async () => {
   await assert.rejects(() => createProxyFetch('socks5://127.0.0.1:1080'), /SOCKS proxy is not supported/)
+})
+
+test('local model download proxy returns a global Response through the proxy', async (t) => {
+  const target = http.createServer((_req, res) => res.end('model-bytes'))
+  let proxied = 0
+  const proxy = http.createServer()
+  proxy.on('connect', (req, socket, head) => {
+    proxied += 1
+    const [host, port] = (req.url ?? '').split(':')
+    const upstream = net.connect(Number(port), host, () => {
+      socket.write('HTTP/1.1 200 Connection Established\r\n\r\n')
+      upstream.write(head)
+      upstream.pipe(socket)
+      socket.pipe(upstream)
+    })
+  })
+  const listen = (server: http.Server) =>
+    new Promise<number>((resolve) =>
+      server.listen(0, '127.0.0.1', () => resolve((server.address() as AddressInfo).port))
+    )
+  const targetPort = await listen(target)
+  const proxyPort = await listen(proxy)
+  t.after(() => {
+    target.closeAllConnections()
+    proxy.closeAllConnections()
+    target.close()
+    proxy.close()
+  })
+
+  const proxyFetch = await createProxyFetch(`http://127.0.0.1:${proxyPort}`)
+  const response = await proxyFetch(`http://127.0.0.1:${targetPort}/model.onnx`)
+
+  // Transformers.js caches model files only for `instanceof Response`; anything else fails to load
+  assert.ok(response instanceof globalThis.Response)
+  assert.equal(await response.text(), 'model-bytes')
+  assert.equal(proxied, 1)
 })
 
 test('local model download source resolves to the selected remote host', () => {
