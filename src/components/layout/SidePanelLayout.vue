@@ -5,7 +5,10 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useLayoutStore } from '@/stores/layout'
 
-const props = defineProps<{ sessionId?: string | null; contextKey?: string | null }>()
+const props = withDefaults(
+  defineProps<{ sessionId?: string | null; contextKey?: string | null; defaultView?: 'records' | 'topics' }>(),
+  { defaultView: 'records' }
+)
 const ChatRecordWorkspace = defineAsyncComponent(() => import('@/components/common/ChatRecord/ChatRecordWorkspace.vue'))
 const layout = useLayoutStore()
 const route = useRoute()
@@ -15,20 +18,24 @@ const panel = ref<HTMLElement | null>(null)
 const containerWidth = ref(1200)
 const resizing = ref(false)
 const records = computed(() => layout.sidePanelView === 'records')
-const title = computed(() => t(records.value ? 'records.drawer.title' : 'contacts.detail.title'))
+const topics = computed(() => layout.sidePanelView === 'topics')
+const title = computed(() =>
+  t(records.value ? 'records.drawer.title' : topics.value ? 'records.topics.title' : 'contacts.detail.title')
+)
 const preferredWidth = computed({
-  get: () => (records.value ? layout.chatRecordDrawerWidth : layout.contactPanelWidth),
+  get: () =>
+    records.value ? layout.chatRecordDrawerWidth : topics.value ? layout.topicsPanelWidth : layout.contactPanelWidth,
   set: (value) => {
     if (records.value) layout.chatRecordDrawerWidth = value
+    else if (topics.value) layout.topicsPanelWidth = value
     else layout.contactPanelWidth = value
   },
 })
-const minimumWidth = computed(() => (records.value ? 480 : 360))
+const minimumWidth = computed(() => (records.value ? 480 : topics.value ? 288 : 360))
 // Measure the available page area, not the window: the main navigation also takes space.
 const overlay = computed(() => containerWidth.value < minimumWidth.value + 520)
 const maximumWidth = computed(() => Math.max(0, containerWidth.value - (overlay.value ? 16 : 520)))
 const width = computed(() => Math.min(maximumWidth.value, Math.max(minimumWidth.value, preferredWidth.value)))
-const canGoBack = computed(() => records.value && layout.sidePanelHasContact)
 let previousFocus: HTMLElement | null = null
 let dragStartX = 0
 let dragStartWidth = 0
@@ -40,8 +47,8 @@ useResizeObserver(root, ([entry]) => {
 })
 
 watch(
-  [() => route.path, () => props.sessionId, () => props.contextKey],
-  () => layout.setSidePanelContext(props.sessionId ?? null),
+  [() => route.path, () => props.sessionId, () => props.contextKey, () => props.defaultView],
+  () => layout.setSidePanelContext(props.sessionId ?? null, props.defaultView),
   { immediate: true, flush: 'sync' }
 )
 
@@ -171,15 +178,16 @@ onBeforeUnmount(() => {
 
           <header class="flex h-12 shrink-0 items-center gap-2 border-b border-gray-100 px-3 dark:border-white/5">
             <UButton
-              v-if="canGoBack"
+              v-if="layout.canReturnSidePanel"
               icon="i-lucide-arrow-left"
               color="neutral"
               variant="ghost"
               size="sm"
               :aria-label="t('common.back')"
-              @click="layout.returnToContactPanel()"
+              @click="layout.returnToSidePanel()"
             />
             <h2 class="min-w-0 flex-1 truncate text-sm font-medium text-gray-900 dark:text-gray-100">{{ title }}</h2>
+            <div v-show="topics" id="side-panel-topic-actions" class="flex shrink-0 items-center gap-0.5" />
             <UButton
               icon="i-lucide-panel-right-close"
               color="neutral"
@@ -191,6 +199,8 @@ onBeforeUnmount(() => {
           </header>
 
           <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <!-- Topics keep their message navigation handlers in the owning workspace. -->
+            <div v-show="topics" id="side-panel-topics" class="flex min-h-0 flex-1 flex-col overflow-hidden" />
             <ChatRecordWorkspace
               v-if="layout.chatRecordQuery"
               v-show="records"
@@ -200,7 +210,7 @@ onBeforeUnmount(() => {
             />
             <div
               v-if="layout.sidePanelHasContact"
-              v-show="!records"
+              v-show="layout.sidePanelView === 'contact'"
               class="flex min-h-0 flex-1 flex-col overflow-hidden"
             >
               <slot name="contact" />

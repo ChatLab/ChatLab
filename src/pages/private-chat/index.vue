@@ -21,6 +21,7 @@ import { useLayoutStore } from '@/stores/layout'
 import { useSettingsStore } from '@/stores/settings'
 import { useSessionAnalysisPageBase } from '@/composables'
 import { useInsightTabAnalytics } from '@/composables/useInsightTabAnalytics'
+import { IS_WEB_WASM } from '@/utils/platform'
 
 const { t } = useI18n()
 
@@ -161,7 +162,10 @@ const otherMemberAvatar = computed(() => {
         @time-range-initialized="handleTimeRangeInitialized"
       />
 
-      <SidePanelLayout :session-id="currentSessionId">
+      <SidePanelLayout
+        :session-id="currentSessionId"
+        :default-view="activeTab === 'memory' && !IS_WEB_WASM ? 'topics' : 'records'"
+      >
         <!-- Tab Content -->
         <div class="relative flex-1 overflow-y-auto">
           <!-- Loading Overlay -->

@@ -306,13 +306,14 @@ watch([() => props.active, fallbackSessionId, () => props.initialQuery], () => i
           />
         </div>
 
-        <ChatTopicsPanel
-          v-if="showTopics && effectiveSessionId"
-          :session-id="effectiveSessionId"
-          :day-key="visibleDayKey"
-          @jump-to-message="handleJumpToMessage"
-          @highlight-topic="handleHighlightTopic"
-        />
+        <Teleport v-if="showTopics && effectiveSessionId" defer to="#side-panel-topics">
+          <ChatTopicsPanel
+            :session-id="effectiveSessionId"
+            :day-key="visibleDayKey"
+            @jump-to-message="handleJumpToMessage"
+            @highlight-topic="handleHighlightTopic"
+          />
+        </Teleport>
       </div>
     </div>
   </div>

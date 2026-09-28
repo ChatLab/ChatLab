@@ -37,7 +37,6 @@ const day = ref<ChatTopicDay | null>(null)
 const run = ref<ChatTopicRun | null>(null)
 const loading = ref(false)
 const actionLoading = ref(false)
-const collapsed = ref(false)
 const showCreateModal = ref(false)
 const showDeleteModal = ref(false)
 type TopicRangeSelection = ChatTopicRangeKind | 'current'
@@ -310,48 +309,30 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <aside
-    v-if="collapsed"
-    class="flex h-full w-10 shrink-0 flex-col items-center border-l border-gray-200 bg-gray-50 py-2 dark:border-gray-700 dark:bg-page-dark/50"
-  >
-    <UButton icon="i-heroicons-chevron-left" variant="ghost" size="xs" @click="collapsed = false" />
-    <div class="mt-2 flex flex-1 items-center">
-      <span class="vertical-text text-xs text-gray-400">{{ t('records.topics.title') }}</span>
-    </div>
-  </aside>
+  <div class="flex min-h-0 flex-1 flex-col" data-testid="chat-topics-content">
+    <Teleport defer to="#side-panel-topic-actions">
+      <UButton
+        size="xs"
+        color="neutral"
+        variant="ghost"
+        icon="i-heroicons-queue-list"
+        :disabled="Boolean(activeRun)"
+        @click="openCreate"
+      >
+        {{ t('records.topics.batchSummarize') }}
+      </UButton>
+      <UButton
+        v-if="day"
+        icon="i-heroicons-trash"
+        color="neutral"
+        variant="ghost"
+        size="xs"
+        :title="t('common.delete')"
+        @click="showDeleteModal = true"
+      />
+    </Teleport>
 
-  <aside
-    v-else
-    class="flex h-full w-72 shrink-0 flex-col border-l border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-page-dark/50 xl:w-80"
-  >
-    <header class="flex h-9 shrink-0 items-center justify-between border-b border-gray-200 px-3 dark:border-gray-700">
-      <div class="min-w-0">
-        <span class="text-xs font-medium text-gray-700 dark:text-gray-200">{{ t('records.topics.title') }}</span>
-        <span v-if="dayKey" class="ml-2 text-[11px] text-gray-400">{{ dayKey }}</span>
-      </div>
-      <div class="flex items-center gap-0.5">
-        <UButton
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          icon="i-heroicons-queue-list"
-          :disabled="Boolean(activeRun)"
-          @click="openCreate"
-        >
-          {{ t('records.topics.batchSummarize') }}
-        </UButton>
-        <UButton
-          v-if="day"
-          icon="i-heroicons-trash"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          :title="t('common.delete')"
-          @click="showDeleteModal = true"
-        />
-        <UButton icon="i-heroicons-chevron-right" variant="ghost" size="xs" @click="collapsed = true" />
-      </div>
-    </header>
+    <p v-if="dayKey" class="shrink-0 px-3 pt-3 text-xs tabular-nums text-gray-400">{{ dayKey }}</p>
 
     <div v-if="loading" class="flex flex-1 items-center justify-center">
       <UIcon name="i-heroicons-arrow-path" class="h-4 w-4 animate-spin text-gray-400" />
@@ -539,7 +520,7 @@ onUnmounted(() => {
         </UButton>
       </div>
     </div>
-  </aside>
+  </div>
 
   <UModal v-model:open="showCreateModal" :ui="{ content: 'sm:max-w-lg z-[10001]', overlay: 'z-[10000]' }">
     <template #content>
@@ -653,10 +634,3 @@ onUnmounted(() => {
     </template>
   </UModal>
 </template>
-
-<style scoped>
-.vertical-text {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-}
-</style>
