@@ -14,9 +14,15 @@ export const useLayoutStore = defineStore(
     const isAIChatSidebarCollapsed = ref(false)
     const showScreenCaptureModal = ref(false)
     const screenCaptureImage = ref<string | null>(null)
-    const showChatRecordDrawer = ref(false)
+    const sidePanelOpen = ref(false)
+    const sidePanelView = ref<'records' | 'contact' | null>(null)
+    const sidePanelSessionId = ref<string | null>(null)
+    const sidePanelHasContact = ref(false)
     const chatRecordQuery = ref<ChatRecordQuery | null>(null)
+    // Keep the existing persisted preference when replacing the drawer shell.
     const chatRecordDrawerWidth = ref(750)
+    const contactPanelWidth = ref(420)
+    const canOpenSidePanel = computed(() => Boolean(sidePanelView.value || sidePanelSessionId.value))
 
     const isToolsPanelLocked = ref(false)
     const isToolsPanelMini = ref(false)
@@ -60,22 +66,53 @@ export const useLayoutStore = defineStore(
       }, 300)
     }
 
-    /**
-     * 打开聊天记录抽屉并设置查询参数
-     */
-    function openChatRecordDrawer(query: ChatRecordQuery) {
-      chatRecordQuery.value = query
-      showChatRecordDrawer.value = true
+    function setSidePanelContext(sessionId: string | null) {
+      sidePanelOpen.value = false
+      sidePanelView.value = null
+      sidePanelHasContact.value = false
+      chatRecordQuery.value = null
+      sidePanelSessionId.value = sessionId
     }
 
-    /**
-     * 关闭聊天记录抽屉并重置查询
-     */
-    function closeChatRecordDrawer() {
-      showChatRecordDrawer.value = false
-      setTimeout(() => {
-        chatRecordQuery.value = null
-      }, 300)
+    function openChatRecords(query: ChatRecordQuery) {
+      const sessionId = query.sessionId || sidePanelSessionId.value
+      if (!sessionId) return
+      chatRecordQuery.value = { ...query, sessionId }
+      sidePanelView.value = 'records'
+      sidePanelOpen.value = true
+    }
+
+    function openContactPanel() {
+      sidePanelHasContact.value = true
+      sidePanelView.value = 'contact'
+      sidePanelOpen.value = true
+      chatRecordQuery.value = null
+    }
+
+    function returnToContactPanel() {
+      if (!sidePanelHasContact.value) return
+      sidePanelView.value = 'contact'
+      sidePanelOpen.value = true
+    }
+
+    function clearContactPanel() {
+      sidePanelHasContact.value = false
+      if (sidePanelView.value !== 'contact') return
+      sidePanelView.value = null
+      sidePanelOpen.value = false
+    }
+
+    function closeSidePanel() {
+      sidePanelOpen.value = false
+    }
+
+    function toggleSidePanel() {
+      if (!canOpenSidePanel.value) return
+      if (!sidePanelView.value) {
+        openChatRecords({})
+        return
+      }
+      sidePanelOpen.value = !sidePanelOpen.value
     }
 
     function toggleToolsPanelLock() {
@@ -116,9 +153,13 @@ export const useLayoutStore = defineStore(
       isToolsPanelOpen,
       showScreenCaptureModal,
       screenCaptureImage,
-      showChatRecordDrawer,
+      sidePanelOpen,
+      sidePanelView,
+      sidePanelHasContact,
+      canOpenSidePanel,
       chatRecordQuery,
       chatRecordDrawerWidth,
+      contactPanelWidth,
       showSettings,
       settingsTab,
       settingsSubTab,
@@ -129,8 +170,13 @@ export const useLayoutStore = defineStore(
       toggleToolsPanelMini,
       openScreenCaptureModal,
       closeScreenCaptureModal,
-      openChatRecordDrawer,
-      closeChatRecordDrawer,
+      setSidePanelContext,
+      openChatRecords,
+      openContactPanel,
+      returnToContactPanel,
+      clearContactPanel,
+      closeSidePanel,
+      toggleSidePanel,
       openSettings,
       closeSettings,
     }
@@ -145,6 +191,7 @@ export const useLayoutStore = defineStore(
           'isToolsPanelMini',
           'toolsPanelPosition',
           'chatRecordDrawerWidth',
+          'contactPanelWidth',
         ],
         storage: localStorage,
       },

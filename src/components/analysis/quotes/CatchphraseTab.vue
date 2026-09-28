@@ -53,7 +53,7 @@ async function loadCatchphraseAnalysis() {
 }
 
 function handlePhraseClick(content: string) {
-  layoutStore.openChatRecordDrawer(buildCatchphraseRecordQuery(content, props.timeFilter))
+  layoutStore.openChatRecords(buildCatchphraseRecordQuery(content, props.timeFilter))
 }
 
 function getOverviewPhrases(member: MemberCatchphrase) {

@@ -11,6 +11,7 @@ import RankingView from '@/components/analysis/ranking/RankingView.vue'
 import MemberList from '@/components/common/member/MemberList.vue'
 import NicknameHistoryEntry from './components/member/NicknameHistoryEntry.vue'
 import SessionAnalysisHeader from '@/components/layout/session/SessionAnalysisHeader.vue'
+import SidePanelLayout from '@/components/layout/SidePanelLayout.vue'
 import SemanticIndexSessionModal from '@/components/analysis/SemanticIndexSessionModal.vue'
 import OwnerPromptModal from '@/components/analysis/member/OwnerPromptModal.vue'
 import IncrementalImportModal from '@/components/analysis/IncrementalImportModal.vue'
@@ -48,7 +49,7 @@ const showMemberManagementModal = ref(false)
 
 // 打开聊天记录查看器
 function openChatRecordViewer() {
-  layoutStore.openChatRecordDrawer({})
+  layoutStore.openChatRecords({})
 }
 
 // Tab 配置
@@ -135,63 +136,64 @@ const filteredMemberCount = computed(() => {
         :initial-time-state="initialTimeState"
         @open-incremental-import="showIncrementalImportModal = true"
         @open-member-management="showMemberManagementModal = true"
-        @open-chat-record="openChatRecordViewer"
         @update:full-range="fullTimeRange = $event"
         @update:available-years="availableYears = $event"
         @time-range-initialized="handleTimeRangeInitialized"
       />
 
-      <!-- Tab Content -->
-      <div class="relative flex-1 overflow-y-auto">
-        <!-- Loading Overlay -->
-        <LoadingState v-if="isLoading && !isSessionSwitching" variant="overlay" :text="t('common.loading')" />
+      <SidePanelLayout :session-id="currentSessionId">
+        <!-- Tab Content -->
+        <div class="relative flex-1 overflow-y-auto">
+          <!-- Loading Overlay -->
+          <LoadingState v-if="isLoading && !isSessionSwitching" variant="overlay" :text="t('common.loading')" />
 
-        <div class="h-full">
-          <Transition name="tab-slide" mode="out-in">
-            <GroupChatInsights
-              v-if="activeTab === 'insights'"
-              :key="'insights-' + currentSessionId"
-              :session-id="currentSessionId!"
-              :session="session"
-              :member-activity="memberActivity"
-              :message-types="messageTypes"
-              :hourly-activity="hourlyActivity"
-              :daily-activity="dailyActivity"
-              :time-range="fullTimeRange"
-              :filtered-message-count="filteredMessageCount"
-              :filtered-member-count="filteredMemberCount"
-              :time-filter="timeFilter"
-              @select-tab="trackInsightTab"
-            />
-            <RankingView
-              v-else-if="activeTab === 'ranking'"
-              :key="'ranking-' + currentSessionId"
-              :session-id="currentSessionId!"
-              :time-filter="timeFilter"
-            />
-            <ChatExplorer
-              v-else-if="activeTab === 'ai-chat'"
-              :key="'ai-chat-' + currentSessionId"
-              :session-id="currentSessionId!"
-              :session-name="session.name"
-              chat-type="group"
-              :time-filter="timeFilter"
-            />
-            <MemoryTab
-              v-else-if="activeTab === 'memory'"
-              :key="'memory-' + currentSessionId"
-              :session-id="currentSessionId!"
-              :session-name="session.name"
-            />
-            <MoreTab
-              v-else-if="activeTab === 'more'"
-              :key="'more-' + currentSessionId"
-              :session-id="currentSessionId!"
-              chat-type="group"
-            />
-          </Transition>
+          <div class="h-full">
+            <Transition name="tab-slide" mode="out-in">
+              <GroupChatInsights
+                v-if="activeTab === 'insights'"
+                :key="'insights-' + currentSessionId"
+                :session-id="currentSessionId!"
+                :session="session"
+                :member-activity="memberActivity"
+                :message-types="messageTypes"
+                :hourly-activity="hourlyActivity"
+                :daily-activity="dailyActivity"
+                :time-range="fullTimeRange"
+                :filtered-message-count="filteredMessageCount"
+                :filtered-member-count="filteredMemberCount"
+                :time-filter="timeFilter"
+                @select-tab="trackInsightTab"
+              />
+              <RankingView
+                v-else-if="activeTab === 'ranking'"
+                :key="'ranking-' + currentSessionId"
+                :session-id="currentSessionId!"
+                :time-filter="timeFilter"
+              />
+              <ChatExplorer
+                v-else-if="activeTab === 'ai-chat'"
+                :key="'ai-chat-' + currentSessionId"
+                :session-id="currentSessionId!"
+                :session-name="session.name"
+                chat-type="group"
+                :time-filter="timeFilter"
+              />
+              <MemoryTab
+                v-else-if="activeTab === 'memory'"
+                :key="'memory-' + currentSessionId"
+                :session-id="currentSessionId!"
+                :session-name="session.name"
+              />
+              <MoreTab
+                v-else-if="activeTab === 'more'"
+                :key="'more-' + currentSessionId"
+                :session-id="currentSessionId!"
+                chat-type="group"
+              />
+            </Transition>
+          </div>
         </div>
-      </div>
+      </SidePanelLayout>
 
       <ActionToolsPanel
         @open-incremental-import="showIncrementalImportModal = true"
@@ -267,6 +269,7 @@ const filteredMemberCount = computed(() => {
               :session-id="currentSessionId"
               :show-header="false"
               chat-type="group"
+              @view-records="showMemberManagementModal = false"
               @data-changed="
                 () => {
                   loadData()

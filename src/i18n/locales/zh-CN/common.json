@@ -10,6 +10,11 @@
   "back": "返回",
   "collapseSidebar": "收起侧栏",
   "expandSidebar": "展开侧栏",
+  "sidePanel": {
+    "expand": "展开右侧面板",
+    "collapse": "收起右侧面板",
+    "resize": "调整面板宽度"
+  },
   "done": "完成",
   "retry": "重试",
   "initFailed": "应用初始化失败",

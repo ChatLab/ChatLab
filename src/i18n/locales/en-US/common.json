@@ -10,6 +10,11 @@
   "back": "Back",
   "collapseSidebar": "Collapse sidebar",
   "expandSidebar": "Expand sidebar",
+  "sidePanel": {
+    "expand": "Expand side panel",
+    "collapse": "Collapse side panel",
+    "resize": "Resize side panel"
+  },
   "done": "Done",
   "retry": "Retry",
   "initFailed": "App initialization failed",

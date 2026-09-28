@@ -33,6 +33,7 @@ const props = withDefaults(
 // Emits
 const emit = defineEmits<{
   'data-changed': []
+  'view-records': []
 }>()
 
 // 成员列表
@@ -84,11 +85,12 @@ function getFirstChar(member: MemberWithStats): string {
 }
 
 function viewMemberChatRecords(member: MemberWithStats) {
-  layoutStore.openChatRecordDrawer({
+  layoutStore.openChatRecords({
     sessionId: props.sessionId,
     memberId: member.id,
     memberName: getDisplayName(member),
   })
+  emit('view-records')
 }
 
 const filteredSortedMembers = computed(() => filterAndSortMembers(members.value, searchQuery.value, sortState.value))

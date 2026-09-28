@@ -124,8 +124,8 @@ function resetFilter() {
 </script>
 
 <template>
-  <div class="overflow-x-auto border-b border-gray-200 px-4 py-2.5 dark:border-gray-800">
-    <div class="flex min-w-[686px] items-center gap-2">
+  <div class="shrink-0 border-b border-gray-200 px-4 py-2.5 dark:border-gray-800">
+    <div class="flex flex-wrap items-center gap-2">
       <UInput
         v-model="formData.messageId"
         type="number"
@@ -154,7 +154,7 @@ function resetFilter() {
         class="min-w-24 max-w-[260px] flex-1"
         @keydown="handleKeywordsKeydown"
       />
-      <div class="flex shrink-0 gap-1">
+      <div class="ml-auto flex shrink-0 gap-1">
         <UButton color="neutral" variant="ghost" size="sm" @click="resetFilter">
           {{ t('records.filter.reset') }}
         </UButton>

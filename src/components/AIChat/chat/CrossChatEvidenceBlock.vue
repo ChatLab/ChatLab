@@ -31,7 +31,7 @@ const sessionGroups = computed(() => {
 })
 
 function viewSource(source: CrossChatEvidenceSource): void {
-  layoutStore.openChatRecordDrawer({
+  layoutStore.openChatRecords({
     sessionId: source.sessionId,
     scrollToMessageId: source.messageId,
   })

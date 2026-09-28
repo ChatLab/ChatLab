@@ -43,7 +43,7 @@ async function loadData() {
 
 function handleWordClick(word: string) {
   if (!props.enableRecordNavigation) return
-  layoutStore.openChatRecordDrawer({ keywords: [word] })
+  layoutStore.openChatRecords({ keywords: [word] })
 }
 
 watch(

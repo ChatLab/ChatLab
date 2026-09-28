@@ -18,6 +18,7 @@ import { LoadingState, ThemeCard } from '@/components/UI'
 import { SectionTabs } from '@/components/navigation'
 import { usePeoplePageHeader } from '../people-page-header'
 import ContactDetailPanel from './components/ContactDetailPanel.vue'
+import SidePanelLayout from '@/components/layout/SidePanelLayout.vue'
 import ContactsStatusBlocks from './components/ContactsStatusBlocks.vue'
 import {
   resolveFriendActionScrollTop,
@@ -616,6 +617,7 @@ function clearCompletedContactsTaskProgress() {
 
 async function selectContact(contact: ContactListItem) {
   selectedKey.value = contact.key
+  layoutStore.openContactPanel()
   await loadSelectedContactDetail(contact.key)
 }
 
@@ -730,6 +732,7 @@ async function refreshContactsPageMetadata() {
 function clearSelectedContact() {
   selectedKey.value = null
   selectedContact.value = null
+  layoutStore.clearContactPanel()
   isDetailLoading.value = false
 }
 
@@ -801,7 +804,7 @@ function openSourceSession(source: ContactItem['sourceSessions'][number]) {
 }
 
 function viewSourceSessionRecords(source: ContactItem['sourceSessions'][number]) {
-  layoutStore.openChatRecordDrawer({ sessionId: source.id })
+  layoutStore.openChatRecords({ sessionId: source.id })
 }
 
 function handleListScroll(event: Event) {
@@ -887,7 +890,7 @@ function getGroupSectionScrollTop(): number | null {
       </template>
     </SectionTabs>
 
-    <div class="flex min-h-0 flex-1 overflow-hidden">
+    <SidePanelLayout>
       <main class="min-h-0 min-w-0 flex-1 overflow-hidden">
         <div class="flex h-full min-h-0 w-full flex-col gap-6 px-6 pb-3 pt-4">
           <ContactsStatusBlocks
@@ -1134,18 +1137,18 @@ function getGroupSectionScrollTop(): number | null {
         </div>
       </main>
 
-      <ContactDetailPanel
-        :selected-key="selectedKey"
-        :contact="selectedContact"
-        :is-loading="isDetailLoading"
-        :is-friend-action-loading="isFriendActionSaving"
-        @clear="clearSelectedContact"
-        @open-source="openSourceSession"
-        @view-source-records="viewSourceSessionRecords"
-        @mark-friend="markSelectedContactAsFriend"
-        @unmark-friend="unmarkSelectedContactAsFriend"
-      />
-    </div>
+      <template #contact>
+        <ContactDetailPanel
+          :contact="selectedContact"
+          :is-loading="isDetailLoading"
+          :is-friend-action-loading="isFriendActionSaving"
+          @open-source="openSourceSession"
+          @view-source-records="viewSourceSessionRecords"
+          @mark-friend="markSelectedContactAsFriend"
+          @unmark-friend="unmarkSelectedContactAsFriend"
+        />
+      </template>
+    </SidePanelLayout>
   </div>
 </template>
 
