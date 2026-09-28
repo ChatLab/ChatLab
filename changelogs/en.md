@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.37.5 (2026-09-28)
+
+> Unify right-side panels, add desktop UI scaling, and fix session loading, data source configuration, and model downloads through proxies.
+
+### ✨ Features
+
+- Unify the right-side panels for chat records, contact details, and chat topics, with a header toggle, drag-to-resize support, and browsing position preserved when collapsed
+- [Desktop] Add a UI scale setting
+
+### 🐛 Bug Fixes
+
+- Fix session lists failing to load for some Windows users after upgrading due to unnecessary rewrites of data directory compatibility markers
+- Fix remote data source configuration read or write failures overwriting existing settings or incorrectly reporting success; preserve the original file and show a clear error
+- Fix local embedding models failing to load because downloads through a proxy were not written to the cache (by [@huaqian0226](https://github.com/huaqian0226))
+
 ## v0.37.4 (2026-09-23)
 
 > Improve context budgeting for AI tool results, fix Qwen topic summaries, and show clearer session-loading errors.
