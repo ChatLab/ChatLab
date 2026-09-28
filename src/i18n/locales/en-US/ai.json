@@ -223,13 +223,6 @@
       "copied": "Copied to clipboard",
       "unknown": "Unknown error"
     },
-    "dataSource": {
-      "title": "Data Source",
-      "keywords": "Keywords:",
-      "empty": "No data",
-      "emptyHint": "Related records will appear here after asking questions",
-      "totalRecords": "{count} records"
-    },
     "evidence": {
       "title": "Evidence",
       "query": "Question",

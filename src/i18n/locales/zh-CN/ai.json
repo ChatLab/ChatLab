@@ -223,13 +223,6 @@
       "copied": "已复制到剪贴板",
       "unknown": "未知错误"
     },
-    "dataSource": {
-      "title": "数据源",
-      "keywords": "关键词:",
-      "empty": "暂无数据",
-      "emptyHint": "发送问题后，相关记录会显示在这里",
-      "totalRecords": "共 {count} 条记录"
-    },
     "evidence": {
       "title": "依据证据",
       "query": "问题",

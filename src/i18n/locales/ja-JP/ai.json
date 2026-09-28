@@ -223,13 +223,6 @@
       "copied": "クリップボードにコピーしました",
       "unknown": "不明なエラー"
     },
-    "dataSource": {
-      "title": "データソース",
-      "keywords": "キーワード:",
-      "empty": "データがありません",
-      "emptyHint": "質問を送信すると、関連する記録がここに表示されます",
-      "totalRecords": "全 {count} 件の記録"
-    },
     "evidence": {
       "title": "根拠",
       "query": "質問",

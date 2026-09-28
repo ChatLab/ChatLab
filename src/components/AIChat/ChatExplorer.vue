@@ -4,7 +4,6 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from '@/composables/useToast'
 import ConversationList from './chat/ConversationList.vue'
-import DataSourcePanel from './chat/DataSourcePanel.vue'
 import ChatMessage from './chat/ChatMessage.vue'
 import AIChatInput from './input/AIChatInput.vue'
 import AIThinkingIndicator from './chat/AIThinkingIndicator.vue'
@@ -53,9 +52,6 @@ const initialAIChatId = typeof route.query.aiChatId === 'string' ? route.query.a
 const {
   initialization,
   messages,
-  sourceMessages,
-  currentKeywords,
-  isLoadingSource,
   isAIThinking,
   currentAIChatId,
   currentToolStatus,
@@ -190,7 +186,6 @@ const currentPresetQuestions = computed(() => {
 const currentChatType = computed(() => props.chatType ?? 'group')
 
 // UI 状态
-const isSourcePanelCollapsed = ref(false)
 const hasLLMConfig = ref(false)
 const isCheckingConfig = ref(true)
 const configModalScrollToSection = ref<string | undefined>(undefined)
@@ -417,11 +412,6 @@ async function handleForkAIChat(messageId: string) {
   } catch (error) {
     toast.fail(t('ai.chat.fork.failed'), { description: String(error) })
   }
-}
-
-// 切换数据源面板
-function toggleSourcePanel() {
-  isSourcePanelCollapsed.value = !isSourcePanelCollapsed.value
 }
 
 // 选择对话
@@ -686,23 +676,6 @@ watch(
           </div>
         </div>
       </div>
-
-      <!-- 右侧：数据源面板 -->
-      <Transition name="slide-fade">
-        <div
-          v-if="sourceMessages.length > 0 && !isSourcePanelCollapsed"
-          class="w-80 shrink-0 border-l border-gray-200 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-page-dark/50"
-        >
-          <DataSourcePanel
-            :messages="sourceMessages"
-            :keywords="currentKeywords"
-            :is-loading="isLoadingSource"
-            :is-collapsed="isSourcePanelCollapsed"
-            class="h-full"
-            @toggle="toggleSourcePanel"
-          />
-        </div>
-      </Transition>
     </div>
 
     <!-- 助手配置弹窗 -->
@@ -754,18 +727,6 @@ watch(
 </template>
 
 <style scoped>
-/* Transition styles for slide-fade */
-.slide-fade-enter-active,
-.slide-fade-leave-active {
-  transition: all 0.3s ease-out;
-}
-
-.slide-fade-enter-from,
-.slide-fade-leave-to {
-  transform: translateX(20px);
-  opacity: 0;
-}
-
 /* Transition styles for slide-up (status bar) */
 .slide-up-enter-active,
 .slide-up-leave-active {
