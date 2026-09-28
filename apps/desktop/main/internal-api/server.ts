@@ -191,6 +191,9 @@ export async function startInternalServer(
       getVersion: () => getDesktopAppVersion(app.getVersion()),
       mergeSessionCache: newMergeCache,
       streamImport: electronStreamImport,
+      onMergedSessionImported: async ({ sessionId, sourceSessionIds }) => {
+        await newSemanticIndexService?.carryOver({ targetSessionId: sessionId, sourceSessionIds })
+      },
       aiDataDir,
       aiChatManager: getAIChatManager(),
       aiMemoryService: newAIMemoryService,

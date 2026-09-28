@@ -23,6 +23,8 @@ export interface SemanticIndexRuntime {
   hasApiKey(): MaybePromise<boolean>
 
   enable(sessionId: string): MaybePromise<void>
+  /** 合并会话后承接源会话向量：启用目标会话并构建，文本未变的 chunk 直接复制向量 */
+  carryOver(params: { targetSessionId: string; sourceSessionIds: string[] }): MaybePromise<{ enabled: boolean }>
   remove(sessionId: string): MaybePromise<void>
   build(sessionId: string): MaybePromise<void>
   pause(sessionId: string): MaybePromise<void>

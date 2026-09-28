@@ -21,6 +21,13 @@ function makeConfigStore(): SemanticIndexConfigStore {
   return new SemanticIndexConfigStore(path.join(dir, 'semantic-index-config.json'))
 }
 
+/** 已选好本地模型的配置：canRun() 为真，客户端才会把调用转发给 worker */
+function makeRunnableConfigStore(): SemanticIndexConfigStore {
+  const store = makeConfigStore()
+  store.set({ ...store.get(), enabled: true, mode: 'local', local: { modelId: 'model-a' }, api: null })
+  return store
+}
+
 class FakeTransport implements SemanticIndexWorkerTransport {
   requests: Array<{ method: string; args: unknown[] }> = []
   closed = false
@@ -529,6 +536,72 @@ test('worker client clears session active-build state from matching status snaps
   await client.build('session-a')
   await client.status('session-a')
 
+  assert.equal(timers.length, 1)
+  timers.shift()?.()
+  assert.equal(instances[0].closed, true)
+})
+
+test('worker client keeps the worker alive while a carried-over build runs', async () => {
+  const instances: FakeTransport[] = []
+  const timers: Array<() => void> = []
+  const client = createSemanticIndexWorkerClient({
+    configStore: makeRunnableConfigStore(),
+    transportFactory: makeFactory(instances, (method, args) => {
+      if (method === 'carryOver') return { enabled: true }
+      if (method === 'status') return makeStatus(args[0] as string, false)
+      throw new Error(`unexpected method: ${method}`)
+    }),
+    idleTimeoutMs: 1000,
+    timers: {
+      setTimeout(callback) {
+        timers.push(callback)
+        return callback
+      },
+      clearTimeout() {
+        /* test timer is manually triggered */
+      },
+    },
+  })
+
+  // 合并后没人轮询状态：承接排队的构建还在跑，空闲计时器不能启动、更不能关掉 worker
+  const carried = await client.carryOver({ targetSessionId: 'session-merged', sourceSessionIds: ['session-a'] })
+
+  assert.equal(carried.enabled, true)
+  assert.equal(timers.length, 0)
+  assert.equal(instances[0].closed, false)
+
+  // 观察到终态后才允许空闲关闭
+  await client.status('session-merged')
+
+  assert.equal(timers.length, 1)
+  timers.shift()?.()
+  assert.equal(instances[0].closed, true)
+})
+
+test('worker client stops tracking a carry-over that did not enable the merged session', async () => {
+  const instances: FakeTransport[] = []
+  const timers: Array<() => void> = []
+  const client = createSemanticIndexWorkerClient({
+    configStore: makeRunnableConfigStore(),
+    transportFactory: makeFactory(instances, (method) => {
+      if (method === 'carryOver') return { enabled: false }
+      throw new Error(`unexpected method: ${method}`)
+    }),
+    idleTimeoutMs: 1000,
+    timers: {
+      setTimeout(callback) {
+        timers.push(callback)
+        return callback
+      },
+      clearTimeout() {
+        /* test timer is manually triggered */
+      },
+    },
+  })
+
+  const carried = await client.carryOver({ targetSessionId: 'session-merged', sourceSessionIds: ['session-a'] })
+
+  assert.equal(carried.enabled, false)
   assert.equal(timers.length, 1)
   timers.shift()?.()
   assert.equal(instances[0].closed, true)

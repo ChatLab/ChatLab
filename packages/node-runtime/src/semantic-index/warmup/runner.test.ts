@@ -330,3 +330,210 @@ test('append-only warmup replaces stale chunks from the extended tail parent', a
   store.close()
   stateStore.close()
 })
+
+// ==================== 合并会话的向量复用 ====================
+
+const SOURCE_HASH = 'dbSource'
+const TARGET_HASH = 'dbTarget'
+/** 第二个目标聊天库：同一批向量要被两个不同的会话分别承接时用 */
+const SECOND_TARGET_HASH = 'dbTarget2'
+
+/** 稳定的"逻辑消息"：合并后消息 id 变了，但时间、发送者与正文不变 */
+function mergeMessage(logicalId: number, dbId: number): ChunkMessageInput {
+  return {
+    id: dbId,
+    senderName: `成员${logicalId % 3}`,
+    content: `第${logicalId}条内容互不相同的测试消息正文`,
+    ts: logicalId * 0.1 * MINUTE,
+  }
+}
+
+/** 与 makeSource 相同，但可以换会话标题（标题进 embedding 文本，换了就不该复用） */
+function makeTitledSource(messages: ChunkMessageInput[], title: string): SemanticMessageSource {
+  return { ...makeSource(messages), getSource: () => ({ title, kind: 'group' }) }
+}
+
+/** 返回固定向量的 embedder，用于区分"复用的旧向量"与"新算的向量" */
+class ConstantEmbedder extends FakeEmbedder {
+  constructor(private readonly vector: [number, number, number, number]) {
+    super()
+  }
+
+  async embedDocuments(texts: string[]): Promise<Float32Array[]> {
+    this.batchSizes.push(texts.length)
+    return texts.map(() => {
+      this.calls++
+      return new Float32Array(this.vector)
+    })
+  }
+}
+
+function makeCarryOverFixture() {
+  const dir = makeTempDir()
+  const dbPath = path.join(dir, 'embedding_index.db')
+  const store = new EmbeddingIndexStore(dbPath)
+  const stateStore = new SemanticIndexStateStore(dbPath)
+  for (const [hash, dbFile] of [
+    [SOURCE_HASH, '/chat/source.db'],
+    [TARGET_HASH, '/chat/target.db'],
+    [SECOND_TARGET_HASH, '/chat/target2.db'],
+  ]) {
+    stateStore.enable({
+      dbPathHash: hash,
+      dbPath: dbFile,
+      modelId: MODEL,
+      chunkerVersion: 'v1.1',
+      chunkerConfigHash: 'cfg',
+    })
+  }
+  return { store, stateStore }
+}
+
+test('merged session copies source vectors and only embeds the chunks with new messages', async () => {
+  const { store, stateStore } = makeCarryOverFixture()
+
+  // 源会话：8 条消息 -> 4 个 chunk，向量全部是 [1,0,0,0]
+  const sourceMessages = Array.from({ length: 8 }, (_, i) => mergeMessage(i + 1, i + 1))
+  const sourceEmbedder = new ConstantEmbedder([1, 0, 0, 0])
+  const sourceResult = await runWarmup({
+    dbPathHash: SOURCE_HASH,
+    modelId: MODEL,
+    embedder: sourceEmbedder,
+    store,
+    stateStore,
+    source: makeSource(sourceMessages),
+    config,
+  })
+  assert.equal(sourceResult.chunksWritten, 4)
+  assert.equal(sourceResult.chunksReused, 0)
+  assert.equal(sourceEmbedder.calls, 8 / 2)
+
+  // 合并产物：同样的消息（id 全变）+ 尾部两条新消息 -> 5 个 chunk
+  const mergedMessages = [
+    ...Array.from({ length: 8 }, (_, i) => mergeMessage(i + 1, 1000 + i)),
+    ...Array.from({ length: 2 }, (_, i) => mergeMessage(9 + i, 1008 + i)),
+  ]
+  const targetEmbedder = new ConstantEmbedder([0, 1, 0, 0])
+  const result = await runWarmup({
+    dbPathHash: TARGET_HASH,
+    modelId: MODEL,
+    embedder: targetEmbedder,
+    store,
+    stateStore,
+    source: makeSource(mergedMessages),
+    config,
+  })
+
+  assert.equal(result.status, 'completed')
+  assert.equal(result.chunksWritten, 5)
+  assert.equal(result.chunksReused, 4)
+  // 只有含新消息的那一个 chunk 被 embedding
+  assert.equal(targetEmbedder.calls, 1)
+  assert.equal(stateStore.getState(TARGET_HASH)!.chunkCount, 5)
+
+  // 复用的 4 个 chunk 拿到的是源向量 [1,0,0,0]，不是本次 embedder 的 [0,1,0,0]
+  const copied = store
+    .queryDense({ dbPathHash: TARGET_HASH, modelId: MODEL, dim: 4, embedding: [1, 0, 0, 0], k: 10 })
+    .filter((hit) => hit.distance === 0)
+  assert.equal(copied.length, 4)
+
+  // 续跑：没有新消息就不再写入，也不再复用
+  const rerun = await runWarmup({
+    dbPathHash: TARGET_HASH,
+    modelId: MODEL,
+    embedder: targetEmbedder,
+    store,
+    stateStore,
+    source: makeSource(mergedMessages),
+    config,
+  })
+  assert.equal(rerun.chunksWritten, 0)
+  assert.equal(rerun.chunksReused, 0)
+  assert.equal(targetEmbedder.calls, 1)
+
+  store.close()
+  stateStore.close()
+})
+
+test('vectors are not reused across models', async () => {
+  const { store, stateStore } = makeCarryOverFixture()
+  const messages = Array.from({ length: 4 }, (_, i) => mergeMessage(i + 1, i + 1))
+
+  await runWarmup({
+    dbPathHash: SOURCE_HASH,
+    modelId: MODEL,
+    embedder: new ConstantEmbedder([1, 0, 0, 0]),
+    store,
+    stateStore,
+    source: makeSource(messages),
+    config,
+  })
+
+  const otherModelEmbedder = new ConstantEmbedder([0, 1, 0, 0])
+  const result = await runWarmup({
+    dbPathHash: TARGET_HASH,
+    modelId: 'other-model',
+    embedder: otherModelEmbedder,
+    store,
+    stateStore,
+    source: makeSource(messages.map((m) => ({ ...m, id: m.id + 1000 }))),
+    config,
+  })
+
+  assert.equal(result.chunksReused, 0)
+  assert.equal(otherModelEmbedder.calls, 2)
+
+  store.close()
+  stateStore.close()
+})
+
+test('a merged session with a different title re-embeds instead of copying the source vectors', async () => {
+  const { store, stateStore } = makeCarryOverFixture()
+  const messages = Array.from({ length: 8 }, (_, i) => mergeMessage(i + 1, i + 1))
+
+  await runWarmup({
+    dbPathHash: SOURCE_HASH,
+    modelId: MODEL,
+    embedder: new ConstantEmbedder([1, 0, 0, 0]),
+    store,
+    stateStore,
+    source: makeTitledSource(messages, '原会话'),
+    config,
+  })
+
+  // 逐字节相同的消息，只有会话标题不同：标题进 embedding 文本，复用会拿到另一段文本的向量
+  const renamed = messages.map((m) => ({ ...m, id: m.id + 1000 }))
+  const renamedEmbedder = new ConstantEmbedder([0, 1, 0, 0])
+  const renamedResult = await runWarmup({
+    dbPathHash: TARGET_HASH,
+    modelId: MODEL,
+    embedder: renamedEmbedder,
+    store,
+    stateStore,
+    source: makeTitledSource(renamed, '改名后的会话'),
+    config,
+  })
+
+  assert.equal(renamedResult.chunksWritten, 4)
+  assert.equal(renamedResult.chunksReused, 0)
+  assert.equal(renamedEmbedder.calls, 4)
+
+  // 同一批消息、同一个标题则整段复用，不再调用 embedder
+  const sameTitleEmbedder = new ConstantEmbedder([0, 0, 1, 0])
+  const sameTitleResult = await runWarmup({
+    dbPathHash: SECOND_TARGET_HASH,
+    modelId: MODEL,
+    embedder: sameTitleEmbedder,
+    store,
+    stateStore,
+    source: makeTitledSource(renamed, '原会话'),
+    config,
+  })
+
+  assert.equal(sameTitleResult.chunksWritten, 4)
+  assert.equal(sameTitleResult.chunksReused, 4)
+  assert.equal(sameTitleEmbedder.calls, 0)
+
+  store.close()
+  stateStore.close()
+})

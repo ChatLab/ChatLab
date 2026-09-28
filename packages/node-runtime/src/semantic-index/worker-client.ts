@@ -137,6 +137,27 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     return this.call('remove', [sessionId])
   }
 
+  async carryOver(params: { targetSessionId: string; sourceSessionIds: string[] }): Promise<{ enabled: boolean }> {
+    // 未配置可用模型时没有向量可承接，不必为此唤醒 worker。
+    if (!this.canRunFromLocalConfig()) return { enabled: false }
+    // carryOver 自己会排队构建目标会话，和 build 一样必须先记进 activeBuildSessionIds：
+    // 否则没人轮询状态时，空闲计时器会在构建还在跑的时候关掉 worker。
+    this.activeBuildSessionIds.add(params.targetSessionId)
+    let enabled = false
+    try {
+      const result = await this.call<{ enabled: boolean }>('carryOver', [params])
+      enabled = result.enabled
+      return result
+    } finally {
+      // 没有可承接的源（或调用失败）时并没有构建在跑，要立刻放掉跟踪并重新武装空闲计时器，
+      // 否则这次合并会让 worker 一直不关。
+      if (!enabled) {
+        this.activeBuildSessionIds.delete(params.targetSessionId)
+        this.scheduleIdleCloseIfNeeded()
+      }
+    }
+  }
+
   async build(sessionId: string): Promise<void> {
     await this.closeTransportForLocalModelProxyChangeIfNeeded()
     this.activeBuildSessionIds.add(sessionId)
