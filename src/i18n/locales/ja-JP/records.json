@@ -134,6 +134,10 @@
   },
   "messageItem": {
     "viewContext": "コンテキストを表示",
+    "copy": "メッセージをコピー",
+    "copied": "コピーしました",
+    "editAlias": "別名を編集",
+    "aliasSaveFailed": "別名を保存できませんでした",
     "replyTo": "返信",
     "expandMessyContent": "全文を表示",
     "collapseMessyContent": "折りたたむ"

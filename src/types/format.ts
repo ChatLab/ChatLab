@@ -180,6 +180,7 @@ export interface ChatRecordQuery {
  */
 export interface ChatRecordMessage {
   id: number
+  senderId: number
   senderName: string
   senderPlatformId: string
   senderAliases: string[]

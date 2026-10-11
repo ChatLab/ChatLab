@@ -5,9 +5,11 @@
  */
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useClipboard } from '@vueuse/core'
 
 import { analyzeMessyContent } from './messy-content'
 import type { ChatRecordMessage } from './types'
+import MemberAliasInput from '@/components/common/member/MemberAliasInput.vue'
 import { chatTopicColorStyle } from './topic-highlight'
 import { useSessionStore } from '@/stores/session'
 
@@ -28,6 +30,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'view-context', messageId: number): void
+  (e: 'update-alias', senderId: number, aliases: string[]): void
 }>()
 
 const sessionStore = useSessionStore()
@@ -82,6 +85,9 @@ const targetColor = computed(() =>
     : chatTopicColorStyle(props.topicColorIndex).message
 )
 const showFullMessyContent = ref(false)
+const aliasPopoverOpen = ref(false)
+const aliasDraft = ref<string[]>([])
+const { copy: copyMessage, copied } = useClipboard({ copiedDuring: 1500 })
 
 const contentAnalysis = computed(() => analyzeMessyContent(props.message.content || ''))
 const visibleMessageContent = computed(() => {
@@ -110,6 +116,16 @@ const displayName = computed(() => {
   }
   return name
 })
+
+function openAliasEditor() {
+  aliasDraft.value = [...(props.message.senderAliases || [])]
+}
+
+function saveAliases(value: string[]) {
+  const aliases = [...new Set(value.map((alias) => alias.trim()).filter(Boolean))]
+  aliasDraft.value = aliases
+  emit('update-alias', props.message.senderId, aliases)
+}
 
 // 获取头像字符（支持 emoji）
 const avatarLetter = computed(() => {
@@ -198,10 +214,26 @@ function highlightContent(content: string): string {
       <!-- 消息内容区 -->
       <div class="min-w-0 flex-1" :class="isOwner ? 'flex flex-col items-end' : ''">
         <!-- 发送者名称 -->
-        <div class="mb-1 flex items-center gap-2" :class="isOwner ? 'flex-row-reverse' : ''">
+        <div class="mb-1 flex items-center gap-1" :class="isOwner ? 'flex-row-reverse' : ''">
           <span class="text-sm font-medium" :class="nameColor">
             {{ displayName }}
           </span>
+          <UPopover v-model:open="aliasPopoverOpen">
+            <button
+              type="button"
+              class="flex size-5 items-center justify-center rounded text-gray-400 opacity-0 transition hover:bg-gray-100 hover:text-gray-600 group-hover:opacity-100 focus:opacity-100 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+              :title="t('records.messageItem.editAlias')"
+              :aria-label="t('records.messageItem.editAlias')"
+              @click="openAliasEditor"
+            >
+              <UIcon name="i-heroicons-pencil-square" class="size-3.5" />
+            </button>
+            <template #content>
+              <div class="w-64 p-2">
+                <MemberAliasInput v-model="aliasDraft" size="sm" @update:model-value="saveAliases" />
+              </div>
+            </template>
+          </UPopover>
         </div>
 
         <!-- 气泡和上下文按钮 -->
@@ -269,7 +301,18 @@ function highlightContent(content: string): string {
 
           <!-- 上下文查看按钮 -->
           <button
+            v-if="message.content"
+            type="button"
+            class="mt-1 flex h-6 w-6 items-center justify-center rounded-lg opacity-0 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-pink-500 dark:hover:text-pink-400 active:scale-95 group-hover:opacity-100 focus:opacity-100 cursor-pointer"
+            :title="t(copied ? 'records.messageItem.copied' : 'records.messageItem.copy')"
+            :aria-label="t(copied ? 'records.messageItem.copied' : 'records.messageItem.copy')"
+            @click="copyMessage(message.content)"
+          >
+            <UIcon :name="copied ? 'i-heroicons-check' : 'i-heroicons-clipboard'" class="h-4 w-4" />
+          </button>
+          <button
             v-if="isFiltered"
+            type="button"
             class="mt-1 flex h-6 w-6 items-center justify-center rounded-lg opacity-0 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-pink-500 dark:hover:text-pink-400 active:scale-95 group-hover:opacity-100 cursor-pointer"
             :title="t('records.messageItem.viewContext')"
             @click="$emit('view-context', message.id)"

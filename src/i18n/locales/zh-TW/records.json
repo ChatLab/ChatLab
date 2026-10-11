@@ -134,6 +134,10 @@
   },
   "messageItem": {
     "viewContext": "檢視上下文",
+    "copy": "複製訊息",
+    "copied": "已複製",
+    "editAlias": "編輯別名",
+    "aliasSaveFailed": "儲存別名失敗",
     "replyTo": "回覆",
     "expandMessyContent": "展開完整內容",
     "collapseMessyContent": "收起"

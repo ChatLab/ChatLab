@@ -11,13 +11,17 @@ import MessageItem from './MessageItem.vue'
 import { chatTopicColorStyle, isMessageInChatTopicHighlight, type ChatTopicHighlight } from './topic-highlight'
 import type { ChatRecordMessage, ChatRecordQuery } from './types'
 import { useSessionStore } from '@/stores/session'
-import { useMessageService } from '@/services'
+import { useDataService, useMessageService } from '@/services'
+import { useToast } from '@/composables/useToast'
 import { resolveChatRecordSessionId } from './query-session'
+import { notifyMemberAliasesChanged, onMemberAliasesChanged } from '@/components/common/member/member-alias-events'
 
 // 时间分隔阈值（秒）：消息间隔超过此值则显示时间分隔线
 const TIME_SEPARATOR_THRESHOLD = 5 * 60 // 5 分钟
 
 const { t } = useI18n()
+const toast = useToast()
+const dataService = useDataService()
 
 const props = withDefaults(
   defineProps<{
@@ -126,6 +130,30 @@ function mapMessages(messages: any[]): ChatRecordMessage[] {
     replyToContent: m.replyToContent ?? null,
     replyToSenderName: m.replyToSenderName ?? null,
   })) as ChatRecordMessage[]
+}
+
+function applyMemberAliases(memberId: number, aliases: string[]) {
+  messages.value = messages.value.map((message) =>
+    message.senderId === memberId ? { ...message, senderAliases: aliases } : message
+  )
+}
+
+const stopAliasUpdates = onMemberAliasesChanged((update) => {
+  if (update.sessionId === effectiveSessionId.value) applyMemberAliases(update.memberId, update.aliases)
+})
+onUnmounted(stopAliasUpdates)
+
+async function updateSenderAliases(senderId: number, aliases: string[]) {
+  const sessionId = effectiveSessionId.value
+  if (!sessionId) return
+
+  try {
+    const success = await dataService.updateMemberAliases(sessionId, senderId, aliases)
+    if (!success) throw new Error(t('records.messageItem.aliasSaveFailed'))
+    notifyMemberAliasesChanged({ sessionId, memberId: senderId, aliases })
+  } catch (error) {
+    toast.fail(t('records.messageItem.aliasSaveFailed'), { description: String(error) })
+  }
 }
 
 // 记录上一次消息数量（用于判断是扩展还是替换）
@@ -651,6 +679,7 @@ defineExpose({
             :highlight-keywords="query.highlightKeywords"
             :is-filtered="isFiltered"
             @view-context="(id) => emit('jump-to-message', id)"
+            @update-alias="updateSenderAliases"
           />
         </div>
       </div>

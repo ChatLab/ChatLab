@@ -134,6 +134,10 @@
   },
   "messageItem": {
     "viewContext": "查看上下文",
+    "copy": "复制消息",
+    "copied": "已复制",
+    "editAlias": "编辑别名",
+    "aliasSaveFailed": "保存别名失败",
     "replyTo": "回复",
     "expandMessyContent": "展开完整内容",
     "collapseMessyContent": "收起"

@@ -11,6 +11,8 @@ import { useTableRowSelection, useTableSort, type TableSortDirection } from '@/c
 import { reportError } from '@/services/log-report'
 import { useLayoutStore } from '@/stores/layout'
 import { formatDateTime } from '@/utils/dateFormat'
+import MemberAliasInput from './MemberAliasInput.vue'
+import { notifyMemberAliasesChanged } from './member-alias-events'
 
 const MEMBER_ROW_ESTIMATE = 64
 const { t } = useI18n()
@@ -224,6 +226,7 @@ async function updateAliases(member: MemberWithStats, newAliases: string[]) {
         await nextTick()
         memberVirtualizer.value.measure()
       }
+      notifyMemberAliasesChanged({ sessionId, memberId: member.id, aliases: aliasesToSave })
     }
   } catch (error) {
     reportMemberManagementError('Failed to save member aliases:', error)
@@ -590,12 +593,9 @@ onUnmounted(() => {
                   {{ member.lastMessageTs === null ? '-' : formatDateTime(member.lastMessageTs) }}
                 </span>
 
-                <UInputTags
+                <MemberAliasInput
                   :model-value="member.aliases"
-                  :placeholder="t('members.list.aliasPlaceholder')"
                   :loading="savingAliasIds.has(member.id)"
-                  size="xs"
-                  class="w-full"
                   @click.stop
                   @update:model-value="(val) => updateAliases(member, val)"
                 />

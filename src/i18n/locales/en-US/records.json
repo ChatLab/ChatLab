@@ -134,6 +134,10 @@
   },
   "messageItem": {
     "viewContext": "View Context",
+    "copy": "Copy message",
+    "copied": "Copied",
+    "editAlias": "Edit alias",
+    "aliasSaveFailed": "Failed to save alias",
     "replyTo": "Reply to",
     "expandMessyContent": "Show full content",
     "collapseMessyContent": "Collapse"
