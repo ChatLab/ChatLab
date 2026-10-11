@@ -79,6 +79,8 @@ export default {
     migrationV10Desc: 'Track source message coverage for segment summaries',
     migrationV10Message:
       'Record how many messages each segment summary covers so outdated summaries can be regenerated',
+    migrationV11Desc: 'Add user-defined message marks',
+    migrationV11Message: 'Add categories, colors, and comments to messages without changing chat content',
     integrityError:
       'Database structure is incomplete: missing meta table. Please delete this database file and re-import.',
     checkFailed: 'Database check failed: {{error}}',

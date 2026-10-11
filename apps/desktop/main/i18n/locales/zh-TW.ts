@@ -76,6 +76,8 @@ export default {
     migrationV9Message: '清理不再使用的衍生搜尋索引，聊天資料不受影響',
     migrationV10Desc: '記錄片段摘要的原訊息涵蓋量',
     migrationV10Message: '記錄每個片段摘要涵蓋的訊息數量，以便重新產生已經過期的摘要',
+    migrationV11Desc: '新增使用者自訂訊息標記',
+    migrationV11Message: '為訊息新增分類、顏色和評論，不會變更聊天內容',
     integrityError: '資料庫結構不完整：缺少 meta 資料表。建議刪除此資料庫檔案後重新匯入。',
     checkFailed: '資料庫檢查失敗: {{error}}',
   },
