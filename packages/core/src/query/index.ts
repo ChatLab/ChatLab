@@ -230,6 +230,8 @@ export {
   ensureAliasesColumn,
   ensureAvatarColumn,
 } from './member-ops'
+export { getMessageMark, saveMessageMark } from './message-mark'
+export type { MessageMark, MessageMarkInput } from './message-mark'
 
 // Advanced analytics
 export {

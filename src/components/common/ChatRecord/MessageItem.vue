@@ -3,21 +3,27 @@
  * 单条消息展示组件 - 气泡样式
  * 支持 Owner 消息显示在右侧（类似聊天界面）
  */
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useClipboard } from '@vueuse/core'
+import { useClipboard, useResizeObserver } from '@vueuse/core'
 
 import { analyzeMessyContent } from './messy-content'
 import type { ChatRecordMessage } from './types'
 import MemberAliasInput from '@/components/common/member/MemberAliasInput.vue'
+import TagInput from '@/components/common/TagInput.vue'
 import { chatTopicColorStyle } from './topic-highlight'
 import { useSessionStore } from '@/stores/session'
+import { useDataService } from '@/services'
+import type { MessageMark } from '@/services/data/types'
+import { IS_WEB_WASM } from '@/utils/platform'
+import { useToast } from '@/composables/useToast'
 
 const { t } = useI18n()
 
 const props = defineProps<{
   /** 消息数据 */
   message: ChatRecordMessage
+  sessionId?: string
   /** 是否为目标消息（需要高亮） */
   isTarget?: boolean
   /** 话题高亮颜色；普通消息定位仍使用默认主色。 */
@@ -31,9 +37,12 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'view-context', messageId: number): void
   (e: 'update-alias', senderId: number, aliases: string[]): void
+  (e: 'update-mark', messageId: number, mark: MessageMark | null): void
 }>()
 
 const sessionStore = useSessionStore()
+const dataService = useDataService()
+const toast = useToast()
 
 // 判断当前消息是否是 Owner 发送的
 const isOwner = computed(() => {
@@ -88,6 +97,34 @@ const showFullMessyContent = ref(false)
 const aliasPopoverOpen = ref(false)
 const aliasDraft = ref<string[]>([])
 const { copy: copyMessage, copied } = useClipboard({ copiedDuring: 1500 })
+const markPopoverOpen = ref(false)
+const mark = ref<MessageMark | null>(props.message.mark)
+const markLoading = ref(false)
+const markCategories = ref<string[]>([])
+const markColor = ref('')
+const markComment = ref('')
+const displayedComment = ref<HTMLElement | null>(null)
+const commentExpanded = ref(false)
+const commentOverflowing = ref(false)
+const markColors = [
+  { value: 'amber', class: 'bg-amber-400' },
+  { value: 'rose', class: 'bg-rose-400' },
+  { value: 'violet', class: 'bg-violet-400' },
+  { value: 'blue', class: 'bg-blue-400' },
+  { value: 'emerald', class: 'bg-emerald-400' },
+  { value: 'gray', class: 'bg-gray-400' },
+]
+const markIndicatorClass = computed(() => {
+  const classes: Record<string, string> = {
+    amber: 'text-amber-500',
+    rose: 'text-rose-500',
+    violet: 'text-violet-500',
+    blue: 'text-blue-500',
+    emerald: 'text-emerald-500',
+    gray: 'text-gray-500',
+  }
+  return classes[mark.value?.color || ''] || 'text-gray-500'
+})
 
 const contentAnalysis = computed(() => analyzeMessyContent(props.message.content || ''))
 const visibleMessageContent = computed(() => {
@@ -104,6 +141,92 @@ watch(
     showFullMessyContent.value = false
   }
 )
+
+function findScrollContainer(element: HTMLElement): HTMLElement | null {
+  let parent = element.parentElement
+  while (parent) {
+    const overflowY = window.getComputedStyle(parent).overflowY
+    if (overflowY === 'auto' || overflowY === 'scroll') return parent
+    parent = parent.parentElement
+  }
+  return null
+}
+
+async function toggleComment() {
+  if (!commentOverflowing.value || !displayedComment.value) return
+  const element = displayedComment.value
+  const scrollContainer = findScrollContainer(element)
+  const top = element.getBoundingClientRect().top
+  commentExpanded.value = !commentExpanded.value
+  await nextTick()
+  requestAnimationFrame(() => {
+    if (!scrollContainer || !displayedComment.value) return
+    scrollContainer.scrollTop += displayedComment.value.getBoundingClientRect().top - top
+  })
+}
+
+async function updateCommentOverflow() {
+  await nextTick()
+  const element = displayedComment.value
+  if (!element || commentExpanded.value) return
+  commentOverflowing.value = element.scrollHeight > element.clientHeight + 1
+}
+
+watch(
+  [() => mark.value?.comment, displayedComment],
+  () => {
+    commentExpanded.value = false
+    void updateCommentOverflow()
+  },
+  { flush: 'post' }
+)
+
+useResizeObserver(displayedComment, () => {
+  void updateCommentOverflow()
+})
+
+watch(markPopoverOpen, (open) => {
+  if (!open) return
+  markCategories.value = [...(mark.value?.categories || [])]
+  markColor.value = mark.value?.color || ''
+  markComment.value = mark.value?.comment || ''
+})
+
+watch(
+  () => [props.message.id, props.message.mark] as const,
+  () => {
+    mark.value = props.message.mark
+  }
+)
+
+async function saveMark() {
+  if (!props.sessionId) return
+  markLoading.value = true
+  try {
+    const categories = [...new Set(markCategories.value.map((category) => category.trim()).filter(Boolean))]
+    const color = markColor.value.trim()
+    const comment = markComment.value.trim()
+    const savedMark = await dataService.saveMessageMark(props.sessionId, props.message.id, {
+      categories,
+      color,
+      comment,
+    })
+    mark.value = categories.length || color || comment ? savedMark : null
+    emit('update-mark', props.message.id, mark.value)
+    markPopoverOpen.value = false
+  } catch (error) {
+    toast.fail(t('records.messageItem.markSaveFailed'), { description: String(error) })
+  } finally {
+    markLoading.value = false
+  }
+}
+
+async function removeMark() {
+  markCategories.value = []
+  markColor.value = ''
+  markComment.value = ''
+  await saveMark()
+}
 
 // 显示名称（包含别名）
 const displayName = computed(() => {
@@ -239,67 +362,158 @@ function highlightContent(content: string): string {
         <!-- 气泡和上下文按钮 -->
         <!-- max-w-[calc(100%-48px)] = 100% - 头像宽度(36px) - gap(12px) -->
         <div class="flex min-w-0 max-w-[calc(100%-68px)] items-start gap-1" :class="isOwner ? 'flex-row-reverse' : ''">
-          <div
-            class="relative min-w-0 max-w-full rounded-2xl border border-gray-100 px-3.5 py-2.5 transition-all duration-300 dark:border-gray-800/40"
-            :class="bubbleColor"
-          >
-            <!-- 回复引用样式 -->
+          <div class="min-w-0 max-w-full">
             <div
-              v-if="message.replyToMessageId"
-              class="mb-2 border-l-2 border-pink-400 dark:border-pink-500 pl-2.5 py-1 text-xs text-gray-500 dark:text-gray-400 bg-gray-500/5 dark:bg-white/5 rounded-r"
+              class="relative min-w-0 max-w-full rounded-2xl border border-gray-100 px-3.5 py-2.5 transition-all duration-300 dark:border-gray-800/40"
+              :class="bubbleColor"
             >
-              <span class="font-medium text-gray-600 dark:text-gray-300">{{ t('records.messageItem.replyTo') }}</span>
-              <span v-if="message.replyToSenderName" class="ml-1 font-semibold text-gray-700 dark:text-gray-200">
-                {{ message.replyToSenderName }}
-              </span>
-              <p
-                v-if="message.replyToContent"
-                class="mt-1 line-clamp-2 italic text-gray-500 dark:text-gray-400 leading-normal"
+              <!-- 回复引用样式 -->
+              <div
+                v-if="message.replyToMessageId"
+                class="mb-2 border-l-2 border-pink-400 dark:border-pink-500 pl-2.5 py-1 text-xs text-gray-500 dark:text-gray-400 bg-gray-500/5 dark:bg-white/5 rounded-r"
               >
-                {{ message.replyToContent }}
-              </p>
-            </div>
-            <p
-              class="chat-record-message-content whitespace-pre-wrap break-all text-sm text-gray-700 dark:text-gray-200"
-              v-html="highlightContent(visibleMessageContent)"
-            />
-            <ul
-              v-if="contentAnalysis.linkUrls.length"
-              class="chat-record-message-content mt-2 min-w-0 max-w-full list-disc space-y-1 pl-4 text-xs text-primary-600 dark:text-primary-400"
-            >
-              <li v-for="linkUrl in contentAnalysis.linkUrls" :key="linkUrl" class="min-w-0">
-                <a
-                  :href="linkUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="block min-w-0 max-w-full truncate transition-colors hover:text-primary-700 dark:hover:text-primary-300"
-                  @click.stop
+                <span class="font-medium text-gray-600 dark:text-gray-300">{{ t('records.messageItem.replyTo') }}</span>
+                <span v-if="message.replyToSenderName" class="ml-1 font-semibold text-gray-700 dark:text-gray-200">
+                  {{ message.replyToSenderName }}
+                </span>
+                <p
+                  v-if="message.replyToContent"
+                  class="mt-1 line-clamp-2 italic text-gray-500 dark:text-gray-400 leading-normal"
                 >
-                  {{ linkUrl }}
-                </a>
-              </li>
-            </ul>
-            <button
-              v-if="contentAnalysis.shouldCollapse"
-              type="button"
-              class="mt-2 inline-flex items-center gap-1 text-xs font-medium text-gray-500 transition-colors select-none hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
-              @click="showFullMessyContent = !showFullMessyContent"
-            >
-              <UIcon
-                :name="showFullMessyContent ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-                class="h-3.5 w-3.5"
+                  {{ message.replyToContent }}
+                </p>
+              </div>
+              <p
+                class="chat-record-message-content whitespace-pre-wrap break-all text-sm text-gray-700 dark:text-gray-200"
+                v-html="highlightContent(visibleMessageContent)"
               />
-              <span>
-                {{
-                  showFullMessyContent
-                    ? t('records.messageItem.collapseMessyContent')
-                    : t('records.messageItem.expandMessyContent')
-                }}
-              </span>
-            </button>
+              <ul
+                v-if="contentAnalysis.linkUrls.length"
+                class="chat-record-message-content mt-2 min-w-0 max-w-full list-disc space-y-1 pl-4 text-xs text-primary-600 dark:text-primary-400"
+              >
+                <li v-for="linkUrl in contentAnalysis.linkUrls" :key="linkUrl" class="min-w-0">
+                  <a
+                    :href="linkUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="block min-w-0 max-w-full truncate transition-colors hover:text-primary-700 dark:hover:text-primary-300"
+                    @click.stop
+                  >
+                    {{ linkUrl }}
+                  </a>
+                </li>
+              </ul>
+              <button
+                v-if="contentAnalysis.shouldCollapse"
+                type="button"
+                class="mt-2 inline-flex items-center gap-1 text-xs font-medium text-gray-500 transition-colors select-none hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
+                @click="showFullMessyContent = !showFullMessyContent"
+              >
+                <UIcon
+                  :name="showFullMessyContent ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+                  class="h-3.5 w-3.5"
+                />
+                <span>
+                  {{
+                    showFullMessyContent
+                      ? t('records.messageItem.collapseMessyContent')
+                      : t('records.messageItem.expandMessyContent')
+                  }}
+                </span>
+              </button>
+            </div>
+            <div
+              v-if="mark?.comment"
+              class="mt-1.5 flex min-w-0 max-w-full items-start gap-1.5 px-2 text-xs leading-relaxed text-gray-500 dark:text-gray-400"
+              :class="commentOverflowing ? 'cursor-pointer' : ''"
+              @click="toggleComment"
+            >
+              <UIcon name="i-heroicons-chat-bubble-bottom-center-text" class="mt-0.5 size-3.5 shrink-0" />
+              <div class="min-w-0 max-w-full">
+                <p
+                  ref="displayedComment"
+                  class="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+                  :class="commentExpanded ? '' : 'max-h-[25vh] overflow-hidden'"
+                >
+                  {{ mark.comment }}
+                </p>
+                <UIcon
+                  v-if="commentOverflowing"
+                  :name="commentExpanded ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+                  class="mx-auto mt-1 block size-3.5"
+                />
+              </div>
+            </div>
           </div>
 
           <!-- 上下文查看按钮 -->
+          <UPopover v-if="!IS_WEB_WASM" v-model:open="markPopoverOpen">
+            <button
+              type="button"
+              class="mt-1 flex h-6 w-6 items-center justify-center rounded-lg transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 cursor-pointer"
+              :class="
+                mark
+                  ? `${markIndicatorClass} opacity-100`
+                  : 'text-gray-400 opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
+              "
+              :title="t('records.messageItem.mark')"
+              :aria-label="t('records.messageItem.mark')"
+            >
+              <UIcon :name="mark?.color ? 'i-heroicons-bookmark-solid' : 'i-heroicons-bookmark'" class="h-4 w-4" />
+            </button>
+            <template #content>
+              <div class="w-80 space-y-4 p-4">
+                <div class="space-y-1.5">
+                  <label class="block text-xs font-medium text-gray-600 dark:text-gray-300">
+                    {{ t('records.messageItem.markCategoryLabel') }}
+                  </label>
+                  <TagInput v-model="markCategories" size="sm" :placeholder="t('records.messageItem.markCategory')" />
+                </div>
+                <div class="space-y-1.5">
+                  <span class="block text-xs font-medium text-gray-600 dark:text-gray-300">
+                    {{ t('records.messageItem.markColor') }}
+                  </span>
+                  <div class="flex flex-wrap gap-2" role="group" :aria-label="t('records.messageItem.markColor')">
+                    <button
+                      v-for="color in markColors"
+                      :key="color.value"
+                      type="button"
+                      class="size-6 rounded-full border-2"
+                      :class="[
+                        color.class,
+                        markColor === color.value ? 'border-gray-900 dark:border-white' : 'border-transparent',
+                      ]"
+                      :aria-label="t(`records.markColors.${color.value}`)"
+                      :aria-pressed="markColor === color.value"
+                      @click="markColor = markColor === color.value ? '' : color.value"
+                    />
+                  </div>
+                </div>
+                <div class="space-y-1.5">
+                  <label class="block text-xs font-medium text-gray-600 dark:text-gray-300">
+                    {{ t('records.messageItem.markComment') }}
+                  </label>
+                  <UTextarea
+                    v-model="markComment"
+                    :placeholder="t('records.messageItem.markCommentPlaceholder')"
+                    autoresize
+                    :rows="3"
+                    :maxrows="8"
+                    class="w-full"
+                    :ui="{ base: 'max-h-40 overflow-y-auto' }"
+                  />
+                </div>
+                <div class="flex justify-end gap-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+                  <UButton v-if="mark" color="error" variant="soft" :disabled="markLoading" @click="removeMark">
+                    {{ t('records.messageItem.removeMark') }}
+                  </UButton>
+                  <UButton :loading="markLoading" @click="saveMark">
+                    {{ t('records.messageItem.saveMark') }}
+                  </UButton>
+                </div>
+              </div>
+            </template>
+          </UPopover>
           <button
             v-if="message.content"
             type="button"

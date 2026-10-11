@@ -1,4 +1,12 @@
 {
+  "markColors": {
+    "amber": "琥珀色",
+    "rose": "玫瑰色",
+    "violet": "紫羅蘭色",
+    "blue": "藍色",
+    "emerald": "翠綠色",
+    "gray": "灰色"
+  },
   "drawer": {
     "title": "聊天紀錄檢視器",
     "resize": "調整聊天紀錄面板寬度"
@@ -26,6 +34,12 @@
     "keywordsPlaceholder": "關鍵字（多個請用逗號分隔，按 Enter 搜尋）",
     "startDate": "起始日期",
     "endDate": "結束日期",
+    "advanced": "進階篩選",
+    "markCategories": "標記分類",
+    "markCategoriesPlaceholder": "新增分類",
+    "markColor": "標記顏色",
+    "markComment": "標記備註",
+    "markCommentPlaceholder": "備註關鍵字（多個請用逗號分隔，按 Enter 搜尋）",
     "reset": "重置",
     "filter": "篩選"
   },
@@ -138,6 +152,15 @@
     "copied": "已複製",
     "editAlias": "編輯別名",
     "aliasSaveFailed": "儲存別名失敗",
+    "mark": "標記訊息",
+    "markCategoryLabel": "分類",
+    "markCategory": "新增分類",
+    "markColor": "標記顏色",
+    "markComment": "備註",
+    "markCommentPlaceholder": "新增備註",
+    "saveMark": "儲存標記",
+    "removeMark": "移除",
+    "markSaveFailed": "儲存標記失敗",
     "replyTo": "回覆",
     "expandMessyContent": "展開完整內容",
     "collapseMessyContent": "收起"

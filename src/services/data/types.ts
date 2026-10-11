@@ -88,6 +88,19 @@ export interface TableSchema {
   }>
 }
 
+export interface MessageMark {
+  categories: string[]
+  color: string
+  comment: string
+  updatedAt: number
+}
+
+export interface MessageMarkInput {
+  categories: string[]
+  color: string
+  comment: string
+}
+
 // ==================== Contacts ====================
 
 export interface ContactsFetchOptions {
@@ -216,6 +229,8 @@ export interface DataAdapter {
   getMembersPaginated(sessionId: string, params: PaginationParams): Promise<PaginatedResult<MemberWithStats>>
   getMemberNameHistory(sessionId: string, memberId: number): Promise<MemberNameHistory[]>
   updateMemberAliases(sessionId: string, memberId: number, aliases: string[]): Promise<boolean>
+  getMessageMark(sessionId: string, messageId: number): Promise<MessageMark | null>
+  saveMessageMark(sessionId: string, messageId: number, mark: MessageMarkInput): Promise<MessageMark | null>
   mergeMembers(sessionId: string, memberId1: number, memberId2: number): Promise<boolean>
   deleteMember(sessionId: string, memberId: number): Promise<boolean>
   deleteMembers(sessionId: string, memberIds: number[]): Promise<boolean>

@@ -67,6 +67,13 @@ describe('search extensions (in-memory SQLite)', () => {
       CREATE TABLE member (id INTEGER PRIMARY KEY, platform_id TEXT, account_name TEXT, group_nickname TEXT, aliases TEXT, avatar TEXT);
       CREATE TABLE message (id INTEGER PRIMARY KEY, sender_id INTEGER, ts INTEGER, type INTEGER, content TEXT,
         platform_message_id TEXT, reply_to_message_id TEXT);
+      CREATE TABLE message_mark (
+        message_id INTEGER PRIMARY KEY,
+        categories TEXT NOT NULL DEFAULT '[]',
+        color TEXT NOT NULL DEFAULT '',
+        comment TEXT NOT NULL DEFAULT '',
+        updated_at INTEGER NOT NULL
+      );
       INSERT INTO member (id, platform_id, account_name) VALUES (1, 'u1', 'Alice'), (2, 'u2', 'Bob');
     `)
     const insert = raw.prepare('INSERT INTO message (id, sender_id, ts, type, content) VALUES (?, ?, ?, ?, ?)')

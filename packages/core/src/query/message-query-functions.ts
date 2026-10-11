@@ -43,12 +43,19 @@ export interface AsyncConversationData {
   member2Name: string
 }
 
+export interface MessageMarkFilter {
+  categories?: string[]
+  color?: string
+  comments?: string[]
+}
+
 // ==================== Internal helpers ====================
 
 function filterConditions(
   filter?: TimeFilter,
   senderId?: number,
-  keywords?: string[]
+  keywords?: string[],
+  markFilter?: MessageMarkFilter
 ): { clause: string; params: unknown[] } {
   return buildMsgConditions({
     startTs: filter?.startTs,
@@ -56,6 +63,9 @@ function filterConditions(
     senderId,
     memberId: filter?.memberId,
     keywords,
+    markCategories: markFilter?.categories,
+    markColor: markFilter?.color,
+    markComments: markFilter?.comments,
   })
 }
 
@@ -116,9 +126,10 @@ export async function searchMessagesLikeAsync(
   filter?: TimeFilter,
   limit: number = 20,
   offset: number = 0,
-  senderId?: number
+  senderId?: number,
+  markFilter?: MessageMarkFilter
 ): Promise<AsyncMessagesWithTotal> {
-  const { clause, params } = filterConditions(filter, senderId, keywords)
+  const { clause, params } = filterConditions(filter, senderId, keywords, markFilter)
 
   const countSql = `SELECT COUNT(*) as total ${MSG_COUNT_FROM} WHERE 1=1 ${clause}`
   const countRow = await executor.get<{ total: number }>(countSql, params)

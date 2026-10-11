@@ -446,6 +446,7 @@ export type { PiModel, PiApi, PiMessage, PiUsage, PiTextContent, PiAssistantMess
 export { AnalyticsService } from './services/analytics'
 export * as sessionService from './services/session-service'
 export * as memberService from './services/member-service'
+export * as messageMarkService from './services/message-mark-service'
 export * as sessionIndexService from './services/session-index-service'
 export * as summaryService from './services/summary-service'
 export * as exportService from './services/export-service'

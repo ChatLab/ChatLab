@@ -1,4 +1,12 @@
 {
+  "markColors": {
+    "amber": "Amber",
+    "rose": "Rose",
+    "violet": "Violet",
+    "blue": "Blue",
+    "emerald": "Emerald",
+    "gray": "Gray"
+  },
   "drawer": {
     "title": "Chat Record Viewer",
     "resize": "Resize chat record panel"
@@ -26,6 +34,12 @@
     "keywordsPlaceholder": "Keywords, comma separated, Enter to search",
     "startDate": "Start Date",
     "endDate": "End Date",
+    "advanced": "Advanced filters",
+    "markCategories": "Mark categories",
+    "markCategoriesPlaceholder": "Add a category",
+    "markColor": "Mark color",
+    "markComment": "Mark comment",
+    "markCommentPlaceholder": "Comment keywords, comma separated, Enter to search",
     "reset": "Reset",
     "filter": "Filter"
   },
@@ -138,6 +152,15 @@
     "copied": "Copied",
     "editAlias": "Edit alias",
     "aliasSaveFailed": "Failed to save alias",
+    "mark": "Mark message",
+    "markCategoryLabel": "Categories",
+    "markCategory": "Add a category",
+    "markColor": "Mark color",
+    "markComment": "Comment",
+    "markCommentPlaceholder": "Add a note",
+    "saveMark": "Save mark",
+    "removeMark": "Remove",
+    "markSaveFailed": "Failed to save mark",
     "replyTo": "Reply to",
     "expandMessyContent": "Show full content",
     "collapseMessyContent": "Collapse"

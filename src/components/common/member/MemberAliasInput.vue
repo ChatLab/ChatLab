@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import TagInput from '@/components/common/TagInput.vue'
 
 withDefaults(
   defineProps<{
@@ -21,7 +22,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <UInputTags
+  <TagInput
     :model-value="modelValue"
     :placeholder="t('members.list.aliasPlaceholder')"
     :loading="loading"

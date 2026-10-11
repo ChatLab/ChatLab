@@ -1,4 +1,12 @@
 {
+  "markColors": {
+    "amber": "アンバー",
+    "rose": "ローズ",
+    "violet": "バイオレット",
+    "blue": "ブルー",
+    "emerald": "エメラルド",
+    "gray": "グレー"
+  },
   "drawer": {
     "title": "チャット履歴ビューア",
     "resize": "チャット履歴パネルの幅を変更"
@@ -26,6 +34,12 @@
     "keywordsPlaceholder": "キーワード（複数はカンマ区切り、Enter で検索）",
     "startDate": "開始日",
     "endDate": "終了日",
+    "advanced": "詳細フィルター",
+    "markCategories": "マークカテゴリ",
+    "markCategoriesPlaceholder": "カテゴリを追加",
+    "markColor": "マークの色",
+    "markComment": "マークのコメント",
+    "markCommentPlaceholder": "コメント（複数はカンマ区切り、Enter で検索）",
     "reset": "リセット",
     "filter": "フィルター"
   },
@@ -138,6 +152,15 @@
     "copied": "コピーしました",
     "editAlias": "別名を編集",
     "aliasSaveFailed": "別名を保存できませんでした",
+    "mark": "メッセージをマーク",
+    "markCategoryLabel": "カテゴリ",
+    "markCategory": "カテゴリを追加",
+    "markColor": "マークの色",
+    "markComment": "コメント",
+    "markCommentPlaceholder": "メモを追加",
+    "saveMark": "マークを保存",
+    "removeMark": "削除",
+    "markSaveFailed": "マークを保存できませんでした",
     "replyTo": "返信",
     "expandMessyContent": "全文を表示",
     "collapseMessyContent": "折りたたむ"

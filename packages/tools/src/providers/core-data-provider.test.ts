@@ -68,6 +68,11 @@ describe('CoreDataProvider keyword search', () => {
         id INTEGER PRIMARY KEY, sender_id INTEGER, ts INTEGER, type INTEGER,
         content TEXT, reply_to_message_id TEXT, platform_message_id TEXT
       );
+      CREATE TABLE message_mark (
+        message_id INTEGER PRIMARY KEY, categories TEXT NOT NULL DEFAULT '[]',
+        color TEXT NOT NULL DEFAULT '', comment TEXT NOT NULL DEFAULT '',
+        updated_at INTEGER NOT NULL
+      );
       INSERT INTO member (id, platform_id, account_name) VALUES
         (1, 'u1', '小红'), (2, 'u2', '地瓜'), (99, 'sys', '系统消息');
     `)
@@ -124,6 +129,18 @@ describe('CoreDataProvider keyword search', () => {
   it('deepSearchMessages also supports multi-keyword OR', async () => {
     const r = await provider.deepSearchMessages(['麻将', '扑克'])
     assert.equal(r.total, 3)
+  })
+
+  it('does not expose viewer-only marks in tool context', async () => {
+    raw
+      .prepare('INSERT INTO message_mark (message_id, categories, color, comment, updated_at) VALUES (?, ?, ?, ?, ?)')
+      .run(1, '["Favorite"]', 'amber', 'private note', 1)
+
+    const contexts = [await provider.getSearchMessageContext([1], 0, 0), await provider.getMessageContext([1], 0)]
+    for (const messages of contexts) {
+      assert.equal(messages.length, 1)
+      assert.equal('mark' in messages[0]!, false)
+    }
   })
 
   it('getRecentMessages honors timeFilter', async () => {
