@@ -138,7 +138,17 @@ export function writeConfigField(section: string, key: string, value: string | n
   if (!existing[section] || typeof existing[section] !== 'object') {
     existing[section] = {}
   }
-  existing[section][key] = value
+  if (section === 'ui' && key === 'default_session_tab') {
+    if (value === 'memory') {
+      existing.ui.default_session_tab = 'overview'
+      existing.ui.default_session_tab_override = 'memory'
+    } else {
+      existing.ui.default_session_tab = value
+      delete existing.ui.default_session_tab_override
+    }
+  } else {
+    existing[section][key] = value
+  }
 
   const lines: string[] = []
   for (const [sec, entries] of Object.entries(existing)) {

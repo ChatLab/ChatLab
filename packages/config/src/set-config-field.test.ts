@@ -3,9 +3,12 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { after, beforeEach, describe, it } from 'node:test'
+import { parse as parseToml } from 'smol-toml'
+import { z } from 'zod'
 
 const tempHome = mkdtempSync(join(tmpdir(), 'chatlab-config-set-'))
 process.env.HOME = tempHome
+process.env.USERPROFILE = tempHome
 
 const [{ setConfigField, ConfigSetError }, { loadConfig }] = await Promise.all([
   import('./set-config-field'),
@@ -67,6 +70,38 @@ describe('setConfigField', () => {
 
     assert.deepEqual(result, { section: 'desktop', key: 'close_behavior', value: 'background' })
     assert.equal(loadConfig().desktop.close_behavior, 'background')
+  })
+
+  it('persists memory without breaking the v0.37.5 UI config schema', () => {
+    setConfigField('ui.default_session_tab', 'memory')
+
+    assert.equal(loadConfig().ui.default_session_tab, 'memory')
+
+    const saved = parseToml(readFileSync(configToml, 'utf-8')) as { ui: Record<string, unknown> }
+    const releasedUiConfigSchema = z.object({
+      default_session_tab: z.preprocess(
+        (value) => (value === 'overview' ? 'insights' : value),
+        z.enum(['insights', 'ai-chat']).default('insights')
+      ),
+      session_gap_threshold: z.number().int().min(60).max(86400).default(1800),
+      summary_strategy: z.enum(['brief', 'standard']).default('standard'),
+    })
+    assert.equal(releasedUiConfigSchema.parse(saved.ui).default_session_tab, 'insights')
+  })
+
+  it('honors a later session tab write from a v0.37.5 client', () => {
+    setConfigField('ui.default_session_tab', 'memory')
+
+    let content = readFileSync(configToml, 'utf-8').replace(
+      'default_session_tab = "overview"',
+      'default_session_tab = "ai-chat"'
+    )
+    writeFileSync(configToml, content, 'utf-8')
+    assert.equal(loadConfig().ui.default_session_tab, 'ai-chat')
+
+    content = content.replace('default_session_tab = "ai-chat"', 'default_session_tab = "insights"')
+    writeFileSync(configToml, content, 'utf-8')
+    assert.equal(loadConfig().ui.default_session_tab, 'insights')
   })
 
   it('writes boolean value and round-trips via loadConfig', () => {

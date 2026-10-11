@@ -14,8 +14,44 @@ test('normalizes the released overview preference to insights', () => {
   assert.equal(config.ui.default_session_tab, 'insights')
 })
 
+test('accepts memory as a session landing tab', () => {
+  const config = configSchema.parse({
+    ui: {
+      default_session_tab: 'overview',
+      default_session_tab_override: 'memory',
+    },
+  })
+
+  assert.equal(config.ui.default_session_tab, 'memory')
+})
+
+test('accepts canonical memory input and its parsed output', () => {
+  const config = configSchema.parse({ ui: { default_session_tab: 'memory' } })
+
+  assert.equal(config.ui.default_session_tab, 'memory')
+  assert.equal(configSchema.parse(config).ui.default_session_tab, 'memory')
+})
+
+test('prefers a later legacy session tab change over the memory override', () => {
+  const config = configSchema.parse({
+    ui: {
+      default_session_tab: 'ai-chat',
+      default_session_tab_override: 'memory',
+    },
+  })
+
+  assert.equal(config.ui.default_session_tab, 'ai-chat')
+})
+
+test('does not reinterpret a historical overview preference as memory', () => {
+  const config = configSchema.parse({ ui: { default_session_tab: 'overview' } })
+
+  assert.equal(config.ui.default_session_tab, 'insights')
+})
+
 test('rejects unknown session landing tabs', () => {
   assert.throws(() => configSchema.parse({ ui: { default_session_tab: 'unknown' } }))
+  assert.throws(() => configSchema.parse({ ui: { default_session_tab_override: 'unknown' } }))
 })
 
 test('defaults Windows close behavior to running in the background', () => {

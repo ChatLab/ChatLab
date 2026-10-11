@@ -30,14 +30,25 @@ export const localeConfigSchema = z.object({
   lang: z.string().default(''),
 })
 
-export const uiConfigSchema = z.object({
-  default_session_tab: z.preprocess(
-    (value) => (value === 'overview' ? 'insights' : value),
-    z.enum(['insights', 'ai-chat']).default('insights')
-  ),
-  session_gap_threshold: z.number().int().min(60).max(86400).default(1800),
-  summary_strategy: z.enum(['brief', 'standard']).default('standard'),
-})
+const defaultSessionTabSchema = z.preprocess(
+  (value) => (value === 'overview' ? 'insights' : value),
+  z.enum(['insights', 'ai-chat', 'memory']).default('insights')
+)
+
+export const uiConfigSchema = z
+  .object({
+    default_session_tab: z.unknown().optional(),
+    default_session_tab_override: z.literal('memory').optional(),
+    session_gap_threshold: z.number().int().min(60).max(86400).default(1800),
+    summary_strategy: z.enum(['brief', 'standard']).default('standard'),
+  })
+  .transform(({ default_session_tab_override, ...config }) => ({
+    ...config,
+    default_session_tab:
+      default_session_tab_override && config.default_session_tab === 'overview'
+        ? default_session_tab_override
+        : defaultSessionTabSchema.parse(config.default_session_tab),
+  }))
 
 export const cliConfigSchema = z.object({
   /** Allow --raw output that bypasses privacy preprocessing (user-side opt-in). */
