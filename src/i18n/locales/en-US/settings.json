@@ -44,7 +44,8 @@
     "defaultTab": {
       "description": "Default page when entering a chat conversation",
       "insights": "Insights",
-      "aiChat": "AI Chat"
+      "aiChat": "AI Chat",
+      "memory": "Memory"
     },
     "autoLaunch": {
       "openAtLogin": "Launch at Login",

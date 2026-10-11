@@ -44,7 +44,8 @@
     "defaultTab": {
       "description": "チャットに入った時に表示するページ",
       "insights": "インサイト",
-      "aiChat": "AI チャット"
+      "aiChat": "AI チャット",
+      "memory": "メモリー"
     },
     "autoLaunch": {
       "openAtLogin": "ログイン時に自動起動",

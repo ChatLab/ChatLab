@@ -44,7 +44,8 @@
     "defaultTab": {
       "description": "進入聊天對話後預設顯示的頁面",
       "insights": "洞察",
-      "aiChat": "AI 對話"
+      "aiChat": "AI 對話",
+      "memory": "記憶"
     },
     "autoLaunch": {
       "openAtLogin": "開機自動啟動",

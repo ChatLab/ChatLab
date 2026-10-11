@@ -11,7 +11,7 @@ import { availableLocales, type LocaleType } from '@/i18n'
 import NetworkSettingsSection from './NetworkSettingsSection.vue'
 import UITabs from '@/components/UI/Tabs.vue'
 import { usePlatformService } from '@/services'
-import { IS_ELECTRON } from '@/utils/platform'
+import { IS_ELECTRON, IS_WEB_WASM } from '@/utils/platform'
 import { INSIGHT_CARD_THEMES, type InsightCardThemeId } from '@/utils/insight-card-theme'
 import type { DesktopCloseBehavior } from '@openchatlab/shared-types'
 
@@ -155,6 +155,7 @@ const currentLocale = computed({
 const defaultTabOptions = computed(() => [
   { label: t('settings.basic.defaultTab.insights'), value: 'insights' },
   { label: t('settings.basic.defaultTab.aiChat'), value: 'ai-chat' },
+  ...(!IS_WEB_WASM ? [{ label: t('settings.basic.defaultTab.memory'), value: 'memory' }] : []),
 ])
 
 // Tools panel position options

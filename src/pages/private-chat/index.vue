@@ -80,7 +80,8 @@ const {
   router,
   currentSessionId,
   selectSession: sessionStore.selectSession,
-  defaultTab: settingsStore.defaultSessionTab,
+  defaultTab:
+    IS_WEB_WASM && settingsStore.defaultSessionTab === 'memory' ? 'insights' : settingsStore.defaultSessionTab,
   validTabIds: tabs.map((tab) => tab.id),
 })
 

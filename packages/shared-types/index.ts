@@ -1420,7 +1420,7 @@ export interface Preferences {
 }
 
 export interface UiConfig {
-  default_session_tab: 'insights' | 'ai-chat'
+  default_session_tab: 'insights' | 'ai-chat' | 'memory'
   session_gap_threshold: number
   summary_strategy?: 'brief' | 'standard'
 }

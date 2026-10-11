@@ -34,7 +34,7 @@ export const useSettingsStore = defineStore(
   () => {
     const locale = ref<LocaleType>(getLocale())
 
-    const defaultSessionTab = ref<'insights' | 'ai-chat'>('insights')
+    const defaultSessionTab = ref<'insights' | 'ai-chat' | 'memory'>('insights')
 
     const insightCardTheme = ref<InsightCardThemeId>(DEFAULT_INSIGHT_CARD_THEME)
 
