@@ -48,10 +48,11 @@ export class FetchMessageAdapter implements MessageAdapter {
     limit: number = 50,
     filter?: TimeFilter,
     senderId?: number,
-    keywords?: string[]
+    keywords?: string[],
+    markFilter?: MessageMarkFilter
   ): Promise<PaginatedMessages> {
     const executor = createPluginQueryExecutor(sessionId)
-    return fetchMessagesBefore(executor, beforeId, limit, filter, senderId, keywords)
+    return fetchMessagesBefore(executor, beforeId, limit, filter, senderId, keywords, markFilter)
   }
 
   async getMessagesAfter(
@@ -60,10 +61,11 @@ export class FetchMessageAdapter implements MessageAdapter {
     limit: number = 50,
     filter?: TimeFilter,
     senderId?: number,
-    keywords?: string[]
+    keywords?: string[],
+    markFilter?: MessageMarkFilter
   ): Promise<PaginatedMessages> {
     const executor = createPluginQueryExecutor(sessionId)
-    return fetchMessagesAfter(executor, afterId, limit, filter, senderId, keywords)
+    return fetchMessagesAfter(executor, afterId, limit, filter, senderId, keywords, markFilter)
   }
 
   async getMessageContext(

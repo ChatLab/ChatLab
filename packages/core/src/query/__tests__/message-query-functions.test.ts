@@ -112,6 +112,32 @@ describe('message pagination', () => {
     }
   })
 
+  it('applies mark filters to pages around a target message', async () => {
+    const db = createMessageDb()
+    try {
+      db.exec(`
+        INSERT INTO message_mark (message_id, categories, updated_at) VALUES
+          (1, '["Favorite"]', 1),
+          (3, '["Favorite"]', 1);
+      `)
+      const executor = createSqliteExecutor(db)
+      const markFilter = { categories: ['Favorite'] }
+      const before = await fetchMessagesBefore(executor, 6, 10, undefined, undefined, undefined, markFilter)
+      const after = await fetchMessagesAfter(executor, 1, 10, undefined, undefined, undefined, markFilter)
+
+      assert.deepEqual(
+        before.messages.map((message) => message.id),
+        [1, 3]
+      )
+      assert.deepEqual(
+        after.messages.map((message) => message.id),
+        [3]
+      )
+    } finally {
+      db.close()
+    }
+  })
+
   it('uses timestamp and id cursors after historical backfill', async () => {
     const db = createBackfilledMessageDb()
     try {

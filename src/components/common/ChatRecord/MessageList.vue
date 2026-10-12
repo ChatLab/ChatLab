@@ -220,11 +220,13 @@ async function loadInitialMessages() {
     const targetId = query.scrollToMessageId
 
     if (targetId) {
+      isSearchMode.value = false
+      searchOffset.value = 0
       // 以目标消息为中心，加载前后各 50 条
       const messageService = useMessageService()
       const [beforeResult, afterResult] = await Promise.all([
-        messageService.getMessagesBefore(sessionId, targetId, 50, filter, senderId, keywords),
-        messageService.getMessagesAfter(sessionId, targetId, 50, filter, senderId, keywords),
+        messageService.getMessagesBefore(sessionId, targetId, 50, filter, senderId, keywords, markFilter),
+        messageService.getMessagesAfter(sessionId, targetId, 50, filter, senderId, keywords, markFilter),
       ])
 
       // 获取目标消息本身
@@ -337,14 +339,15 @@ async function loadMoreBefore() {
 
   try {
     const query = toRaw(props.query)
-    const { filter, senderId, keywords } = buildFilterParams(query)
+    const { filter, senderId, keywords, markFilter } = buildFilterParams(query)
     const result = await useMessageService().getMessagesBefore(
       sessionId,
       firstMessage.id,
       50,
       filter,
       senderId,
-      keywords
+      keywords,
+      markFilter
     )
 
     if (result.messages.length > 0) {
@@ -424,7 +427,8 @@ async function loadMoreAfter() {
         50,
         filter,
         senderId,
-        keywords
+        keywords,
+        markFilter
       )
 
       if (result.messages.length > 0) {

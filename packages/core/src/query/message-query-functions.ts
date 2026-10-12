@@ -81,9 +81,10 @@ export async function fetchMessagesBefore(
   limit: number = 50,
   filter?: TimeFilter,
   senderId?: number,
-  keywords?: string[]
+  keywords?: string[],
+  markFilter?: MessageMarkFilter
 ): Promise<AsyncPaginatedMessages> {
-  const { clause, params } = filterConditions(filter, senderId, keywords)
+  const { clause, params } = filterConditions(filter, senderId, keywords, markFilter)
   const sql = `${FULL_MSG_SELECT}
     JOIN message anchor ON anchor.id = ?
     WHERE (msg.ts < anchor.ts OR (msg.ts = anchor.ts AND msg.id < anchor.id))
@@ -105,9 +106,10 @@ export async function fetchMessagesAfter(
   limit: number = 50,
   filter?: TimeFilter,
   senderId?: number,
-  keywords?: string[]
+  keywords?: string[],
+  markFilter?: MessageMarkFilter
 ): Promise<AsyncPaginatedMessages> {
-  const { clause, params } = filterConditions(filter, senderId, keywords)
+  const { clause, params } = filterConditions(filter, senderId, keywords, markFilter)
   const sql = `${FULL_MSG_SELECT}
     JOIN message anchor ON anchor.id = ?
     WHERE (msg.ts > anchor.ts OR (msg.ts = anchor.ts AND msg.id > anchor.id))
