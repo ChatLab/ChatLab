@@ -131,7 +131,7 @@ describe('CoreDataProvider keyword search', () => {
     assert.equal(r.total, 3)
   })
 
-  it('does not expose viewer-only marks in tool context', async () => {
+  it('does not add mark metadata to raw message context', async () => {
     raw
       .prepare('INSERT INTO message_mark (message_id, categories, color, comment, updated_at) VALUES (?, ?, ?, ?, ?)')
       .run(1, '["Favorite"]', 'amber', 'private note', 1)

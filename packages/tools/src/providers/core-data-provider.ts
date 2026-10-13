@@ -44,6 +44,8 @@ import type {
 
 const TOOL_MESSAGE_LIMIT_CAP = 50000
 
+// Keep the basic message contract stable. Extended user metadata such as
+// member aliases and message marks remains available through explicit tools.
 function toRawMessage(message: RawMessage): RawMessage {
   return {
     id: message.id,
