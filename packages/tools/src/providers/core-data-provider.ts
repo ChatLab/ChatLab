@@ -44,6 +44,19 @@ import type {
 
 const TOOL_MESSAGE_LIMIT_CAP = 50000
 
+// Keep the basic message contract stable. Extended user metadata such as
+// member aliases and message marks remains available through explicit tools.
+function toRawMessage(message: RawMessage): RawMessage {
+  return {
+    id: message.id,
+    senderId: message.senderId,
+    senderName: message.senderName,
+    senderPlatformId: message.senderPlatformId,
+    content: message.content,
+    timestamp: message.timestamp,
+  }
+}
+
 export class CoreDataProvider implements ToolDataProvider {
   constructor(private db: DatabaseAdapter) {}
 
@@ -80,7 +93,7 @@ export class CoreDataProvider implements ToolDataProvider {
     contextBefore: number,
     contextAfter: number
   ): Promise<RawMessage[]> {
-    return coreGetSearchMessageContext(this.db, messageIds, contextBefore, contextAfter)
+    return coreGetSearchMessageContext(this.db, messageIds, contextBefore, contextAfter).map(toRawMessage)
   }
 
   async getRecentMessages(options?: { timeFilter?: ToolTimeRange; limit?: number }): Promise<SearchMessagesResult> {
@@ -104,7 +117,7 @@ export class CoreDataProvider implements ToolDataProvider {
   }
 
   async getMessageContext(messageIds: number[], contextSize: number): Promise<RawMessage[]> {
-    return coreGetMessageContext(this.db, messageIds, contextSize)
+    return coreGetMessageContext(this.db, messageIds, contextSize).map(toRawMessage)
   }
 
   async getChatOverview(topN?: number): Promise<ChatOverviewResult | null> {

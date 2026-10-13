@@ -140,7 +140,10 @@ export {
   ensureAvatarColumn,
   updateSessionOwnerId,
   renameSession,
+  getMessageMark,
+  saveMessageMark,
 } from './query'
+export type { MessageMark, MessageMarkInput } from './query'
 
 // 查询类型
 export type {

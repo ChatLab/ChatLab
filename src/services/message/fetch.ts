@@ -13,7 +13,14 @@ import {
   searchMessagesLikeAsync,
   fetchAllRecentMessages,
 } from '@openchatlab/core'
-import type { MessageAdapter, TimeFilter, PaginatedMessages, MessageRecord, SearchResult } from './types'
+import type {
+  MessageAdapter,
+  TimeFilter,
+  PaginatedMessages,
+  MessageRecord,
+  SearchResult,
+  MessageMarkFilter,
+} from './types'
 import { getRegisteredAdapter } from '../registry'
 import type { DataAdapter } from '../data/types'
 
@@ -41,10 +48,11 @@ export class FetchMessageAdapter implements MessageAdapter {
     limit: number = 50,
     filter?: TimeFilter,
     senderId?: number,
-    keywords?: string[]
+    keywords?: string[],
+    markFilter?: MessageMarkFilter
   ): Promise<PaginatedMessages> {
     const executor = createPluginQueryExecutor(sessionId)
-    return fetchMessagesBefore(executor, beforeId, limit, filter, senderId, keywords)
+    return fetchMessagesBefore(executor, beforeId, limit, filter, senderId, keywords, markFilter)
   }
 
   async getMessagesAfter(
@@ -53,10 +61,11 @@ export class FetchMessageAdapter implements MessageAdapter {
     limit: number = 50,
     filter?: TimeFilter,
     senderId?: number,
-    keywords?: string[]
+    keywords?: string[],
+    markFilter?: MessageMarkFilter
   ): Promise<PaginatedMessages> {
     const executor = createPluginQueryExecutor(sessionId)
-    return fetchMessagesAfter(executor, afterId, limit, filter, senderId, keywords)
+    return fetchMessagesAfter(executor, afterId, limit, filter, senderId, keywords, markFilter)
   }
 
   async getMessageContext(
@@ -74,10 +83,11 @@ export class FetchMessageAdapter implements MessageAdapter {
     filter?: TimeFilter,
     limit: number = 100,
     offset: number = 0,
-    senderId?: number
+    senderId?: number,
+    markFilter?: MessageMarkFilter
   ): Promise<SearchResult> {
     const executor = createPluginQueryExecutor(sessionId)
-    return searchMessagesLikeAsync(executor, keywords, filter, limit, offset, senderId)
+    return searchMessagesLikeAsync(executor, keywords, filter, limit, offset, senderId, markFilter)
   }
 
   async getAllRecentMessages(sessionId: string, filter?: TimeFilter, limit: number = 100): Promise<SearchResult> {

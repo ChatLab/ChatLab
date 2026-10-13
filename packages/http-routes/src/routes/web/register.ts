@@ -13,6 +13,7 @@ import { registerContactsRoutes } from './contacts'
 import { registerExportRoutes } from './export'
 import { registerLogRoutes } from './logs'
 import { registerMemberRoutes } from './members'
+import { registerMessageMarkRoutes } from './message-marks'
 import { registerNavigationLayoutRoutes } from './navigation-layout'
 import { registerMergeRoutes } from './merge'
 import { registerNlpRoutes } from './nlp'
@@ -43,6 +44,7 @@ export function registerWebRoutes(server: FastifyInstance, ctx: WebRoutesContext
 
   registerSessionRoutes(server, resolvedCtx)
   registerMemberRoutes(server, resolvedCtx)
+  registerMessageMarkRoutes(server, resolvedCtx)
   registerContactsRoutes(server, resolvedCtx)
   registerPeopleRelationshipsRoutes(server, resolvedCtx)
   registerNavigationLayoutRoutes(server, resolvedCtx)

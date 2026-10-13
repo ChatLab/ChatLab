@@ -173,6 +173,11 @@ export interface ChatRecordQuery {
 
   /** 高亮关键词（用于 UI 高亮显示） */
   highlightKeywords?: string[]
+
+  /** 消息标记筛选 */
+  markCategories?: string[]
+  markColor?: string
+  markComments?: string[]
 }
 
 /**
@@ -180,6 +185,7 @@ export interface ChatRecordQuery {
  */
 export interface ChatRecordMessage {
   id: number
+  senderId: number
   senderName: string
   senderPlatformId: string
   senderAliases: string[]
@@ -190,4 +196,5 @@ export interface ChatRecordMessage {
   replyToMessageId: string | null // 回复的目标消息 ID（平台原始 ID）
   replyToContent: string | null // 被回复消息的内容预览
   replyToSenderName: string | null // 被回复消息的发送者名称
+  mark: { categories: string[]; color: string; comment: string; updatedAt: number } | null
 }

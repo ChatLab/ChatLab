@@ -116,6 +116,14 @@ export function deleteMembers(db: DatabaseAdapter, memberIds: readonly number[])
 
   const placeholders = uniqueMemberIds.map(() => '?').join(', ')
   db.transaction(() => {
+    const hasMessageMarks = db
+      .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'message_mark'")
+      .get()
+    if (hasMessageMarks) {
+      db.prepare(
+        `DELETE FROM message_mark WHERE message_id IN (SELECT id FROM message WHERE sender_id IN (${placeholders}))`
+      ).run(...uniqueMemberIds)
+    }
     db.prepare(`DELETE FROM message WHERE sender_id IN (${placeholders})`).run(...uniqueMemberIds)
     db.prepare(`DELETE FROM member_name_history WHERE member_id IN (${placeholders})`).run(...uniqueMemberIds)
     db.prepare(`DELETE FROM member WHERE id IN (${placeholders})`).run(...uniqueMemberIds)

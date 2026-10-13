@@ -20,17 +20,25 @@ export const FULL_MSG_COLUMNS = `
   msg.type,
   msg.reply_to_message_id as replyToMessageId,
   reply_msg.content as replyToContent,
-  COALESCE(reply_m.group_nickname, reply_m.account_name, reply_m.platform_id) as replyToSenderName`
+  COALESCE(reply_m.group_nickname, reply_m.account_name, reply_m.platform_id) as replyToSenderName,
+  mm.categories as markCategories,
+  mm.color as markColor,
+  mm.comment as markComment,
+  mm.updated_at as markUpdatedAt`
 
 export const FULL_MSG_FROM = `
   FROM message msg
   JOIN member m ON msg.sender_id = m.id
   LEFT JOIN message reply_msg ON msg.reply_to_message_id = reply_msg.platform_message_id
-  LEFT JOIN member reply_m ON reply_msg.sender_id = reply_m.id`
+  LEFT JOIN member reply_m ON reply_msg.sender_id = reply_m.id
+  LEFT JOIN message_mark mm ON mm.message_id = msg.id`
 
 export const FULL_MSG_SELECT = `SELECT ${FULL_MSG_COLUMNS} ${FULL_MSG_FROM}`
 
-export const MSG_COUNT_FROM = `FROM message msg JOIN member m ON msg.sender_id = m.id`
+export const MSG_COUNT_FROM = `
+  FROM message msg
+  JOIN member m ON msg.sender_id = m.id
+  LEFT JOIN message_mark mm ON mm.message_id = msg.id`
 
 export const SYSTEM_MSG_FILTER = "COALESCE(m.account_name, '') != '系统消息'"
 export const TEXT_ONLY_FILTER = "msg.type = 0 AND msg.content IS NOT NULL AND msg.content != ''"
@@ -50,6 +58,10 @@ export interface FullMessageRow {
   replyToMessageId: string | null
   replyToContent: string | null
   replyToSenderName: string | null
+  markCategories: string | null
+  markColor: string | null
+  markComment: string | null
+  markUpdatedAt: number | null
 }
 
 export interface MappedMessage {
@@ -65,6 +77,7 @@ export interface MappedMessage {
   replyToMessageId: string | null
   replyToContent: string | null
   replyToSenderName: string | null
+  mark: { categories: string[]; color: string; comment: string; updatedAt: number } | null
 }
 
 // ==================== Row mapper ====================
@@ -91,6 +104,22 @@ export function mapMessageRow(row: FullMessageRow): MappedMessage {
     replyToMessageId: row.replyToMessageId || null,
     replyToContent: row.replyToContent || null,
     replyToSenderName: row.replyToSenderName || null,
+    mark:
+      row.markUpdatedAt == null
+        ? null
+        : {
+            categories: (() => {
+              try {
+                const parsed = JSON.parse(row.markCategories || '[]')
+                return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : []
+              } catch {
+                return []
+              }
+            })(),
+            color: row.markColor || '',
+            comment: row.markComment || '',
+            updatedAt: Number(row.markUpdatedAt),
+          },
   }
 }
 
@@ -132,6 +161,9 @@ export function buildMsgConditions(options?: {
   senderIds?: number[]
   memberId?: number | null
   keywords?: string[]
+  markCategories?: string[]
+  markColor?: string
+  markComments?: string[]
   /** Keyword join mode: 'any' (OR, default) or 'all' (AND). */
   matchMode?: 'any' | 'all'
   /**
@@ -175,6 +207,23 @@ export function buildMsgConditions(options?: {
     const kwConds = options.keywords.map(() => "msg.content LIKE ? ESCAPE '\\'")
     conds.push(`(${kwConds.join(joiner)})`)
     params.push(...options.keywords.map((k) => `%${escapeLikePattern(k)}%`))
+  }
+  if (options?.markCategories && options.markCategories.length > 0) {
+    const categoryConditions = options.markCategories.map(
+      () =>
+        "EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(mm.categories) THEN mm.categories ELSE '[]' END) WHERE json_each.value = ?)"
+    )
+    conds.push(`(${categoryConditions.join(' OR ')})`)
+    params.push(...options.markCategories)
+  }
+  if (options?.markColor) {
+    conds.push('mm.color = ?')
+    params.push(options.markColor)
+  }
+  if (options?.markComments && options.markComments.length > 0) {
+    const commentConditions = options.markComments.map(() => "mm.comment LIKE ? ESCAPE '\\'")
+    conds.push(`(${commentConditions.join(' OR ')})`)
+    params.push(...options.markComments.map((comment) => `%${escapeLikePattern(comment)}%`))
   }
   if (options?.excludeKeywords && options.excludeKeywords.length > 0) {
     const exclude = buildExcludeKeywordsConditions(options.excludeKeywords)

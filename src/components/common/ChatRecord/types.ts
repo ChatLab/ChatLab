@@ -23,6 +23,12 @@ export interface FilterFormData {
   startDate: string
   /** 结束日期 */
   endDate: string
+  /** 标记分类 */
+  markCategories: string[]
+  /** 标记颜色 */
+  markColor: string
+  /** 标记备注关键词 */
+  markComment: string
 }
 
 /**

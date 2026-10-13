@@ -59,6 +59,8 @@ import type {
   SQLResult,
   TableSchema,
   MessageLengthDistribution,
+  MessageMark,
+  MessageMarkInput,
 } from './types'
 import { get, post, del, put, patch, analyticsGet, analyticsPost } from '../utils/http'
 
@@ -357,6 +359,14 @@ export class FetchDataAdapter implements DataAdapter {
       aliases,
     })
     return result.success
+  }
+
+  getMessageMark(sessionId: string, messageId: number): Promise<MessageMark | null> {
+    return get(`/sessions/${sessionId}/messages/${messageId}/mark`)
+  }
+
+  saveMessageMark(sessionId: string, messageId: number, mark: MessageMarkInput): Promise<MessageMark | null> {
+    return put(`/sessions/${sessionId}/messages/${messageId}/mark`, mark)
   }
 
   async mergeMembers(sessionId: string, memberId1: number, memberId2: number): Promise<boolean> {

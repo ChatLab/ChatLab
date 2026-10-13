@@ -54,6 +54,13 @@ function createMessageDb(): Database.Database {
       reply_to_message_id TEXT,
       platform_message_id TEXT
     );
+    CREATE TABLE message_mark (
+      message_id INTEGER PRIMARY KEY,
+      categories TEXT NOT NULL DEFAULT '[]',
+      color TEXT NOT NULL DEFAULT '',
+      comment TEXT NOT NULL DEFAULT '',
+      updated_at INTEGER NOT NULL
+    );
     INSERT INTO member (id, platform_id, account_name, group_nickname, aliases) VALUES
       (1, 'alice', 'Alice', 'A', '["Ally"]'),
       (2, 'bob', 'Bob', NULL, '[]'),
@@ -100,6 +107,32 @@ describe('message pagination', () => {
         [2, 3, 4, 5, 6]
       )
       assert.equal(after.hasMore, false)
+    } finally {
+      db.close()
+    }
+  })
+
+  it('applies mark filters to pages around a target message', async () => {
+    const db = createMessageDb()
+    try {
+      db.exec(`
+        INSERT INTO message_mark (message_id, categories, updated_at) VALUES
+          (1, '["Favorite"]', 1),
+          (3, '["Favorite"]', 1);
+      `)
+      const executor = createSqliteExecutor(db)
+      const markFilter = { categories: ['Favorite'] }
+      const before = await fetchMessagesBefore(executor, 6, 10, undefined, undefined, undefined, markFilter)
+      const after = await fetchMessagesAfter(executor, 1, 10, undefined, undefined, undefined, markFilter)
+
+      assert.deepEqual(
+        before.messages.map((message) => message.id),
+        [1, 3]
+      )
+      assert.deepEqual(
+        after.messages.map((message) => message.id),
+        [3]
+      )
     } finally {
       db.close()
     }
@@ -169,6 +202,38 @@ describe('message search and context', () => {
       assert.deepEqual(
         result.messages.map((message) => message.id),
         [6, 4]
+      )
+    } finally {
+      db.close()
+    }
+  })
+
+  it('filters messages by mark category, color, and comment', async () => {
+    const db = createMessageDb()
+    try {
+      db.prepare(
+        'INSERT INTO message_mark (message_id, categories, color, comment, updated_at) VALUES (?, ?, ?, ?, ?)'
+      ).run(3, '["Favorite","Work"]', 'blue', 'Follow up with Alice', 1)
+      const executor = createSqliteExecutor(db)
+
+      for (const markFilter of [{ categories: ['Favorite'] }, { color: 'blue' }, { comments: ['missing', 'Alice'] }]) {
+        const result = await searchMessagesLikeAsync(executor, [], undefined, 20, 0, undefined, markFilter)
+        assert.equal(result.total, 1)
+        assert.deepEqual(
+          result.messages.map((message) => message.id),
+          [3]
+        )
+      }
+
+      db.prepare(
+        'INSERT INTO message_mark (message_id, categories, color, comment, updated_at) VALUES (?, ?, ?, ?, ?)'
+      ).run(5, 'invalid json', '', '', 1)
+      const malformed = await searchMessagesLikeAsync(executor, [], undefined, 20, 0, undefined, {
+        categories: ['Favorite'],
+      })
+      assert.deepEqual(
+        malformed.messages.map((message) => message.id),
+        [3]
       )
     } finally {
       db.close()

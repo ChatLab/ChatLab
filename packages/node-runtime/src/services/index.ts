@@ -24,6 +24,9 @@ export {
 } from './member-service'
 export type { MembersPaginatedDTO } from './member-service'
 
+export { getMessageMark, saveMessageMark } from './message-mark-service'
+export type { MessageMark, MessageMarkInput } from '@openchatlab/core'
+
 // Owner profile service
 export {
   tryApplyOwnerProfile,

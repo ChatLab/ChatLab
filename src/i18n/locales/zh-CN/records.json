@@ -1,4 +1,12 @@
 {
+  "markColors": {
+    "amber": "琥珀色",
+    "rose": "玫瑰色",
+    "violet": "紫罗兰色",
+    "blue": "蓝色",
+    "emerald": "翠绿色",
+    "gray": "灰色"
+  },
   "drawer": {
     "title": "聊天记录查看器",
     "resize": "调整聊天记录面板宽度"
@@ -26,6 +34,12 @@
     "keywordsPlaceholder": "关键词，多个用逗号分隔，回车搜索",
     "startDate": "起始日期",
     "endDate": "结束日期",
+    "advanced": "高级筛选",
+    "markCategories": "标记分类",
+    "markCategoriesPlaceholder": "添加分类",
+    "markColor": "标记颜色",
+    "markComment": "标记备注",
+    "markCommentPlaceholder": "备注关键词，多个用逗号分隔，回车搜索",
     "reset": "重置",
     "filter": "筛选"
   },
@@ -134,6 +148,19 @@
   },
   "messageItem": {
     "viewContext": "查看上下文",
+    "copy": "复制消息",
+    "copied": "已复制",
+    "editAlias": "编辑别名",
+    "aliasSaveFailed": "保存别名失败",
+    "mark": "标记消息",
+    "markCategoryLabel": "分类",
+    "markCategory": "添加分类",
+    "markColor": "标记颜色",
+    "markComment": "备注",
+    "markCommentPlaceholder": "添加备注",
+    "saveMark": "保存标记",
+    "removeMark": "移除",
+    "markSaveFailed": "保存标记失败",
     "replyTo": "回复",
     "expandMessyContent": "展开完整内容",
     "collapseMessyContent": "收起"

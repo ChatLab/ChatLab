@@ -11,13 +11,17 @@ import MessageItem from './MessageItem.vue'
 import { chatTopicColorStyle, isMessageInChatTopicHighlight, type ChatTopicHighlight } from './topic-highlight'
 import type { ChatRecordMessage, ChatRecordQuery } from './types'
 import { useSessionStore } from '@/stores/session'
-import { useMessageService } from '@/services'
+import { useDataService, useMessageService } from '@/services'
+import { useToast } from '@/composables/useToast'
 import { resolveChatRecordSessionId } from './query-session'
+import { notifyMemberAliasesChanged, onMemberAliasesChanged } from '@/components/common/member/member-alias-events'
 
 // 时间分隔阈值（秒）：消息间隔超过此值则显示时间分隔线
 const TIME_SEPARATOR_THRESHOLD = 5 * 60 // 5 分钟
 
 const { t } = useI18n()
+const toast = useToast()
+const dataService = useDataService()
 
 const props = withDefaults(
   defineProps<{
@@ -68,7 +72,7 @@ const isFiltered = computed(() => {
   if (isExternalMode.value) return false
   const q = props.query
   // 只有关键词、成员筛选时才需要显示上下文按钮
-  return !!(q.memberId || q.keywords?.length)
+  return !!(q.memberId || q.keywords?.length || q.markCategories?.length || q.markColor || q.markComments?.length)
 })
 
 // 消息列表
@@ -115,6 +119,14 @@ function buildFilterParams(query: ChatRecordQuery) {
     filter: query.startTs || query.endTs ? { startTs: query.startTs, endTs: query.endTs } : undefined,
     senderId: query.memberId,
     keywords: query.keywords ? [...toRaw(query.keywords)] : undefined,
+    markFilter:
+      query.markCategories?.length || query.markColor || query.markComments?.length
+        ? {
+            categories: query.markCategories ? [...toRaw(query.markCategories)] : undefined,
+            color: query.markColor,
+            comments: query.markComments ? [...toRaw(query.markComments)] : undefined,
+          }
+        : undefined,
   }
 }
 
@@ -125,7 +137,41 @@ function mapMessages(messages: any[]): ChatRecordMessage[] {
     replyToMessageId: m.replyToMessageId ?? null,
     replyToContent: m.replyToContent ?? null,
     replyToSenderName: m.replyToSenderName ?? null,
+    mark: m.mark ?? null,
   })) as ChatRecordMessage[]
+}
+
+function applyMemberAliases(memberId: number, aliases: string[]) {
+  messages.value = messages.value.map((message) =>
+    message.senderId === memberId ? { ...message, senderAliases: aliases } : message
+  )
+}
+
+async function applyMessageMark(messageId: number, mark: ChatRecordMessage['mark']) {
+  const query = props.query
+  if (query.markCategories?.length || query.markColor || query.markComments?.length) {
+    await loadInitialMessages()
+    return
+  }
+  messages.value = messages.value.map((message) => (message.id === messageId ? { ...message, mark } : message))
+}
+
+const stopAliasUpdates = onMemberAliasesChanged((update) => {
+  if (update.sessionId === effectiveSessionId.value) applyMemberAliases(update.memberId, update.aliases)
+})
+onUnmounted(stopAliasUpdates)
+
+async function updateSenderAliases(senderId: number, aliases: string[]) {
+  const sessionId = effectiveSessionId.value
+  if (!sessionId) return
+
+  try {
+    const success = await dataService.updateMemberAliases(sessionId, senderId, aliases)
+    if (!success) throw new Error(t('records.messageItem.aliasSaveFailed'))
+    notifyMemberAliasesChanged({ sessionId, memberId: senderId, aliases })
+  } catch (error) {
+    toast.fail(t('records.messageItem.aliasSaveFailed'), { description: String(error) })
+  }
 }
 
 // 记录上一次消息数量（用于判断是扩展还是替换）
@@ -170,15 +216,17 @@ async function loadInitialMessages() {
 
   try {
     const query = toRaw(props.query)
-    const { filter, senderId, keywords } = buildFilterParams(query)
+    const { filter, senderId, keywords, markFilter } = buildFilterParams(query)
     const targetId = query.scrollToMessageId
 
     if (targetId) {
+      isSearchMode.value = false
+      searchOffset.value = 0
       // 以目标消息为中心，加载前后各 50 条
       const messageService = useMessageService()
       const [beforeResult, afterResult] = await Promise.all([
-        messageService.getMessagesBefore(sessionId, targetId, 50, filter, senderId, keywords),
-        messageService.getMessagesAfter(sessionId, targetId, 50, filter, senderId, keywords),
+        messageService.getMessagesBefore(sessionId, targetId, 50, filter, senderId, keywords, markFilter),
+        messageService.getMessagesAfter(sessionId, targetId, 50, filter, senderId, keywords, markFilter),
       ])
 
       // 获取目标消息本身
@@ -192,11 +240,19 @@ async function loadInitialMessages() {
 
       // 设置待滚动的目标
       pendingScrollToId.value = targetId
-    } else if ((keywords && keywords.length > 0) || senderId != null) {
+    } else if ((keywords && keywords.length > 0) || senderId != null || markFilter) {
       // 有关键词或成员筛选时，统一走搜索分页；底层支持空关键词 + senderId。
       isSearchMode.value = true
       searchOffset.value = 0
-      const result = await useMessageService().searchMessages(sessionId, keywords ?? [], filter, 100, 0, senderId)
+      const result = await useMessageService().searchMessages(
+        sessionId,
+        keywords ?? [],
+        filter,
+        100,
+        0,
+        senderId,
+        markFilter
+      )
       messages.value = mapMessages(result.messages)
       hasMoreBefore.value = false // 搜索结果从最新开始，没有更早的
       searchOffset.value = result.messages.length
@@ -283,14 +339,15 @@ async function loadMoreBefore() {
 
   try {
     const query = toRaw(props.query)
-    const { filter, senderId, keywords } = buildFilterParams(query)
+    const { filter, senderId, keywords, markFilter } = buildFilterParams(query)
     const result = await useMessageService().getMessagesBefore(
       sessionId,
       firstMessage.id,
       50,
       filter,
       senderId,
-      keywords
+      keywords,
+      markFilter
     )
 
     if (result.messages.length > 0) {
@@ -334,7 +391,7 @@ async function loadMoreAfter() {
 
   try {
     const query = toRaw(props.query)
-    const { filter, senderId, keywords } = buildFilterParams(query)
+    const { filter, senderId, keywords, markFilter } = buildFilterParams(query)
 
     if (isSearchMode.value) {
       // 搜索模式：使用分页加载
@@ -344,7 +401,8 @@ async function loadMoreAfter() {
         filter,
         50,
         searchOffset.value,
-        senderId
+        senderId,
+        markFilter
       )
 
       if (result.messages.length > 0) {
@@ -369,7 +427,8 @@ async function loadMoreAfter() {
         50,
         filter,
         senderId,
-        keywords
+        keywords,
+        markFilter
       )
 
       if (result.messages.length > 0) {
@@ -646,11 +705,14 @@ defineExpose({
           <MessageItem
             :data-message-id="messages[virtualItem.index]?.id"
             :message="messages[virtualItem.index]!"
+            :session-id="effectiveSessionId || undefined"
             :is-target="isTargetMessage(messages[virtualItem.index]!)"
             :topic-color-index="isTopicMessage(messages[virtualItem.index]!) ? highlightTopic?.colorIndex : undefined"
             :highlight-keywords="query.highlightKeywords"
             :is-filtered="isFiltered"
             @view-context="(id) => emit('jump-to-message', id)"
+            @update-alias="updateSenderAliases"
+            @update-mark="applyMessageMark"
           />
         </div>
       </div>

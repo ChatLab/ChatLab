@@ -389,5 +389,21 @@ export function getChatDbMigrations(): CoreMigration[] {
         if (hasTable(db, 'segment')) addColumnIfMissing(db, 'segment', 'summary_message_count', 'INTEGER')
       },
     },
+    {
+      version: 11,
+      description: 'Add user-defined message marks',
+      up: (db: DatabaseAdapter) => {
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS message_mark (
+            message_id INTEGER PRIMARY KEY,
+            categories TEXT NOT NULL DEFAULT '[]',
+            color TEXT NOT NULL DEFAULT '',
+            comment TEXT NOT NULL DEFAULT '',
+            updated_at INTEGER NOT NULL,
+            FOREIGN KEY(message_id) REFERENCES message(id) ON DELETE CASCADE
+          )
+        `)
+      },
+    },
   ]
 }

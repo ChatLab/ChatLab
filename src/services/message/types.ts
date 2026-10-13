@@ -26,6 +26,12 @@ export interface SearchResult {
   total: number
 }
 
+export interface MessageMarkFilter {
+  categories?: string[]
+  color?: string
+  comments?: string[]
+}
+
 export interface MessageAdapter {
   getMessagesBefore(
     sessionId: string,
@@ -33,7 +39,8 @@ export interface MessageAdapter {
     limit: number,
     filter?: TimeFilter,
     senderId?: number,
-    keywords?: string[]
+    keywords?: string[],
+    markFilter?: MessageMarkFilter
   ): Promise<PaginatedMessages>
 
   getMessagesAfter(
@@ -42,7 +49,8 @@ export interface MessageAdapter {
     limit: number,
     filter?: TimeFilter,
     senderId?: number,
-    keywords?: string[]
+    keywords?: string[],
+    markFilter?: MessageMarkFilter
   ): Promise<PaginatedMessages>
 
   getMessageContext(sessionId: string, messageIds: number | number[], contextSize?: number): Promise<MessageRecord[]>
@@ -53,7 +61,8 @@ export interface MessageAdapter {
     filter?: TimeFilter,
     limit?: number,
     offset?: number,
-    senderId?: number
+    senderId?: number,
+    markFilter?: MessageMarkFilter
   ): Promise<SearchResult>
 
   getAllRecentMessages(sessionId: string, filter?: TimeFilter, limit?: number): Promise<SearchResult>

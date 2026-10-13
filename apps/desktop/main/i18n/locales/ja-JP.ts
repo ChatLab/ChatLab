@@ -79,6 +79,8 @@ export default {
     migrationV9Message: '使用されていない派生検索インデックスのみ削除し、チャットデータは保持します',
     migrationV10Desc: 'セグメント要約が参照したメッセージ数を記録',
     migrationV10Message: '各セグメント要約が参照したメッセージ数を記録し、古い要約を再生成できるようにします',
+    migrationV11Desc: 'ユーザー定義のメッセージマークを追加',
+    migrationV11Message: 'チャット内容を変更せずに、メッセージへカテゴリ、色、コメントを追加します',
     integrityError:
       'データベース構造が不完全です：meta テーブルがありません。このデータベースファイルを削除して再インポートすることをお勧めします。',
     checkFailed: 'データベースチェックに失敗しました: {{error}}',
