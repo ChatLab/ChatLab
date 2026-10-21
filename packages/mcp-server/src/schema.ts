@@ -6,10 +6,13 @@ import { z } from 'zod'
 
 /**
  * Convert simple JSON Schema properties to a Zod shape object.
- * Supports string / number / boolean / enum types.
+ * Supports string / number / boolean / enum types and arrays of primitives.
  */
 export function jsonSchemaToZod(
-  properties: Record<string, { type: string; description?: string; default?: unknown; enum?: unknown[] }>,
+  properties: Record<
+    string,
+    { type: string; description?: string; default?: unknown; enum?: unknown[]; items?: { type: string } }
+  >,
   required?: string[]
 ): Record<string, z.ZodTypeAny> {
   const shape: Record<string, z.ZodTypeAny> = {}
@@ -19,6 +22,12 @@ export function jsonSchemaToZod(
     let zodType: z.ZodTypeAny
 
     switch (prop.type) {
+      case 'array': {
+        const itemType = prop.items?.type
+        const itemSchema = itemType === 'number' ? z.number() : itemType === 'boolean' ? z.boolean() : z.string()
+        zodType = z.array(itemSchema).describe(prop.description ?? '')
+        break
+      }
       case 'number':
         zodType = z.number().describe(prop.description ?? '')
         break
