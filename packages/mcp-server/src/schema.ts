@@ -22,18 +22,21 @@ export function jsonSchemaToZod(
     let zodType: z.ZodTypeAny
 
     switch (prop.type) {
-      case 'array': {
-        const itemType = prop.items?.type
-        const itemSchema = itemType === 'number' ? z.number() : itemType === 'boolean' ? z.boolean() : z.string()
-        zodType = z.array(itemSchema).describe(prop.description ?? '')
-        break
-      }
       case 'number':
         zodType = z.number().describe(prop.description ?? '')
         break
       case 'boolean':
         zodType = z.boolean().describe(prop.description ?? '')
         break
+      case 'array': {
+        const itemType = prop.items?.type
+        if (itemType === 'string' || itemType === 'number' || itemType === 'boolean') {
+          const itemSchema = itemType === 'number' ? z.number() : itemType === 'boolean' ? z.boolean() : z.string()
+          zodType = z.array(itemSchema).describe(prop.description ?? '')
+          break
+        }
+      }
+      // Fall through to the existing string/enum fallback for unsupported item types.
       case 'string':
       default:
         if (prop.enum) {

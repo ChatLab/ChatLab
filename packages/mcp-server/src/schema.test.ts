@@ -30,6 +30,31 @@ test('keeps optional arrays optional and does not apply JSON Schema defaults', (
   assert.deepEqual(schema.parse({ values: ['beta'] }), { values: ['beta'] })
 })
 
+for (const items of [{ type: 'object' }, { type: 'array' }, { type: 'integer' }, undefined]) {
+  test(`preserves the string/enum fallback for arrays with ${items?.type ?? 'missing'} items`, () => {
+    const shape = jsonSchemaToZod(
+      {
+        required: { type: 'array', items, description: 'Unsupported array' },
+        optional: { type: 'array', items, default: ['alpha'] },
+        choice: { type: 'array', items, enum: ['alpha', 'beta'] },
+      },
+      ['required']
+    )
+    const schema = z.object(shape)
+
+    assert.deepEqual(schema.parse({ required: 'alpha' }), { required: 'alpha' })
+    const values = { required: 'alpha', optional: 'beta', choice: 'alpha' }
+    assert.deepEqual(schema.parse(values), values)
+    assert.equal(schema.safeParse({}).success, false)
+    assert.equal(schema.safeParse({ ...values, choice: 'gamma' }).success, false)
+    for (const value of [[], ['alpha'], [{ name: 'Alice', count: 4 }]]) {
+      assert.equal(schema.safeParse({ ...values, required: value }).success, false)
+      assert.equal(schema.safeParse({ ...values, optional: value }).success, false)
+    }
+    assert.equal(shape.required.description, 'Unsupported array')
+  })
+}
+
 test('preserves scalar, enum, fallback, required and default conversion behavior', () => {
   const shape = jsonSchemaToZod(
     {
