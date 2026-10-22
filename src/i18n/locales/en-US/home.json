@@ -38,11 +38,13 @@
     "processed": "{count} messages processed",
     "viewLog": "View import log",
     "cannotReadPath": "Cannot read file path",
+    "viewConversionGuide": "View conversion guide",
     "errors": {
       "no_file_selected": "No file selected",
       "import_failed": "Import failed",
       "import_in_progress": "Another import is already in progress. Please try again later.",
       "unrecognized_format": "Unrecognized file format",
+      "unrecognizedFormatHint": "TXT and JSON are file types; their contents must follow a chat record format supported by ChatLab. You can select a format manually or follow the guide to convert your records to ChatLab Format using AI.",
       "no_messages": "No messages parsed. Please check if the file format is correct.",
       "no_chat_selected": "No chat selected",
       "archive_single_file_required": "Import archive files one at a time",

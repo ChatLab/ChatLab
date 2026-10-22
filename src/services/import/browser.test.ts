@@ -7,6 +7,7 @@ import type {
   WebRuntimeTaskType,
 } from '@openchatlab/web-runtime'
 import { BrowserImportAdapter } from './browser'
+import { WebRuntimeRpcError } from '@openchatlab/web-runtime'
 
 function createFile(name = 'fixture.json', content = '{}', type = 'application/json'): File {
   const blob = new Blob([content], { type })
@@ -52,6 +53,21 @@ function createDemoDocument(name: string, timestamps: number[]): string {
 }
 
 describe('BrowserImportAdapter', () => {
+  it('exposes unsupported formats for localized conversion guidance without masking other failures', async () => {
+    for (const [code, expected] of [
+      ['UNSUPPORTED_IMPORT_FORMAT', 'error.unrecognized_format'],
+      ['DATABASE_ERROR', 'Original failure'],
+    ]) {
+      const adapter = new BrowserImportAdapter({
+        async request() {
+          throw new WebRuntimeRpcError({ name: 'WebRuntimeError', code, message: 'Original failure' })
+        },
+        dispose: () => undefined,
+      })
+      assert.deepEqual(await adapter.importFile(createFile()), { success: false, error: expected })
+    }
+  })
+
   it('forwards detection, supported formats, import progress, and the result through RPC', async () => {
     const requests: WebRuntimeTaskType[] = []
     const rpc = {

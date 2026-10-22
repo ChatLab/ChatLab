@@ -1,5 +1,6 @@
 import {
   normalizeBrowserImportFormatId,
+  WebRuntimeRpcError,
   type BrowserImportFormatId,
   type BrowserParseSource,
   type RpcProgressPayload,
@@ -60,6 +61,9 @@ export class BrowserImportAdapter implements ImportAdapter {
         onProgress
       )
     } catch (error) {
+      if (error instanceof WebRuntimeRpcError && error.code === 'UNSUPPORTED_IMPORT_FORMAT') {
+        return { success: false, error: 'error.unrecognized_format' }
+      }
       return { success: false, error: error instanceof Error ? error.message : String(error) }
     } finally {
       if (this.activeImport === controller) this.activeImport = undefined

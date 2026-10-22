@@ -38,11 +38,13 @@
     "processed": "{count} 件のメッセージを処理しました",
     "viewLog": "インポートログを表示",
     "cannotReadPath": "ファイルパスを読み取れません",
+    "viewConversionGuide": "変換ガイドを見る",
     "errors": {
       "no_file_selected": "ファイルが選択されていません",
       "import_failed": "インポートに失敗しました",
       "import_in_progress": "別のインポートが実行中です。しばらくしてから再試行してください。",
       "unrecognized_format": "認識できないファイル形式です",
+      "unrecognizedFormatHint": "TXT や JSON はファイルの種類であり、内容も ChatLab が対応するチャット記録形式に従う必要があります。形式を手動で選択するか、ガイドに従って AI で ChatLab 標準形式に変換できます。",
       "no_messages": "メッセージを検出できませんでした。ファイル形式が正しいか確認してください",
       "no_chat_selected": "チャットが選択されていません",
       "archive_single_file_required": "アーカイブは1件ずつインポートしてください",

@@ -26,7 +26,11 @@ const props = defineProps<{
   backendFeatures: boolean
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const conversionGuideUrl = computed(() => {
+  const prefix = locale.value === 'zh-CN' ? '/cn' : locale.value === 'zh-TW' ? '/tw' : ''
+  return `https://docs.chatlab.fun${prefix}/standard/ai-converter`
+})
 const toast = useToast()
 const sessionStore = useSessionStore()
 const acceptedExtensions = computed(() =>
@@ -94,6 +98,7 @@ function showImportOutcome(result: ImportResult) {
 }
 
 const importError = ref<string | null>(null)
+const isUnrecognizedFormat = computed(() => importError.value === 'error.unrecognized_format')
 const hasImportLog = ref(false)
 const importDiagnostics = ref<{
   logFile: string | null
@@ -290,7 +295,7 @@ async function processWebFiles(files: File[]) {
     await importSingleWebFile(file)
   } else {
     if (files.some(isArchiveFile)) {
-      importError.value = translateError('error.archive_single_file_required')
+      importError.value = 'error.archive_single_file_required'
       return
     }
     await sessionStore.importFiles(files)
@@ -320,7 +325,7 @@ async function importSingleWebFile(file: File, options?: ImportOptions) {
       showImportOutcome(result)
       await navigateToSession(result.sessionId)
     } else {
-      importError.value = translateError(result.error || 'error.import_failed')
+      importError.value = result.error || 'error.import_failed'
     }
   } catch (error) {
     importError.value = String(error)
@@ -391,7 +396,7 @@ async function importDirectory(source: File[] | string) {
       showImportOutcome(result)
       await navigateToSession(result.sessionId)
     } else {
-      importError.value = translateError(result.error || 'error.import_failed')
+      importError.value = result.error || 'error.import_failed'
     }
   } catch (error) {
     importError.value = String(error)
@@ -407,7 +412,7 @@ async function importDirectory(source: File[] | string) {
 async function processFilePaths(paths: string[]) {
   if (paths.some(isArchiveFile)) {
     if (paths.length !== 1) {
-      importError.value = translateError('error.archive_single_file_required')
+      importError.value = 'error.archive_single_file_required'
       return
     }
     await prepareArchiveImport(paths[0])
@@ -434,7 +439,7 @@ async function processFilePaths(paths: string[]) {
       // 单文件导入
       const result = await sessionStore.importFileFromPath(paths[0])
       if (!result.success && result.error) {
-        importError.value = translateError(result.error)
+        importError.value = result.error
         // 格式无法识别时，记住文件路径以便手动选择格式
         if (result.error === 'error.unrecognized_format') {
           formatSelectorFilePath.value = paths[0]
@@ -504,7 +509,7 @@ async function handleFormatSelect(formatId: string) {
       showImportOutcome(result)
       await navigateToSession(result.sessionId)
     } else {
-      importError.value = translateError(result.error || 'error.import_failed')
+      importError.value = result.error || 'error.import_failed'
     }
   } catch (error) {
     importError.value = String(error)
@@ -543,10 +548,10 @@ async function handleChatSelect(selectedChats: ChatInfo[]) {
           showImportOutcome(result)
           await navigateToSession(result.sessionId)
         } else {
-          importError.value = translateError(result.error || 'error.import_failed')
+          importError.value = result.error || 'error.import_failed'
         }
       } catch (error) {
-        importError.value = translateError(error instanceof Error ? error.message : String(error))
+        importError.value = error instanceof Error ? error.message : String(error)
       } finally {
         try {
           await useImportService().releaseImportSource(source.sourceId)
@@ -662,7 +667,7 @@ async function handleChatSelect(selectedChats: ChatInfo[]) {
         showImportOutcome(result)
         await navigateToSession(result.sessionId)
       } else {
-        importError.value = translateError(result.error || 'error.import_failed')
+        importError.value = result.error || 'error.import_failed'
       }
     } catch (error) {
       importError.value = String(error)
@@ -1197,7 +1202,7 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
     >
       <div class="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
         <UIcon name="i-heroicons-exclamation-circle" class="h-5 w-5 shrink-0" />
-        <span>{{ importError }}</span>
+        <span>{{ translateError(importError) }}</span>
       </div>
       <!-- 诊断信息（如果有） -->
       <div
@@ -1218,12 +1223,26 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
           </div>
         </div>
       </div>
-      <p v-if="formatSelectorFilePath || hasImportLog" class="text-xs text-gray-500 dark:text-gray-400">
+      <p v-if="isUnrecognizedFormat" class="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+        {{ t('home.import.errors.unrecognizedFormatHint') }}
+      </p>
+      <p v-else-if="formatSelectorFilePath || hasImportLog" class="text-xs text-gray-500 dark:text-gray-400">
         {{ t('home.import.errors.actionHint') }}
       </p>
-      <div class="flex gap-2">
+      <div class="flex flex-wrap justify-center gap-2">
         <UButton v-if="formatSelectorFilePath" size="xs" @click="showFormatSelector = true">
           {{ t('home.formatSelector.manualSelect') }}
+        </UButton>
+        <UButton
+          v-if="isUnrecognizedFormat"
+          :href="conversionGuideUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          size="xs"
+          variant="soft"
+          icon="i-heroicons-arrow-top-right-on-square"
+        >
+          {{ t('home.import.viewConversionGuide') }}
         </UButton>
         <UButton v-if="hasImportLog" size="xs" variant="soft" @click="openLatestImportLog">
           {{ t('home.import.viewLog') }}

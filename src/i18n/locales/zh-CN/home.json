@@ -38,11 +38,13 @@
     "processed": "已处理 {count} 条消息",
     "viewLog": "查看导入日志",
     "cannotReadPath": "无法读取文件路径",
+    "viewConversionGuide": "查看转换指南",
     "errors": {
       "no_file_selected": "未选择文件",
       "import_failed": "导入失败",
       "import_in_progress": "已有导入任务正在进行，请稍后重试",
       "unrecognized_format": "无法识别的文件格式",
+      "unrecognizedFormatHint": "TXT、JSON 只是文件类型，内容还需要符合 ChatLab 支持的聊天记录格式。你可以手动选择格式，或参考指南使用 AI 转换为 ChatLab 标准格式。",
       "no_messages": "未解析到任何消息，请检查文件格式是否正确",
       "no_chat_selected": "未选择聊天",
       "archive_single_file_required": "压缩包需要单独选择并导入",
