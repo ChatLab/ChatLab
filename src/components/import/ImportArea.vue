@@ -99,6 +99,9 @@ function showImportOutcome(result: ImportResult) {
 
 const importError = ref<string | null>(null)
 const isUnrecognizedFormat = computed(() => importError.value === 'error.unrecognized_format')
+const hasUnrecognizedBatchFormat = computed(() =>
+  batchImportResult.value?.files.some((file) => file.status === 'failed' && file.error === 'error.unrecognized_format')
+)
 const hasImportLog = ref(false)
 const importDiagnostics = ref<{
   logFile: string | null
@@ -1074,6 +1077,21 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
             </UButton>
           </template>
         </FileListItem>
+      </div>
+      <div v-if="hasUnrecognizedBatchFormat" class="mt-4 space-y-2">
+        <p class="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+          {{ t('home.import.errors.unrecognizedFormatHint') }}
+        </p>
+        <UButton
+          :href="conversionGuideUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          size="xs"
+          variant="soft"
+          icon="i-heroicons-arrow-top-right-on-square"
+        >
+          {{ t('home.import.viewConversionGuide') }}
+        </UButton>
       </div>
     </div>
 
