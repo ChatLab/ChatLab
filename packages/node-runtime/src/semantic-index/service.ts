@@ -458,6 +458,34 @@ export class SemanticIndexService {
     this.queue.enqueue({ type: 'rebuild', dbPathHash: hash })
   }
 
+  /**
+   * 合并会话后的向量承接：启用目标会话并立即入队构建。
+   *
+   * 合并会产出一个全新的聊天库，向量分区键随之改变，旧向量对新会话不可见。
+   * 构建时 chunk 的 embedding 文本与源会话逐字相同的直接复制已有向量，
+   * 只有新增消息所在的 chunk 需要 embedding，用户不必在合并后再手动建一次索引。
+   *
+   * 只在至少有一个"已启用且模型与当前一致"的源会话时承接；否则什么都不做。
+   */
+  carryOver(params: { targetSessionId: string; sourceSessionIds: string[] }): { enabled: boolean } {
+    if (!this.canRun()) return { enabled: false }
+
+    const modelId = this.currentModelId()
+    const sources = params.sourceSessionIds.filter((sessionId) => {
+      const status = this.status(sessionId)
+      return !!status && status.enabled && status.modelId === modelId
+    })
+    if (sources.length === 0) return { enabled: false }
+
+    this.enable(params.targetSessionId)
+    this.build(params.targetSessionId)
+    appLogger.info('semantic-index', 'carried over embeddings to a merged session', {
+      targetSessionId: params.targetSessionId,
+      sourceCount: sources.length,
+    })
+    return { enabled: true }
+  }
+
   /** 为所有启用但未完成 / 需重建的对话入队（"建立待处理索引"） */
   buildAllPending(): void {
     if (!this.canRun()) return
@@ -874,7 +902,8 @@ export class SemanticIndexService {
         : null
     if (
       result.status === 'completed' &&
-      result.chunksWritten > 0 &&
+      // 只有真正跑过 embedding 才能证明本地模型加载成功；全部复用向量时不改 preload 状态
+      result.chunksWritten > result.chunksReused &&
       jobConfig.mode === 'local' &&
       currentConfig.mode === 'local' &&
       currentConfig.local.modelId === jobConfig.local.modelId &&
@@ -888,6 +917,7 @@ export class SemanticIndexService {
       dbPathHash: job.dbPathHash,
       status: result.status,
       chunksWritten: result.chunksWritten,
+      chunksReused: result.chunksReused,
       elapsedMs: Date.now() - startedAt,
       error: result.error,
     })

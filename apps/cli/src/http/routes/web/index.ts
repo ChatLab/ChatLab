@@ -176,6 +176,15 @@ export function registerWebRoutes(
       ...(mergeCache && {
         mergeSessionCache: mergeCache,
         streamImport: cliStreamImport,
+        onMergedSessionImported: async ({
+          sessionId,
+          sourceSessionIds,
+        }: {
+          sessionId: string
+          sourceSessionIds: string[]
+        }) => {
+          await semanticIndexService?.carryOver({ targetSessionId: sessionId, sourceSessionIds })
+        },
       }),
       ...(ai && {
         aiDataDir: ai.aiDataDir,

@@ -25,7 +25,14 @@ const SERVICE_TEMP_DIR_PREFIX = 'chatlab-si-svc-'
 // 暴露「毫秒被当作秒再 *1000」导致五位数年份（如 56150）的回归。
 const BASE_TS_SECONDS = 1_700_000_000
 
+/** 合并产物那样的额外会话：消息 id 与主会话不同，但时间/发送者/正文可以一致 */
+interface ExtraSession {
+  sessionId: string
+  messages: Array<{ id: number; senderId: number; ts: number; content: string }>
+}
+
 interface SetupOptions {
+  extraSessions?: ExtraSession[]
   embedDelayMs?: number
   failFirstPipelineCreation?: boolean
   failPipelineCreationForModelIds?: ReadonlySet<string>
@@ -43,10 +50,40 @@ interface ServiceFixture {
   getEmbedCount: () => number
 }
 
+/** 建一个聊天库并写入 meta / member / message，会话名与成员和主会话一致（embedding 文本要用） */
+function createChatDb(
+  dbPath: string,
+  messages: Array<{ id: number; senderId: number; ts: number; content: string }>
+): ReturnType<typeof openBetterSqliteDatabase> {
+  const db = openBetterSqliteDatabase(dbPath)
+  db.exec(CHAT_DB_SCHEMA)
+  db.exec(`
+    INSERT INTO meta (name, platform, type, imported_at) VALUES ('测试群', 'wechat', 'group', 0);
+    INSERT INTO member (id, platform_id, account_name) VALUES (1, 'p1', '张三'), (2, 'p2', '李四');
+  `)
+  const insert = db.prepare('INSERT INTO message (id, sender_id, ts, type, content) VALUES (?, ?, ?, 0, ?)')
+  for (const message of messages) insert.run(message.id, message.senderId, message.ts, message.content)
+  return db
+}
+
+/** 主会话的 40 条消息（合并测试要用同样的时间/发送者/正文重建一份） */
+function baseMessages(): Array<{ id: number; senderId: number; ts: number; content: string }> {
+  return Array.from({ length: 40 }, (_, index) => {
+    const i = index + 1
+    return {
+      id: i,
+      senderId: (i % 2) + 1,
+      ts: BASE_TS_SECONDS + i * 60,
+      content: `第${i}条关于项目排期和需求讨论的消息内容`,
+    }
+  })
+}
+
 interface ServiceFixtureCleanup {
   dir: string
   service?: SemanticIndexService
   db?: ReturnType<typeof openBetterSqliteDatabase>
+  extraDbs?: Array<ReturnType<typeof openBetterSqliteDatabase>>
   disposePromise?: Promise<void>
 }
 
@@ -78,6 +115,7 @@ async function disposeFixture(cleanup: ServiceFixtureCleanup): Promise<void> {
       } finally {
         try {
           cleanup.db?.close()
+          for (const extra of cleanup.extraDbs ?? []) extra.close()
         } finally {
           removeOwnedServiceTempDir(cleanup.dir)
         }
@@ -94,32 +132,28 @@ function setup(t: TestContext, opts?: SetupOptions): ServiceFixture {
   t.after(() => disposeFixture(cleanup))
 
   const chatDbPath = path.join(dir, `${SESSION_ID}.db`)
-  const db = openBetterSqliteDatabase(chatDbPath)
+  const db = createChatDb(chatDbPath, baseMessages())
   cleanup.db = db
-  db.exec(CHAT_DB_SCHEMA)
-  db.exec(`
-    INSERT INTO meta (name, platform, type, imported_at) VALUES ('测试群', 'wechat', 'group', 0);
-    INSERT INTO member (id, platform_id, account_name) VALUES (1, 'p1', '张三'), (2, 'p2', '李四');
-  `)
-  const insert = db.prepare('INSERT INTO message (id, sender_id, ts, type, content) VALUES (?, ?, ?, 0, ?)')
-  for (let i = 1; i <= 40; i++) {
-    insert.run(i, (i % 2) + 1, BASE_TS_SECONDS + i * 60, `第${i}条关于项目排期和需求讨论的消息内容`)
+  const databases = new Map([[SESSION_ID, db]])
+  for (const extra of opts?.extraSessions ?? []) {
+    databases.set(extra.sessionId, createChatDb(path.join(dir, `${extra.sessionId}.db`), extra.messages))
+  }
+  cleanup.extraDbs = [...databases.entries()].filter(([id]) => id !== SESSION_ID).map(([, value]) => value)
+  const dbPathOf = (sessionId: string) => path.join(dir, `${sessionId}.db`)
+  const requireDb = (id: string) => {
+    const found = databases.get(id)
+    if (!found) throw new Error('not found')
+    return found
   }
   const adapter: SessionRuntimeAdapter = {
-    listSessionIds: () => [SESSION_ID],
-    openReadonly: (id) => (id === SESSION_ID ? db : null),
-    openWritable: (id) => (id === SESSION_ID ? db : null),
+    listSessionIds: () => [...databases.keys()],
+    openReadonly: (id) => databases.get(id) ?? null,
+    openWritable: (id) => databases.get(id) ?? null,
     closeSession: () => {},
-    getDbPath: () => chatDbPath,
+    getDbPath: dbPathOf,
     deleteSessionFile: () => false,
-    ensureReadonly: (id) => {
-      if (id !== SESSION_ID) throw new Error('not found')
-      return db
-    },
-    ensureWritable: (id) => {
-      if (id !== SESSION_ID) throw new Error('not found')
-      return db
-    },
+    ensureReadonly: requireDb,
+    ensureWritable: requireDb,
   }
 
   // 本地 pipeline 工厂：返回 Qwen3 维度向量，按文本长度给一点变化，避免零向量
@@ -722,4 +756,70 @@ test('recover marks stale running as paused without auto-resuming', async (t) =>
 
   service.recover()
   assert.equal(service.status(SESSION_ID)!.indexStatus, 'paused')
+})
+
+// ==================== 合并会话的向量承接 ====================
+
+const MERGED_ID = 'merged1'
+
+/** 合并产物：同样的 40 条消息（id 全变）+ 尾部 5 条新消息 */
+function mergedMessages(): Array<{ id: number; senderId: number; ts: number; content: string }> {
+  const carried = baseMessages().map((message) => ({ ...message, id: message.id + 1000 }))
+  const appended = Array.from({ length: 5 }, (_, index) => {
+    const i = 41 + index
+    return {
+      id: 1000 + i,
+      senderId: (i % 2) + 1,
+      ts: BASE_TS_SECONDS + i * 60,
+      content: `第${i}条合并后新增的消息内容`,
+    }
+  })
+  return [...carried, ...appended]
+}
+
+function mergedFixture(t: TestContext): ServiceFixture {
+  return setup(t, { extraSessions: [{ sessionId: MERGED_ID, messages: mergedMessages() }] })
+}
+
+test('carryOver does nothing while the semantic index is switched off', async (t) => {
+  const { service } = mergedFixture(t)
+  await enableAndBuild(service)
+  service.setConfig({ ...service.getConfig(), enabled: false })
+
+  assert.deepEqual(service.carryOver({ targetSessionId: MERGED_ID, sourceSessionIds: [SESSION_ID] }), {
+    enabled: false,
+  })
+  assert.equal(service.status(MERGED_ID), null)
+})
+
+test('carryOver does not enable the merged session when no source has an index', async (t) => {
+  const { service } = mergedFixture(t)
+
+  assert.deepEqual(service.carryOver({ targetSessionId: MERGED_ID, sourceSessionIds: [SESSION_ID] }), {
+    enabled: false,
+  })
+  assert.equal(service.status(MERGED_ID), null)
+})
+
+test('carryOver builds the merged session so it only embeds its new messages', async (t) => {
+  const { service, getEmbedCount } = mergedFixture(t)
+  await enableAndBuild(service)
+  assert.ok(service.status(SESSION_ID)!.chunkCount > 0)
+
+  const embedsBefore = getEmbedCount()
+  const carried = service.carryOver({ targetSessionId: MERGED_ID, sourceSessionIds: [SESSION_ID] })
+  assert.equal(carried.enabled, true)
+  const carriedStatus = service.status(MERGED_ID)!
+  assert.equal(carriedStatus.enabled, true)
+  // 承接自己排队构建：合并后的向量无需用户再点一次"建立索引"
+  assert.equal(carriedStatus.queued, true)
+
+  await service.whenIdle()
+
+  const merged = service.status(MERGED_ID)!
+  assert.equal(merged.indexStatus, 'completed')
+  // 默认参数下 40 条 -> 4 个 chunk，45 条 -> 5 个：前 3 个内容未变直接复用，
+  // 只有被新消息改写的尾部 chunk 和新增的那个 chunk 需要 embedding。
+  assert.equal(merged.chunkCount, 5)
+  assert.equal(getEmbedCount() - embedsBefore, 2)
 })
