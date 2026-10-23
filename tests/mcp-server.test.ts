@@ -34,11 +34,15 @@ test('MCP tools/list array schemas agree with tools/call validation and database
       (4, 1, 400, 0, 'second neighbor'),
       (5, 1, 500, 0, 'beta topic');
   `)
+  // The production MCP server closes each read-only handle after a tool call.
+  // Reuse this in-memory fixture without closing its underlying test database.
+  const readonlyFixture = Object.create(db) as typeof db
+  readonlyFixture.close = () => {}
   await startMcpServer({
     version: '1.0.0',
     dbManager: {
-      listSessionIds: () => ['fixture'],
-      open: (id) => (id === 'fixture' ? db : null),
+      listSessionIdsReadonly: () => ['fixture'],
+      openReadonly: (id) => (id === 'fixture' ? readonlyFixture : null),
     },
   })
   await client.connect(clientTransport)

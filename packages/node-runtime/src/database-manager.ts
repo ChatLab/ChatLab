@@ -127,6 +127,16 @@ export class DatabaseManager {
   }
 
   /**
+   * Open an uncached session database strictly for reading, without migrations or
+   * compatibility gate updates. The caller owns and must close the connection.
+   */
+  openReadonly(sessionId: string): DatabaseAdapter | null {
+    this.assertCompatible()
+    if (!fs.existsSync(this.getDbPath(sessionId))) return null
+    return this.openRawSessionDatabase(sessionId, { readonly: true })
+  }
+
+  /**
    * Open a session DB in read-write mode and auto-run pending migrations.
    * Falls back to `open(id, { readonly: false })` if migration is unnecessary.
    */

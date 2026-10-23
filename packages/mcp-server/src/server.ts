@@ -9,6 +9,7 @@ import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mc
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { getSessionMeta, getSessionOverview, getDatabaseSchema } from '@openchatlab/core'
+import type { DatabaseAdapter } from '@openchatlab/core'
 import { MCP_TOOL_REGISTRY, CoreDataProvider, getLocalizedToolMetadata } from '@openchatlab/tools'
 import type { SessionListContext } from '@openchatlab/tools/src/definitions/sessions'
 import type { McpDatabaseManager, McpServerOptions } from './types'
@@ -52,17 +53,28 @@ export function registerTools(server: McpServer, dbManager: McpDatabaseManager, 
         { description, inputSchema: zodShape, annotations: READ_ONLY_TOOL_ANNOTATIONS },
         async (params) => {
           const format = params.format as string | undefined
-          const context: SessionListContext = {
-            db: null as any,
-            sessionId: '',
-            listSessionIds: () => dbManager.listSessionIds(),
-            openDb: (id) => dbManager.open(id),
+          // The shared list handler opens multiple databases; close every connection
+          // after it returns, including when a query throws.
+          const openedDbs: DatabaseAdapter[] = []
+          try {
+            const context: SessionListContext = {
+              db: null as any,
+              sessionId: '',
+              listSessionIds: () => dbManager.listSessionIdsReadonly(),
+              openDb: (id) => {
+                const db = dbManager.openReadonly(id)
+                if (db) openedDbs.push(db)
+                return db
+              },
+            }
+            const toolParams = { ...params } as Record<string, unknown>
+            delete toolParams.format
+            const result = await tool.handler(toolParams, context)
+            const text = applyFormat(result.content, format, tool.name)
+            return { content: [{ type: 'text' as const, text }] }
+          } finally {
+            for (const db of openedDbs) db.close()
           }
-          const toolParams = { ...params } as Record<string, unknown>
-          delete toolParams.format
-          const result = await tool.handler(toolParams, context)
-          const text = applyFormat(result.content, format, tool.name)
-          return { content: [{ type: 'text' as const, text }] }
         }
       )
       continue
@@ -80,7 +92,7 @@ export function registerTools(server: McpServer, dbManager: McpDatabaseManager, 
       async (params) => {
         const sessionId = params.session_id as string
         const format = params.format as string | undefined
-        const db = dbManager.open(sessionId)
+        const db = dbManager.openReadonly(sessionId)
         if (!db) {
           return {
             content: [{ type: 'text' as const, text: `Session not found: ${sessionId}` }],
@@ -88,13 +100,17 @@ export function registerTools(server: McpServer, dbManager: McpDatabaseManager, 
           }
         }
 
-        const toolParams = { ...params } as Record<string, unknown>
-        delete toolParams.session_id
-        delete toolParams.format
+        try {
+          const toolParams = { ...params } as Record<string, unknown>
+          delete toolParams.session_id
+          delete toolParams.format
 
-        const result = await tool.handler(toolParams, { db, sessionId, dataProvider: new CoreDataProvider(db) })
-        const text = applyFormat(result.content, format, tool.name)
-        return { content: [{ type: 'text' as const, text }] }
+          const result = await tool.handler(toolParams, { db, sessionId, dataProvider: new CoreDataProvider(db) })
+          const text = applyFormat(result.content, format, tool.name)
+          return { content: [{ type: 'text' as const, text }] }
+        } finally {
+          db.close()
+        }
       }
     )
   }
@@ -102,14 +118,18 @@ export function registerTools(server: McpServer, dbManager: McpDatabaseManager, 
 
 function registerResources(server: McpServer, dbManager: McpDatabaseManager): void {
   server.resource('sessions-list', 'chatlab://sessions', { description: '所有已导入的聊天会话列表' }, async () => {
-    const sessionIds = dbManager.listSessionIds()
+    const sessionIds = dbManager.listSessionIdsReadonly()
     const sessions = sessionIds
       .map((id) => {
-        const db = dbManager.open(id)
+        const db = dbManager.openReadonly(id)
         if (!db) return null
-        const meta = getSessionMeta(db)
-        if (!meta) return null
-        return { id, name: meta.name, platform: meta.platform, type: meta.type }
+        try {
+          const meta = getSessionMeta(db)
+          if (!meta) return null
+          return { id, name: meta.name, platform: meta.platform, type: meta.type }
+        } finally {
+          db.close()
+        }
       })
       .filter(Boolean)
 
@@ -130,22 +150,26 @@ function registerResources(server: McpServer, dbManager: McpDatabaseManager): vo
     { description: '会话元信息（名称、平台、消息数等）' },
     async (uri, params) => {
       const sessionId = params.sessionId as string
-      const db = dbManager.open(sessionId)
+      const db = dbManager.openReadonly(sessionId)
       if (!db) {
         return { contents: [{ uri: uri.href, text: '{"error": "Session not found"}', mimeType: 'application/json' }] }
       }
 
-      const meta = getSessionMeta(db)
-      const overview = getSessionOverview(db)
+      try {
+        const meta = getSessionMeta(db)
+        const overview = getSessionOverview(db)
 
-      return {
-        contents: [
-          {
-            uri: uri.href,
-            text: JSON.stringify({ ...meta, ...overview }, null, 2),
-            mimeType: 'application/json',
-          },
-        ],
+        return {
+          contents: [
+            {
+              uri: uri.href,
+              text: JSON.stringify({ ...meta, ...overview }, null, 2),
+              mimeType: 'application/json',
+            },
+          ],
+        }
+      } finally {
+        db.close()
       }
     }
   )
@@ -156,21 +180,25 @@ function registerResources(server: McpServer, dbManager: McpDatabaseManager): vo
     { description: '会话数据库的表结构' },
     async (uri, params) => {
       const sessionId = params.sessionId as string
-      const db = dbManager.open(sessionId)
+      const db = dbManager.openReadonly(sessionId)
       if (!db) {
         return { contents: [{ uri: uri.href, text: '{"error": "Session not found"}', mimeType: 'application/json' }] }
       }
 
-      const schema = getDatabaseSchema(db)
+      try {
+        const schema = getDatabaseSchema(db)
 
-      return {
-        contents: [
-          {
-            uri: uri.href,
-            text: JSON.stringify(schema, null, 2),
-            mimeType: 'application/json',
-          },
-        ],
+        return {
+          contents: [
+            {
+              uri: uri.href,
+              text: JSON.stringify(schema, null, 2),
+              mimeType: 'application/json',
+            },
+          ],
+        }
+      } finally {
+        db.close()
       }
     }
   )
