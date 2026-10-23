@@ -7,6 +7,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import Database from 'better-sqlite3'
+import { CHAT_DB_TABLES } from '@openchatlab/core'
 import { MCP_TOOL_REGISTRY } from '@openchatlab/tools'
 import { DatabaseManager, NodePathProvider, readDataDirCompatibilityMeta } from '@openchatlab/node-runtime'
 import { registerTools } from './server'
@@ -126,5 +127,112 @@ test('MCP queries do not migrate a pending-schema session or raise the data comp
     assert.equal(after.prepare("SELECT name FROM sqlite_master WHERE name = 'segment'").get(), undefined)
   } finally {
     after.close()
+  }
+})
+
+test('segment summaries handle v9 pending schema without migration and preserve v10 results', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-mcp-v9-summaries-'))
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const dataDir = path.join(root, 'data')
+  const dbDir = path.join(dataDir, 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+
+  const legacyPath = path.join(dbDir, 'v9.db')
+  const legacyDb = new Database(legacyPath)
+  try {
+    legacyDb.exec(`
+      CREATE TABLE meta (
+        name TEXT NOT NULL, platform TEXT NOT NULL, type TEXT NOT NULL,
+        imported_at INTEGER NOT NULL, schema_version INTEGER DEFAULT 9
+      );
+      INSERT INTO meta (name, platform, type, imported_at, schema_version)
+      VALUES ('v9 chat', 'qq', 'group', 1000, 9);
+      CREATE TABLE member (id INTEGER PRIMARY KEY, platform_id TEXT UNIQUE, account_name TEXT);
+      INSERT INTO member VALUES (1, 'legacy-user', 'Alice');
+      CREATE TABLE message (id INTEGER PRIMARY KEY, sender_id INTEGER, ts INTEGER, type INTEGER, content TEXT);
+      INSERT INTO message VALUES (1, 1, 1000, 0, 'hello');
+      CREATE TABLE segment (
+        id INTEGER PRIMARY KEY, start_ts INTEGER, end_ts INTEGER,
+        message_count INTEGER, summary TEXT
+      );
+      INSERT INTO segment VALUES (1, 1000, 1000, 1, 'Old unverified summary');
+      CREATE TABLE message_context (message_id INTEGER PRIMARY KEY, segment_id INTEGER, topic_id INTEGER);
+      INSERT INTO message_context VALUES (1, 1, NULL);
+    `)
+  } finally {
+    legacyDb.close()
+  }
+
+  const currentPath = path.join(dbDir, 'v10.db')
+  const currentDb = new Database(currentPath)
+  try {
+    currentDb.exec(CHAT_DB_TABLES)
+    currentDb.exec(`
+      INSERT INTO meta (name, platform, type, imported_at)
+      VALUES ('v10 chat', 'qq', 'group', 1000);
+      INSERT INTO member (id, platform_id, account_name) VALUES (1, 'new-user', 'Bob');
+      INSERT INTO message (id, sender_id, ts, type, content) VALUES (1, 1, 1000, 0, 'hello');
+      INSERT INTO segment (id, start_ts, end_ts, message_count, summary, summary_message_count)
+      VALUES (1, 1000, 1000, 1, 'Verified summary', 1);
+      INSERT INTO message_context (message_id, segment_id, topic_id) VALUES (1, 1, NULL);
+    `)
+  } finally {
+    currentDb.close()
+  }
+
+  const beforeV9 = fs.readFileSync(legacyPath)
+  const beforeV10 = fs.readFileSync(currentPath)
+  assert.equal(readDataDirCompatibilityMeta(dataDir), null)
+
+  const dbManager = new DatabaseManager(new NodePathProvider(dataDir), {
+    runtime: { version: '0.37.6', kind: 'mcp' },
+  })
+  t.after(() => dbManager.closeAll())
+  const server = new McpServer({ name: 'chatlab-test', version: '0.37.6' })
+  const client = new Client({ name: 'chatlab-test-client', version: '0.0.0' })
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+
+  try {
+    registerTools(server, dbManager)
+    await server.connect(serverTransport)
+    await client.connect(clientTransport)
+
+    const oldResult = await client.callTool({
+      name: 'chatlab_get_segment_summaries',
+      arguments: { session_id: 'v9', format: 'json' },
+    })
+    assert.equal(oldResult.isError, undefined, JSON.stringify(oldResult.content))
+    assert.match((oldResult.content as Array<{ text: string }>)[0].text, /No segments with summaries found/)
+    assert.deepEqual(fs.readFileSync(legacyPath), beforeV9)
+    assert.equal(readDataDirCompatibilityMeta(dataDir), null)
+
+    const currentResult = await client.callTool({
+      name: 'chatlab_get_segment_summaries',
+      arguments: { session_id: 'v10', format: 'json' },
+    })
+    assert.equal(currentResult.isError, undefined, JSON.stringify(currentResult.content))
+    const parsed = JSON.parse((currentResult.content as Array<{ text: string }>)[0].text)
+    assert.equal(parsed.total, 1)
+    assert.equal(parsed.segments[0].summary, 'Verified summary')
+    assert.deepEqual(parsed.segments[0].participants, ['Bob'])
+    assert.deepEqual(fs.readFileSync(currentPath), beforeV10)
+    assert.equal(readDataDirCompatibilityMeta(dataDir), null)
+  } finally {
+    await client.close()
+    await server.close()
+  }
+
+  const verifyLegacy = new Database(legacyPath, { readonly: true })
+  try {
+    assert.equal(
+      (verifyLegacy.prepare('SELECT schema_version FROM meta').get() as { schema_version: number }).schema_version,
+      9
+    )
+    assert.equal(
+      verifyLegacy.prepare("SELECT name FROM pragma_table_info('segment') WHERE name='summary_message_count'").get(),
+      undefined
+    )
+  } finally {
+    verifyLegacy.close()
   }
 })

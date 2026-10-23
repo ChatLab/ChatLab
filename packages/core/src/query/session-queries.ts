@@ -317,7 +317,10 @@ export function getSegmentSummaries(
   db: DatabaseAdapter,
   options?: { limit?: number; timeFilter?: TimeFilter }
 ): SegmentSummaryData[] {
-  if (!hasTable(db, 'segment')) return []
+  // Schema v10 introduced summary_message_count. Earlier summaries have unknown
+  // coverage and are treated as stale by the v10 migration; do the same for
+  // read-only callers without mutating older databases.
+  if (!hasTable(db, 'segment') || !hasColumn(db, 'segment', 'summary_message_count')) return []
 
   const { limit = 50, timeFilter } = options ?? {}
 
