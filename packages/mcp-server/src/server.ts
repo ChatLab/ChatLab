@@ -60,9 +60,9 @@ export function registerTools(server: McpServer, dbManager: McpDatabaseManager, 
             const context: SessionListContext = {
               db: null as any,
               sessionId: '',
-              listSessionIds: () => dbManager.listSessionIdsReadonly(),
+              listSessionIds: () => dbManager.listSessionIdsMcpReadonly(),
               openDb: (id) => {
-                const db = dbManager.openReadonly(id)
+                const db = dbManager.openMcpReadonly(id)
                 if (db) openedDbs.push(db)
                 return db
               },
@@ -92,7 +92,7 @@ export function registerTools(server: McpServer, dbManager: McpDatabaseManager, 
       async (params) => {
         const sessionId = params.session_id as string
         const format = params.format as string | undefined
-        const db = dbManager.openReadonly(sessionId)
+        const db = dbManager.openMcpReadonly(sessionId)
         if (!db) {
           return {
             content: [{ type: 'text' as const, text: `Session not found: ${sessionId}` }],
@@ -118,10 +118,10 @@ export function registerTools(server: McpServer, dbManager: McpDatabaseManager, 
 
 function registerResources(server: McpServer, dbManager: McpDatabaseManager): void {
   server.resource('sessions-list', 'chatlab://sessions', { description: '所有已导入的聊天会话列表' }, async () => {
-    const sessionIds = dbManager.listSessionIdsReadonly()
+    const sessionIds = dbManager.listSessionIdsMcpReadonly()
     const sessions = sessionIds
       .map((id) => {
-        const db = dbManager.openReadonly(id)
+        const db = dbManager.openMcpReadonly(id)
         if (!db) return null
         try {
           const meta = getSessionMeta(db)
@@ -150,7 +150,7 @@ function registerResources(server: McpServer, dbManager: McpDatabaseManager): vo
     { description: '会话元信息（名称、平台、消息数等）' },
     async (uri, params) => {
       const sessionId = params.sessionId as string
-      const db = dbManager.openReadonly(sessionId)
+      const db = dbManager.openMcpReadonly(sessionId)
       if (!db) {
         return { contents: [{ uri: uri.href, text: '{"error": "Session not found"}', mimeType: 'application/json' }] }
       }
@@ -180,7 +180,7 @@ function registerResources(server: McpServer, dbManager: McpDatabaseManager): vo
     { description: '会话数据库的表结构' },
     async (uri, params) => {
       const sessionId = params.sessionId as string
-      const db = dbManager.openReadonly(sessionId)
+      const db = dbManager.openMcpReadonly(sessionId)
       if (!db) {
         return { contents: [{ uri: uri.href, text: '{"error": "Session not found"}', mimeType: 'application/json' }] }
       }

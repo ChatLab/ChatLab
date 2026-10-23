@@ -41,8 +41,8 @@ test('MCP tools/list array schemas agree with tools/call validation and database
   await startMcpServer({
     version: '1.0.0',
     dbManager: {
-      listSessionIdsReadonly: () => ['fixture'],
-      openReadonly: (id) => (id === 'fixture' ? readonlyFixture : null),
+      listSessionIdsMcpReadonly: () => ['fixture'],
+      openMcpReadonly: (id) => (id === 'fixture' ? readonlyFixture : null),
     },
   })
   await client.connect(clientTransport)

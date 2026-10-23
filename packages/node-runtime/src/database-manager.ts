@@ -133,16 +133,53 @@ export class DatabaseManager {
   }
 
   /**
-   * Open an uncached session database strictly for reading, without migrations or
-   * compatibility gate updates. The caller owns and must close the connection.
+   * Open an uncached session database strictly for reading, without migrations.
+   * This shared API is also used by CLI import analysis: do not require the
+   * current schema here. The caller owns and must close the connection.
    */
   openReadonly(sessionId: string): DatabaseAdapter | null {
     this.assertCompatible()
     if (!fs.existsSync(this.getDbPath(sessionId))) return null
+    return this.openRawSessionDatabase(sessionId, { readonly: true })
+  }
 
-    const db = this.openRawSessionDatabase(sessionId, { readonly: true })
+  /**
+   * MCP-only strict read access. Never migrate or repair data. Older schema
+   * versions require an explicit upgrade through a writable ChatLab runtime.
+   */
+  openMcpReadonly(sessionId: string): DatabaseAdapter | null {
+    const db = this.openReadonly(sessionId)
+    if (!db) return null
+
     try {
-      if (isChatSessionDb(db)) this.assertReadonlyCompatibilityGate(getSchemaVersion(db))
+      if (isChatSessionDb(db)) {
+        const schemaVersion = getSchemaVersion(db)
+        // SQLite INTEGER-affinity columns may actually contain TEXT, REAL or
+        // BLOB values. A type assertion cannot protect numeric comparisons
+        // from coercing invalid values (e.g. nonnumeric text to NaN).
+        if (!Number.isSafeInteger(schemaVersion) || schemaVersion < 0) {
+          throw new Error(
+            `ChatLab session ${sessionId} has an invalid schema version. ` +
+              'Cannot safely serve this database through read-only MCP tools.'
+          )
+        }
+        // The runtime cannot understand a future schema or safely repair its
+        // compatibility metadata; report the version mismatch before the gate.
+        if (schemaVersion > CURRENT_SCHEMA_VERSION) {
+          throw new Error(
+            `ChatLab session ${sessionId} uses schema v${schemaVersion}, but read-only MCP tools require ` +
+              `schema v${CURRENT_SCHEMA_VERSION}. Upgrade the ChatLab runtime to one that supports this newer schema.`
+          )
+        }
+
+        this.assertReadonlyCompatibilityGate(schemaVersion)
+        if (schemaVersion < CURRENT_SCHEMA_VERSION) {
+          throw new Error(
+            `ChatLab session ${sessionId} uses schema v${schemaVersion}, but read-only MCP tools require ` +
+              `schema v${CURRENT_SCHEMA_VERSION}. Open the session with the current writable ChatLab runtime to migrate it first.`
+          )
+        }
+      }
       return db
     } catch (error) {
       db.close()
@@ -228,6 +265,7 @@ export class DatabaseManager {
 
   /**
    * 只读列举聊天会话 ID，不触发数据库迁移或兼容门禁提升。
+   * CLI 导入预分析需要枚举未升级的旧库，因此不可强制当前 Schema。
    */
   listSessionIdsReadonly(): string[] {
     this.assertCompatible()
@@ -235,6 +273,21 @@ export class DatabaseManager {
     const dbDir = this.pathProvider.getDatabaseDir()
     return listDatabaseCandidateIds(dbDir).filter((sessionId) => {
       const db = this.openReadonly(sessionId)
+      if (!db) return false
+      try {
+        return isChatSessionDb(db)
+      } finally {
+        db.close()
+      }
+    })
+  }
+
+  /** MCP session discovery performs the same strict schema preflight as MCP queries. */
+  listSessionIdsMcpReadonly(): string[] {
+    this.assertCompatible()
+
+    return listDatabaseCandidateIds(this.pathProvider.getDatabaseDir()).filter((sessionId) => {
+      const db = this.openMcpReadonly(sessionId)
       if (!db) return false
       try {
         return isChatSessionDb(db)

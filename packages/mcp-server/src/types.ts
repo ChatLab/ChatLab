@@ -9,10 +9,10 @@ import type { DatabaseAdapter } from '@openchatlab/core'
  * Both CLI's DatabaseManager and Desktop's helper can satisfy this contract.
  */
 export interface McpDatabaseManager {
-  /** List chat sessions without running schema migrations. */
-  listSessionIdsReadonly(): string[]
-  /** Open a non-cached, strictly read-only connection; caller must close it. */
-  openReadonly(sessionId: string): DatabaseAdapter | null
+  /** List only MCP-supported chat sessions; reject any requiring an upgrade. */
+  listSessionIdsMcpReadonly(): string[]
+  /** Open a non-cached, strictly read-only MCP connection after schema preflight; caller closes it. */
+  openMcpReadonly(sessionId: string): DatabaseAdapter | null
 }
 
 export interface McpServerOptions {

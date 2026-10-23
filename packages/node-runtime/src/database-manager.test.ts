@@ -1328,3 +1328,152 @@ test('session deletion rejects a live topic execution owned by another runtime',
     reopened.close()
   }
 })
+
+test('read-only MCP schema preflight rejects all pending and future versions without touching database bytes', () => {
+  for (let version = 0; version <= CURRENT_SCHEMA_VERSION + 1; version++) {
+    const root = makeTempDir()
+    const provider = createPathProvider(root)
+    fs.mkdirSync(provider.getDatabaseDir(), { recursive: true })
+    const dbPath = path.join(provider.getDatabaseDir(), 'schema-check.db')
+    const db = new Database(dbPath, { nativeBinding })
+    try {
+      const versionColumn = version === 0 ? '' : ', schema_version INTEGER'
+      const versionValue = version === 0 ? '' : `, ${version}`
+      db.exec(`
+        CREATE TABLE meta (name TEXT, platform TEXT, type TEXT, imported_at INTEGER${versionColumn});
+        INSERT INTO meta VALUES ('Schema Check', 'qq', 'group', 1000${versionValue});
+        CREATE TABLE member (id INTEGER PRIMARY KEY, platform_id TEXT);
+        CREATE TABLE message (id INTEGER PRIMARY KEY, sender_id INTEGER, ts INTEGER, type INTEGER, content TEXT);
+      `)
+    } finally {
+      db.close()
+    }
+
+    const manager = new DatabaseManager(provider, {
+      nativeBinding,
+      runtime: { version: '0.37.6', kind: 'mcp' },
+    })
+    // Version 6+ requires an existing compatibility gate. In this test we
+    // establish it before read-only access so schema validation is isolated.
+    if (version >= 6) manager.raiseCurrentChatDbCompatibilityGate()
+    const beforeDb = fs.readFileSync(dbPath)
+    const markerPath = path.join(provider.getUserDataDir(), '.chatlab-meta.json')
+    const beforeMarker = fs.existsSync(markerPath) ? fs.readFileSync(markerPath) : null
+
+    if (version === CURRENT_SCHEMA_VERSION) {
+      const opened = manager.openMcpReadonly('schema-check')
+      assert.ok(opened)
+      assert.equal(opened.readonly, true)
+      opened.close()
+    } else {
+      const guidance = version < CURRENT_SCHEMA_VERSION ? /migrate it first/ : /newer schema/
+      assert.throws(
+        () => manager.openMcpReadonly('schema-check'),
+        (error: unknown) =>
+          error instanceof Error &&
+          error.message.includes(`schema v${version}`) &&
+          error.message.includes(`schema v${CURRENT_SCHEMA_VERSION}`) &&
+          guidance.test(error.message),
+        `unexpected schema v${version} should be rejected before query dispatch`
+      )
+    }
+
+    assert.deepEqual(fs.readFileSync(dbPath), beforeDb, `schema v${version} was modified`)
+    assert.deepEqual(fs.existsSync(markerPath) ? fs.readFileSync(markerPath) : null, beforeMarker)
+    manager.closeAll()
+  }
+})
+
+test('MCP reports future schemas accurately even if their compatibility marker is missing', () => {
+  const root = makeTempDir()
+  const provider = createPathProvider(root)
+  fs.mkdirSync(provider.getDatabaseDir(), { recursive: true })
+  const dbPath = path.join(provider.getDatabaseDir(), 'future.db')
+  const db = new Database(dbPath, { nativeBinding })
+  try {
+    db.exec(`
+      CREATE TABLE meta (
+        name TEXT, platform TEXT, type TEXT, imported_at INTEGER, schema_version INTEGER
+      );
+      INSERT INTO meta VALUES ('Future Chat', 'qq', 'group', 1000, ${CURRENT_SCHEMA_VERSION + 1});
+      CREATE TABLE member (id INTEGER PRIMARY KEY, platform_id TEXT);
+      CREATE TABLE message (id INTEGER PRIMARY KEY, sender_id INTEGER, ts INTEGER, type INTEGER, content TEXT);
+    `)
+  } finally {
+    db.close()
+  }
+  const before = fs.readFileSync(dbPath)
+  const manager = new DatabaseManager(provider, {
+    nativeBinding,
+    runtime: { version: '0.37.6', kind: 'mcp' },
+  })
+  assert.equal(readDataDirCompatibilityMeta(provider.getUserDataDir()), null)
+
+  assert.throws(
+    () => manager.openMcpReadonly('future'),
+    (error: unknown) =>
+      error instanceof Error &&
+      /newer schema/i.test(error.message) &&
+      /Upgrade the ChatLab runtime/i.test(error.message) &&
+      !/compatibility marker/i.test(error.message)
+  )
+  assert.throws(() => manager.listSessionIdsMcpReadonly(), /Upgrade the ChatLab runtime/i)
+  assert.deepEqual(fs.readFileSync(dbPath), before)
+  assert.equal(readDataDirCompatibilityMeta(provider.getUserDataDir()), null)
+  manager.closeAll()
+})
+
+test('MCP schema preflight rejects invalid SQLite version values without affecting shared reads', () => {
+  const cases: Array<{ label: string; sqlValue: string; sqlType: string }> = [
+    { label: 'text', sqlValue: "'not-a-version'", sqlType: 'text' },
+    { label: 'fractional', sqlValue: '10.5', sqlType: 'real' },
+    { label: 'negative', sqlValue: '-1', sqlType: 'integer' },
+    { label: 'unsafe integer', sqlValue: '9223372036854775807', sqlType: 'integer' },
+    { label: 'blob', sqlValue: "X'616263'", sqlType: 'blob' },
+  ]
+  for (const { label, sqlValue, sqlType } of cases) {
+    const root = makeTempDir()
+    const provider = createPathProvider(root)
+    fs.mkdirSync(provider.getDatabaseDir(), { recursive: true })
+    const dbPath = path.join(provider.getDatabaseDir(), 'invalid-version.db')
+    const fixture = new Database(dbPath, { nativeBinding })
+    try {
+      fixture.exec(`
+        CREATE TABLE meta (
+          name TEXT, platform TEXT, type TEXT, imported_at INTEGER,
+          schema_version INTEGER
+        );
+        INSERT INTO meta VALUES ('Legacy', 'qq', 'group', 1000, ${sqlValue});
+        CREATE TABLE member (id INTEGER PRIMARY KEY, platform_id TEXT, name TEXT, nickname TEXT);
+        CREATE TABLE message (id INTEGER PRIMARY KEY, sender_id INTEGER, ts INTEGER, type INTEGER, content TEXT);
+      `)
+      const stored = fixture.prepare('SELECT typeof(schema_version) AS storage FROM meta').get() as {
+        storage: string
+      }
+      assert.equal(stored.storage, sqlType, label)
+    } finally {
+      fixture.close()
+    }
+
+    const before = fs.readFileSync(dbPath)
+    const manager = new DatabaseManager(provider, {
+      nativeBinding,
+      runtime: { version: '0.37.6', kind: 'mcp' },
+    })
+    try {
+      // CLI auto-import relies on shared read-only access to legacy candidates.
+      assert.deepEqual(manager.listSessionIdsReadonly(), ['invalid-version'], label)
+      const shared = manager.openReadonly('invalid-version')
+      assert.ok(shared)
+      shared.close()
+
+      assert.throws(() => manager.openMcpReadonly('invalid-version'), /invalid schema version/i, label)
+      assert.throws(() => manager.listSessionIdsMcpReadonly(), /invalid schema version/i, label)
+      assert.deepEqual(fs.readFileSync(dbPath), before, `${label}: read must not alter the DB`)
+      assert.equal(readDataDirCompatibilityMeta(provider.getUserDataDir()), null, label)
+    } finally {
+      manager.closeAll()
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  }
+})

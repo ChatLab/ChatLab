@@ -23,7 +23,7 @@ test('advertises every ChatLab MCP query tool as read-only', async () => {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
 
   try {
-    registerTools(server, { listSessionIdsReadonly: () => [], openReadonly: () => null })
+    registerTools(server, { listSessionIdsMcpReadonly: () => [], openMcpReadonly: () => null })
     await server.connect(serverTransport)
     await client.connect(clientTransport)
 
@@ -49,7 +49,7 @@ test('advertises every ChatLab MCP query tool as read-only', async () => {
   }
 })
 
-test('MCP queries do not migrate a pending-schema session or raise the data compatibility gate', async (t) => {
+test('MCP rejects schema v5 before dispatch without migrating or raising the compatibility gate', async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-mcp-readonly-'))
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
 
@@ -116,7 +116,8 @@ test('MCP queries do not migrate a pending-schema session or raise the data comp
       ['chatlab_execute_sql', { session_id: 'legacy', sql: 'SELECT content FROM message' }],
     ] as const) {
       const result = await client.callTool({ name, arguments: { ...args, format: 'json' } })
-      assert.equal(result.isError, undefined, `${name}: ${JSON.stringify(result.content)}`)
+      assert.equal(result.isError, true, `${name} should require an explicit upgrade`)
+      assert.match(JSON.stringify(result.content), /schema v5.*schema v10.*migrate/i)
       assert.equal(readDataDirCompatibilityMeta(dataDir), null, `${name} raised the compatibility gate`)
       assert.deepEqual(fs.readFileSync(dbPath), initialDatabase, `${name} modified the legacy database`)
     }
@@ -135,7 +136,7 @@ test('MCP queries do not migrate a pending-schema session or raise the data comp
   }
 })
 
-test('segment summaries handle v9 pending schema without migration and preserve v10 results', async (t) => {
+test('MCP requires an explicit v9 upgrade and preserves current v10 summary results', async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-mcp-v9-summaries-'))
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   const dataDir = path.join(root, 'data')
@@ -216,8 +217,8 @@ test('segment summaries handle v9 pending schema without migration and preserve 
       name: 'chatlab_get_segment_summaries',
       arguments: { session_id: 'v9', format: 'json' },
     })
-    assert.equal(oldResult.isError, undefined, JSON.stringify(oldResult.content))
-    assert.match((oldResult.content as Array<{ text: string }>)[0].text, /No segments with summaries found/)
+    assert.equal(oldResult.isError, true, JSON.stringify(oldResult.content))
+    assert.match(JSON.stringify(oldResult.content), /schema v9.*schema v10.*migrate/i)
     assert.deepEqual(fs.readFileSync(legacyPath), beforeV9)
     assert.deepEqual(fs.readFileSync(path.join(dataDir, '.chatlab-meta.json')), beforeGate)
 
@@ -333,7 +334,8 @@ test('read-only MCP rejects schema v6 without a repaired compatibility gate', as
       name: 'chatlab_get_session_info',
       arguments: { session_id: 'v6', format: 'json' },
     })
-    assert.equal(result.isError, undefined, JSON.stringify(result.content))
+    assert.equal(result.isError, true, JSON.stringify(result.content))
+    assert.match(JSON.stringify(result.content), /schema v6.*schema v10.*migrate/i)
     assert.deepEqual(fs.readFileSync(dbPath), beforeDb)
     assert.deepEqual(fs.readFileSync(path.join(dataDir, '.chatlab-meta.json')), gateAfterRepair)
   } finally {
