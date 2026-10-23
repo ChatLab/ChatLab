@@ -17,6 +17,12 @@ import { formatToolResultAsText } from './format'
 
 const MCP_TOOL_PREFIX = 'chatlab_'
 
+const READ_ONLY_TOOL_ANNOTATIONS = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  openWorldHint: false,
+} as const
+
 const FORMAT_PARAM = z.enum(['text', 'json']).optional().describe('text (default) or json')
 
 /** Tools where JSON is a better default (raw SQL results, schema) */
@@ -30,7 +36,7 @@ function applyFormat(content: string, format: string | undefined, toolName: stri
   return textResult ?? content
 }
 
-function registerTools(server: McpServer, dbManager: McpDatabaseManager, locale?: string): void {
+export function registerTools(server: McpServer, dbManager: McpDatabaseManager, locale?: string): void {
   for (const tool of MCP_TOOL_REGISTRY) {
     const mcpName = `${MCP_TOOL_PREFIX}${tool.name}`
     const { description, inputSchema } = getLocalizedToolMetadata(tool, locale)
@@ -41,20 +47,24 @@ function registerTools(server: McpServer, dbManager: McpDatabaseManager, locale?
         format: FORMAT_PARAM,
       }
 
-      server.tool(mcpName, description, zodShape, async (params) => {
-        const format = params.format as string | undefined
-        const context: SessionListContext = {
-          db: null as any,
-          sessionId: '',
-          listSessionIds: () => dbManager.listSessionIds(),
-          openDb: (id) => dbManager.open(id),
+      server.registerTool(
+        mcpName,
+        { description, inputSchema: zodShape, annotations: READ_ONLY_TOOL_ANNOTATIONS },
+        async (params) => {
+          const format = params.format as string | undefined
+          const context: SessionListContext = {
+            db: null as any,
+            sessionId: '',
+            listSessionIds: () => dbManager.listSessionIds(),
+            openDb: (id) => dbManager.open(id),
+          }
+          const toolParams = { ...params } as Record<string, unknown>
+          delete toolParams.format
+          const result = await tool.handler(toolParams, context)
+          const text = applyFormat(result.content, format, tool.name)
+          return { content: [{ type: 'text' as const, text }] }
         }
-        const toolParams = { ...params } as Record<string, unknown>
-        delete toolParams.format
-        const result = await tool.handler(toolParams, context)
-        const text = applyFormat(result.content, format, tool.name)
-        return { content: [{ type: 'text' as const, text }] }
-      })
+      )
       continue
     }
 
@@ -64,25 +74,29 @@ function registerTools(server: McpServer, dbManager: McpDatabaseManager, locale?
       format: FORMAT_PARAM,
     }
 
-    server.tool(mcpName, description, zodShape, async (params) => {
-      const sessionId = params.session_id as string
-      const format = params.format as string | undefined
-      const db = dbManager.open(sessionId)
-      if (!db) {
-        return {
-          content: [{ type: 'text' as const, text: `Session not found: ${sessionId}` }],
-          isError: true,
+    server.registerTool(
+      mcpName,
+      { description, inputSchema: zodShape, annotations: READ_ONLY_TOOL_ANNOTATIONS },
+      async (params) => {
+        const sessionId = params.session_id as string
+        const format = params.format as string | undefined
+        const db = dbManager.open(sessionId)
+        if (!db) {
+          return {
+            content: [{ type: 'text' as const, text: `Session not found: ${sessionId}` }],
+            isError: true,
+          }
         }
+
+        const toolParams = { ...params } as Record<string, unknown>
+        delete toolParams.session_id
+        delete toolParams.format
+
+        const result = await tool.handler(toolParams, { db, sessionId, dataProvider: new CoreDataProvider(db) })
+        const text = applyFormat(result.content, format, tool.name)
+        return { content: [{ type: 'text' as const, text }] }
       }
-
-      const toolParams = { ...params } as Record<string, unknown>
-      delete toolParams.session_id
-      delete toolParams.format
-
-      const result = await tool.handler(toolParams, { db, sessionId, dataProvider: new CoreDataProvider(db) })
-      const text = applyFormat(result.content, format, tool.name)
-      return { content: [{ type: 'text' as const, text }] }
-    })
+    )
   }
 }
 
