@@ -36,7 +36,10 @@ export interface AssertDataDirCompatibilityOptions {
   env?: Pick<NodeJS.ProcessEnv, 'CHATLAB_ALLOW_INCOMPATIBLE_DATA_DIR'>
 }
 
-type DataDirCompatibilityErrorCode = 'DATA_DIR_REQUIRES_NEWER_RUNTIME' | 'DATA_DIR_COMPATIBILITY_META_INVALID'
+type DataDirCompatibilityErrorCode =
+  | 'DATA_DIR_REQUIRES_NEWER_RUNTIME'
+  | 'DATA_DIR_COMPATIBILITY_META_INVALID'
+  | 'DATA_DIR_COMPATIBILITY_REPAIR_REQUIRED'
 
 export class DataDirCompatibilityError extends Error {
   readonly code: DataDirCompatibilityErrorCode

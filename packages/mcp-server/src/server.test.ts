@@ -9,7 +9,12 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import Database from 'better-sqlite3'
 import { CHAT_DB_TABLES } from '@openchatlab/core'
 import { MCP_TOOL_REGISTRY } from '@openchatlab/tools'
-import { DatabaseManager, NodePathProvider, readDataDirCompatibilityMeta } from '@openchatlab/node-runtime'
+import {
+  DatabaseManager,
+  NodePathProvider,
+  raiseDataDirMinRuntimeVersion,
+  readDataDirCompatibilityMeta,
+} from '@openchatlab/node-runtime'
 import { registerTools } from './server'
 
 test('advertises every ChatLab MCP query tool as read-only', async () => {
@@ -180,11 +185,21 @@ test('segment summaries handle v9 pending schema without migration and preserve 
     currentDb.close()
   }
 
+  const pathProvider = new NodePathProvider(dataDir)
+  // Schema v9 has crossed the compatibility-gate boundary at v6. A writable
+  // runtime must have repaired this metadata before read-only MCP access.
+  raiseDataDirMinRuntimeVersion(pathProvider, {
+    minRuntimeVersion: '0.25.1',
+    dataCompatibilityVersion: 1,
+    reason: 'segment-schema',
+    runtime: { version: '0.37.6', kind: 'desktop' },
+    module: 'test-fixture',
+  })
   const beforeV9 = fs.readFileSync(legacyPath)
   const beforeV10 = fs.readFileSync(currentPath)
-  assert.equal(readDataDirCompatibilityMeta(dataDir), null)
+  const beforeGate = fs.readFileSync(path.join(dataDir, '.chatlab-meta.json'))
 
-  const dbManager = new DatabaseManager(new NodePathProvider(dataDir), {
+  const dbManager = new DatabaseManager(pathProvider, {
     runtime: { version: '0.37.6', kind: 'mcp' },
   })
   t.after(() => dbManager.closeAll())
@@ -204,7 +219,7 @@ test('segment summaries handle v9 pending schema without migration and preserve 
     assert.equal(oldResult.isError, undefined, JSON.stringify(oldResult.content))
     assert.match((oldResult.content as Array<{ text: string }>)[0].text, /No segments with summaries found/)
     assert.deepEqual(fs.readFileSync(legacyPath), beforeV9)
-    assert.equal(readDataDirCompatibilityMeta(dataDir), null)
+    assert.deepEqual(fs.readFileSync(path.join(dataDir, '.chatlab-meta.json')), beforeGate)
 
     const currentResult = await client.callTool({
       name: 'chatlab_get_segment_summaries',
@@ -216,7 +231,7 @@ test('segment summaries handle v9 pending schema without migration and preserve 
     assert.equal(parsed.segments[0].summary, 'Verified summary')
     assert.deepEqual(parsed.segments[0].participants, ['Bob'])
     assert.deepEqual(fs.readFileSync(currentPath), beforeV10)
-    assert.equal(readDataDirCompatibilityMeta(dataDir), null)
+    assert.deepEqual(fs.readFileSync(path.join(dataDir, '.chatlab-meta.json')), beforeGate)
   } finally {
     await client.close()
     await server.close()
@@ -234,5 +249,95 @@ test('segment summaries handle v9 pending schema without migration and preserve 
     )
   } finally {
     verifyLegacy.close()
+  }
+})
+
+test('read-only MCP rejects schema v6 without a repaired compatibility gate', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-mcp-missing-gate-'))
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const dataDir = path.join(root, 'data')
+  const dbDir = path.join(dataDir, 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  const dbPath = path.join(dbDir, 'v6.db')
+  const fixture = new Database(dbPath)
+  try {
+    fixture.exec(`
+      CREATE TABLE meta (
+        name TEXT NOT NULL, platform TEXT NOT NULL, type TEXT NOT NULL,
+        imported_at INTEGER NOT NULL, schema_version INTEGER DEFAULT 6
+      );
+      INSERT INTO meta (name, platform, type, imported_at, schema_version)
+      VALUES ('v6 chat', 'qq', 'group', 1000, 6);
+      CREATE TABLE member (id INTEGER PRIMARY KEY, platform_id TEXT UNIQUE, account_name TEXT);
+      CREATE TABLE message (id INTEGER PRIMARY KEY, sender_id INTEGER, ts INTEGER, type INTEGER, content TEXT);
+    `)
+  } finally {
+    fixture.close()
+  }
+  const beforeDb = fs.readFileSync(dbPath)
+  assert.equal(readDataDirCompatibilityMeta(dataDir), null)
+
+  const pathProvider = new NodePathProvider(dataDir)
+  const manager = new DatabaseManager(pathProvider, { runtime: { version: '0.37.6', kind: 'mcp' } })
+  t.after(() => manager.closeAll())
+  const server = new McpServer({ name: 'chatlab-test', version: '0.37.6' })
+  const client = new Client({ name: 'chatlab-test-client', version: '0.0.0' })
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+  try {
+    registerTools(server, manager)
+    await server.connect(serverTransport)
+    await client.connect(clientTransport)
+
+    for (const [name, args] of [
+      ['chatlab_list_sessions', {}],
+      ['chatlab_get_session_info', { session_id: 'v6' }],
+      ['chatlab_get_schema', { session_id: 'v6' }],
+      ['chatlab_execute_sql', { session_id: 'v6', sql: 'SELECT 1' }],
+    ] as const) {
+      const result = await client.callTool({ name, arguments: { ...args, format: 'json' } })
+      assert.equal(result.isError, true, `${name} should reject unrepaired metadata`)
+      assert.match(JSON.stringify(result.content), /current writable ChatLab runtime/i)
+      assert.equal(readDataDirCompatibilityMeta(dataDir), null)
+      assert.deepEqual(fs.readFileSync(dbPath), beforeDb, `${name} changed the database`)
+    }
+
+    // Merely having metadata is insufficient: the marker must include the
+    // migration's minimum version, compatibility level and reason.
+    raiseDataDirMinRuntimeVersion(pathProvider, {
+      minRuntimeVersion: '0.24.0',
+      dataCompatibilityVersion: 0,
+      reason: 'unrelated',
+      runtime: { version: '0.37.6', kind: 'desktop' },
+      module: 'test-fixture',
+    })
+    const inadequateGate = fs.readFileSync(path.join(dataDir, '.chatlab-meta.json'))
+    const inadequateResult = await client.callTool({
+      name: 'chatlab_get_schema',
+      arguments: { session_id: 'v6', format: 'json' },
+    })
+    assert.equal(inadequateResult.isError, true)
+    assert.match(JSON.stringify(inadequateResult.content), /current writable ChatLab runtime/i)
+    assert.deepEqual(fs.readFileSync(path.join(dataDir, '.chatlab-meta.json')), inadequateGate)
+    assert.deepEqual(fs.readFileSync(dbPath), beforeDb)
+
+    // The writable runtime is responsible for repairing this marker separately.
+    raiseDataDirMinRuntimeVersion(pathProvider, {
+      minRuntimeVersion: '0.25.1',
+      dataCompatibilityVersion: 1,
+      reason: 'segment-schema',
+      runtime: { version: '0.37.6', kind: 'desktop' },
+      module: 'test-fixture',
+    })
+    const gateAfterRepair = fs.readFileSync(path.join(dataDir, '.chatlab-meta.json'))
+    const result = await client.callTool({
+      name: 'chatlab_get_session_info',
+      arguments: { session_id: 'v6', format: 'json' },
+    })
+    assert.equal(result.isError, undefined, JSON.stringify(result.content))
+    assert.deepEqual(fs.readFileSync(dbPath), beforeDb)
+    assert.deepEqual(fs.readFileSync(path.join(dataDir, '.chatlab-meta.json')), gateAfterRepair)
+  } finally {
+    await client.close()
+    await server.close()
   }
 })

@@ -19,7 +19,13 @@ import {
 } from '@openchatlab/core'
 import { openBetterSqliteDatabase } from './better-sqlite3-adapter'
 import { deleteSessionCache } from './cache/session-cache'
-import { assertDataDirCompatible, type RuntimeIdentity } from './data-dir-compat'
+import {
+  assertDataDirCompatible,
+  DataDirCompatibilityError,
+  isRuntimeVersionAtLeast,
+  readDataDirCompatibilityMeta,
+  type RuntimeIdentity,
+} from './data-dir-compat'
 import { CHAT_DB_COMPATIBILITY_RAISES, getChatDbMigrations, raiseChatDbCompatibilityGate } from './migrations'
 import { getContactsFactsCacheDir } from './services/contacts/paths'
 import {
@@ -133,7 +139,15 @@ export class DatabaseManager {
   openReadonly(sessionId: string): DatabaseAdapter | null {
     this.assertCompatible()
     if (!fs.existsSync(this.getDbPath(sessionId))) return null
-    return this.openRawSessionDatabase(sessionId, { readonly: true })
+
+    const db = this.openRawSessionDatabase(sessionId, { readonly: true })
+    try {
+      if (isChatSessionDb(db)) this.assertReadonlyCompatibilityGate(getSchemaVersion(db))
+      return db
+    } catch (error) {
+      db.close()
+      throw error
+    }
   }
 
   /**
@@ -220,7 +234,8 @@ export class DatabaseManager {
 
     const dbDir = this.pathProvider.getDatabaseDir()
     return listDatabaseCandidateIds(dbDir).filter((sessionId) => {
-      const db = this.openRawSessionDatabase(sessionId, { readonly: true })
+      const db = this.openReadonly(sessionId)
+      if (!db) return false
       try {
         return isChatSessionDb(db)
       } finally {
@@ -304,6 +319,38 @@ export class DatabaseManager {
   raiseCurrentChatDbCompatibilityGate(): void {
     if (!this.runtime) return
     raiseChatDbCompatibilityGate(this.pathProvider, this.runtime)
+  }
+
+  /**
+   * A read-only MCP request cannot repair missing compatibility metadata. Reject
+   * affected schemas until a writable runtime has safely restored the gate.
+   */
+  private assertReadonlyCompatibilityGate(schemaVersion: number): void {
+    if (!this.runtime || !shouldRepairCompatibilityGate(schemaVersion)) return
+
+    const userDataDir = this.pathProvider.getUserDataDir()
+    const meta = readDataDirCompatibilityMeta(userDataDir)
+    const missingGate = CHAT_DB_COMPATIBILITY_RAISES.find(
+      ({ migrationVersion, minRuntimeVersion, dataCompatibilityVersion, reason }) =>
+        schemaVersion >= migrationVersion &&
+        (!meta ||
+          !isRuntimeVersionAtLeast(meta.minRuntimeVersion, minRuntimeVersion) ||
+          meta.dataCompatibilityVersion < dataCompatibilityVersion ||
+          !meta.reasons.includes(reason))
+    )
+    if (!missingGate) return
+
+    throw new DataDirCompatibilityError(
+      'DATA_DIR_COMPATIBILITY_REPAIR_REQUIRED',
+      `ChatLab session schema v${schemaVersion} requires an updated data-directory compatibility marker. ` +
+        'Open the data directory with the current writable ChatLab runtime to repair it before using read-only MCP tools.',
+      {
+        userDataDir,
+        metaPath: path.join(userDataDir, '.chatlab-meta.json'),
+        currentVersion: this.runtime.version,
+        minRuntimeVersion: missingGate.minRuntimeVersion,
+      }
+    )
   }
 
   private assertCompatible(): void {
