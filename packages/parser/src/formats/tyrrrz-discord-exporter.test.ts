@@ -48,7 +48,7 @@ for (const { channelType, guildName, expectedType } of cases) {
     assert.equal(result.meta.platform, 'discord')
     const isPrivate = expectedType === ChatType.PRIVATE
     assert.equal(result.meta.name, isPrivate ? 'Alice' : `${guildName} - Alice`)
-    assert.equal(result.meta.groupId, isPrivate ? undefined : 'channel-1')
+    assert.equal(result.meta.groupId, 'channel-1')
     assert.equal(result.meta.groupAvatar, isPrivate ? undefined : 'https://example.com/icon.png')
     assert.deepEqual(
       result.members.map((member) => member.platformId),

@@ -307,7 +307,8 @@ async function* parseDiscordExporter(options: ParseOptions): AsyncGenerator<Pars
     name: chatName,
     platform: KNOWN_PLATFORMS.DISCORD,
     type: isPrivate ? ChatType.PRIVATE : ChatType.GROUP,
-    groupId: isPrivate ? undefined : channel?.id,
+    // Keep the channel ID for stable auto-import matching, including direct messages.
+    groupId: channel?.id,
     groupAvatar: isPrivate ? undefined : guild?.iconUrl,
   }
 
