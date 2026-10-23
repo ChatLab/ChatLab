@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import Database from 'better-sqlite3'
-import type { PathProvider } from '@openchatlab/core'
+import type { DatabaseAdapter, PathProvider } from '@openchatlab/core'
 import { CHAT_DB_SCHEMA, CURRENT_SCHEMA_VERSION, getSessionInfo } from '@openchatlab/core'
 import { DataDirCompatibilityError, readDataDirCompatibilityMeta } from './data-dir-compat'
 import { DatabaseManager, listDatabaseCandidateIds } from './database-manager'
@@ -1475,5 +1475,116 @@ test('MCP schema preflight rejects invalid SQLite version values without affecti
       manager.closeAll()
       fs.rmSync(root, { recursive: true, force: true })
     }
+  }
+})
+
+test('MCP live WAL reads use one committed SQLite snapshot across multiple SELECTs', () => {
+  const root = makeTempDir()
+  const provider = createPathProvider(root)
+  fs.mkdirSync(provider.getDatabaseDir(), { recursive: true })
+  const dbPath = path.join(provider.getDatabaseDir(), 'concurrent.db')
+  const writer = new Database(dbPath, { nativeBinding })
+  const manager = new DatabaseManager(provider, {
+    nativeBinding,
+    runtime: { version: '0.37.6', kind: 'mcp' },
+  })
+  try {
+    writer.pragma('journal_mode=WAL')
+    writer.exec(CHAT_DB_SCHEMA)
+    writer.exec(`
+      INSERT INTO meta(name, platform, type, imported_at) VALUES('Concurrent', 'qq', 'group', 1000);
+      INSERT INTO member(platform_id, account_name) VALUES('p1', 'Alice');
+      INSERT INTO message(sender_id, ts, type, content) VALUES(1, 1000, 0, 'committed earlier');
+    `)
+    manager.raiseCurrentChatDbCompatibilityGate()
+    const markerPath = path.join(provider.getUserDataDir(), '.chatlab-meta.json')
+    const beforeMarker = fs.readFileSync(markerPath)
+    const count = (db: DatabaseAdapter) => (db.prepare('SELECT count(*) as n FROM message').get() as { n: number }).n
+    const first = manager.openMcpReadonly('concurrent')
+    assert.ok(first)
+    try {
+      assert.equal(first.readonly, true)
+      assert.equal(count(first), 1)
+      writer.exec("INSERT INTO message(sender_id, ts, type, content) VALUES(1, 1001, 0, 'committed later')")
+      // The version check and both queries must see the same transaction view.
+      assert.equal(count(first), 1)
+      const second = manager.openMcpReadonly('concurrent')
+      assert.ok(second)
+      try {
+        assert.equal(count(second), 2)
+      } finally {
+        second.close()
+      }
+      assert.equal(count(first), 1)
+    } finally {
+      first.close()
+    }
+    assert.equal((writer.pragma('wal_checkpoint(TRUNCATE)') as Array<{ busy: number }>)[0].busy, 0)
+    assert.deepEqual(fs.readFileSync(markerPath), beforeMarker)
+  } finally {
+    manager.closeAll()
+    writer.close()
+  }
+})
+
+test('MCP does not return uncommitted changes from a rollback-journal writer', () => {
+  const root = makeTempDir()
+  const provider = createPathProvider(root)
+  fs.mkdirSync(provider.getDatabaseDir(), { recursive: true })
+  const dbPath = path.join(provider.getDatabaseDir(), 'rollback.db')
+  const writer = new Database(dbPath, { nativeBinding })
+  const manager = new DatabaseManager(provider, {
+    nativeBinding,
+    runtime: { version: '0.37.6', kind: 'mcp' },
+  })
+  try {
+    writer.exec(CHAT_DB_SCHEMA)
+    writer.exec(`
+      INSERT INTO meta(name, platform, type, imported_at) VALUES('Rollback', 'qq', 'group', 1000);
+      INSERT INTO member(platform_id, account_name) VALUES('p1', 'Alice');
+    `)
+    writer.pragma('journal_mode=DELETE')
+    writer.pragma('cache_size=10')
+    writer.pragma('cache_spill=ON')
+    const insert = writer.prepare('INSERT INTO message(sender_id, ts, type, content) VALUES(1, ?, 0, ?)')
+    writer.transaction(() => {
+      for (let i = 0; i < 90; i++) insert.run(i, 'committed '.padEnd(1600, 'a'))
+    })()
+    manager.raiseCurrentChatDbCompatibilityGate()
+    writer.exec('BEGIN IMMEDIATE')
+    try {
+      writer.exec("UPDATE message SET content = 'UNCOMMITTED ' || content")
+      assert.equal(fs.existsSync(dbPath + '-journal'), true)
+      try {
+        const reader = manager.openMcpReadonly('rollback')
+        if (reader) {
+          try {
+            const uncommitted = reader
+              .prepare("SELECT count(*) AS n FROM message WHERE content LIKE 'UNCOMMITTED%'")
+              .get() as { n: number }
+            assert.equal(uncommitted.n, 0, 'a live MCP reader must never expose uncommitted rollback pages')
+          } finally {
+            reader.close()
+          }
+        }
+      } catch (error) {
+        assert.match(String(error), /BUSY|locked/i, 'only a SQLite lock error is acceptable')
+      }
+    } finally {
+      writer.exec('ROLLBACK')
+    }
+    const clean = manager.openMcpReadonly('rollback')
+    assert.ok(clean)
+    try {
+      assert.equal(
+        (clean.prepare("SELECT count(*) AS n FROM message WHERE content LIKE 'UNCOMMITTED%'").get() as { n: number }).n,
+        0
+      )
+    } finally {
+      clean.close()
+    }
+  } finally {
+    manager.closeAll()
+    writer.close()
   }
 })

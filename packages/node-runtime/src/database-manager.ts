@@ -64,6 +64,14 @@ export function listDatabaseCandidateIds(databaseDir: string): string[] {
     .map((fileName) => fileName.slice(0, -3))
 }
 
+/** A non-ChatLab SQLite file may be skipped during discovery, not opened directly. */
+class NotChatLabSessionError extends Error {
+  constructor(sessionId: string) {
+    super(`Not a ChatLab session database: ${sessionId}`)
+    this.name = 'NotChatLabSessionError'
+  }
+}
+
 export class DatabaseManager {
   private cache = new Map<string, DatabaseAdapter>()
   private nativeBinding?: string
@@ -144,41 +152,89 @@ export class DatabaseManager {
   }
 
   /**
-   * MCP-only strict read access. Never migrate or repair data. Older schema
-   * versions require an explicit upgrade through a writable ChatLab runtime.
+   * Validate MCP session paths without tightening the shared CLI/desktop APIs.
+   * Reject out-of-scope files, directory traversal, symlinks and non-files.
+   */
+  private resolveMcpSessionPath(sessionId: string): string | null {
+    if (
+      !sessionId ||
+      sessionId === '.' ||
+      sessionId === '..' ||
+      /[\\/:]/.test(sessionId) ||
+      [...sessionId].some((character) => character.charCodeAt(0) < 32) ||
+      /[. ]$/.test(sessionId) ||
+      path.isAbsolute(sessionId) ||
+      path.win32.isAbsolute(sessionId)
+    ) {
+      throw new Error(`Invalid MCP session ID: ${JSON.stringify(sessionId)}`)
+    }
+
+    const databaseDir = this.pathProvider.getDatabaseDir()
+    const dbPath = path.join(databaseDir, `${sessionId}.db`)
+    let entry: fs.Stats
+    try {
+      entry = fs.lstatSync(dbPath)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+      throw error
+    }
+    if (!entry.isFile() || entry.isSymbolicLink()) {
+      throw new Error(`Invalid MCP session database path: ${sessionId}`)
+    }
+
+    // A configured database root may itself be a symlink. Resolve both sides
+    // and verify the real target is the expected direct child of that root.
+    const root = fs.realpathSync(databaseDir)
+    const actual = fs.realpathSync(dbPath)
+    if (path.relative(root, actual) !== `${sessionId}.db`) {
+      throw new Error(`MCP session database is outside the configured directory: ${sessionId}`)
+    }
+    return dbPath
+  }
+
+  /**
+   * MCP-only live SQLite read. No migrations or marker updates, and no
+   * full-file snapshot: the native read transaction isolates committed data.
+   * Normal WAL coordination may create/update -wal or -shm sidecars.
    */
   openMcpReadonly(sessionId: string): DatabaseAdapter | null {
-    const db = this.openReadonly(sessionId)
-    if (!db) return null
+    this.assertCompatible()
+    const dbPath = this.resolveMcpSessionPath(sessionId)
+    if (!dbPath) return null
+    const db = openBetterSqliteDatabase(dbPath, { readonly: true, nativeBinding: this.nativeBinding })
 
     try {
-      if (isChatSessionDb(db)) {
-        const schemaVersion = getSchemaVersion(db)
-        // SQLite INTEGER-affinity columns may actually contain TEXT, REAL or
-        // BLOB values. A type assertion cannot protect numeric comparisons
-        // from coercing invalid values (e.g. nonnumeric text to NaN).
-        if (!Number.isSafeInteger(schemaVersion) || schemaVersion < 0) {
-          throw new Error(
-            `ChatLab session ${sessionId} has an invalid schema version. ` +
-              'Cannot safely serve this database through read-only MCP tools.'
-          )
-        }
-        // The runtime cannot understand a future schema or safely repair its
-        // compatibility metadata; report the version mismatch before the gate.
-        if (schemaVersion > CURRENT_SCHEMA_VERSION) {
-          throw new Error(
-            `ChatLab session ${sessionId} uses schema v${schemaVersion}, but read-only MCP tools require ` +
-              `schema v${CURRENT_SCHEMA_VERSION}. Upgrade the ChatLab runtime to one that supports this newer schema.`
-          )
-        }
+      // BEGIN is deferred; the first schema query fixes the SQLite read view.
+      // Closing this one-request connection releases the read transaction.
+      db.exec('BEGIN')
+      if (!isChatSessionDb(db)) {
+        throw new NotChatLabSessionError(sessionId)
+      }
+      const schemaVersion = getSchemaVersion(db)
+      // SQLite INTEGER-affinity columns may actually contain TEXT, REAL or
+      // BLOB values. A type assertion cannot protect numeric comparisons
+      // from coercing invalid values (e.g. nonnumeric text to NaN).
+      if (!Number.isSafeInteger(schemaVersion) || schemaVersion < 0) {
+        throw new Error(
+          `ChatLab session ${sessionId} has an invalid schema version. ` +
+            'Cannot safely serve this database through read-only MCP tools.'
+        )
+      }
+      // The runtime cannot understand a future schema or safely repair its
+      // compatibility metadata; report the version mismatch before the gate.
+      if (schemaVersion > CURRENT_SCHEMA_VERSION) {
+        throw new Error(
+          `ChatLab session ${sessionId} uses schema v${schemaVersion}, but read-only MCP tools require ` +
+            `schema v${CURRENT_SCHEMA_VERSION}. Upgrade the ChatLab runtime to one that supports this newer schema.`
+        )
+      }
 
-        this.assertReadonlyCompatibilityGate(schemaVersion)
-        if (schemaVersion < CURRENT_SCHEMA_VERSION) {
-          throw new Error(
-            `ChatLab session ${sessionId} uses schema v${schemaVersion}, but read-only MCP tools require ` +
-              `schema v${CURRENT_SCHEMA_VERSION}. Open the session with the current writable ChatLab runtime to migrate it first.`
-          )
-        }
+      this.assertReadonlyCompatibilityGate(schemaVersion)
+      if (schemaVersion < CURRENT_SCHEMA_VERSION) {
+        throw new Error(
+          `ChatLab session ${sessionId} uses schema v${schemaVersion}, but read-only MCP tools require ` +
+            `schema v${CURRENT_SCHEMA_VERSION}. Open the session with the current writable ChatLab runtime to migrate it first.`
+        )
       }
       return db
     } catch (error) {
@@ -287,10 +343,18 @@ export class DatabaseManager {
     this.assertCompatible()
 
     return listDatabaseCandidateIds(this.pathProvider.getDatabaseDir()).filter((sessionId) => {
-      const db = this.openMcpReadonly(sessionId)
+      let db: DatabaseAdapter | null
+      try {
+        db = this.openMcpReadonly(sessionId)
+      } catch (error) {
+        // Discovery may ignore proven non-ChatLab databases, but must not
+        // silently swallow damaged databases or schema/gate/permission errors.
+        if (error instanceof NotChatLabSessionError) return false
+        throw error
+      }
       if (!db) return false
       try {
-        return isChatSessionDb(db)
+        return true // openMcpReadonly has already validated its type and schema.
       } finally {
         db.close()
       }

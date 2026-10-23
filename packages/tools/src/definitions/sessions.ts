@@ -22,6 +22,8 @@ const inputSchema: JsonSchema = {
 export interface SessionListContext extends ToolExecutionContext {
   listSessionIds: () => string[]
   openDb: (sessionId: string) => DatabaseAdapter | null
+  /** Optional lifecycle hook for uncached per-session connections (e.g. MCP read transactions). */
+  closeDb?: (db: DatabaseAdapter) => void
 }
 
 function handler(_params: Record<string, unknown>, context: SessionListContext): ToolResult {
@@ -32,11 +34,15 @@ function handler(_params: Record<string, unknown>, context: SessionListContext):
     .map((id) => {
       const db = context.openDb(id)
       if (!db) return null
-      const meta = getSessionMeta(db)
-      if (!meta) return null
-      if (keyword && !meta.name.toLowerCase().includes(keyword)) return null
-      const overview = getSessionOverview(db)
-      return { id, ...meta, ...overview }
+      try {
+        const meta = getSessionMeta(db)
+        if (!meta) return null
+        if (keyword && !meta.name.toLowerCase().includes(keyword)) return null
+        const overview = getSessionOverview(db)
+        return { id, ...meta, ...overview }
+      } finally {
+        context.closeDb?.(db)
+      }
     })
     .filter(Boolean)
 

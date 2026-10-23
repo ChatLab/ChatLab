@@ -51,7 +51,9 @@ If you install the package globally, you can also use:
 
 If you configured a custom ChatLab data directory in `~/.chatlab/config.toml`, the MCP server will use that configuration automatically.
 
-The server is read-only. It opens existing ChatLab session databases and does not modify chat data.
+MCP tools use native read-only SQLite connections and short read transactions. They do not modify logical chat records, database schema, or the data-directory compatibility marker, and they never automatically migrate sessions. A session with an older schema must first be upgraded explicitly by a writable ChatLab runtime.
+
+**Live SQLite caveat:** WAL-mode reads may create/update `-wal` or `-shm` coordination files beside the database. This mode does **not** guarantee an unchanged filesystem directory, nor universal support for read-only mounts or databases requiring recovery. MCP query tools declare `readOnlyHint: true` and `destructiveHint: false` because they do not intentionally change _logical chat data_, perform migrations, or update compatibility metadata. Whether SQLite's auxiliary WAL/SHM coordination is compatible with the MCP annotation's broader "does not modify its environment" wording is a product/contract question for the upstream maintainers; the annotation is not a filesystem-sandbox guarantee. Queries do not create full temporary copies of chat databases.
 
 ## Available Capabilities
 

@@ -6,7 +6,7 @@ import test from 'node:test'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { CURRENT_SCHEMA_VERSION } from '@openchatlab/core'
+import { CHAT_DB_TABLES, CURRENT_SCHEMA_VERSION } from '@openchatlab/core'
 import { DatabaseManager, NodePathProvider, readDataDirCompatibilityMeta } from '@openchatlab/node-runtime'
 import { startMcpServer } from './server'
 import { openTestSqliteDatabase } from '../../../tests/helpers/sqlite.mts'
@@ -214,6 +214,72 @@ test('MCP tools and resources refuse invalid SQLite schema versions before SQL d
     }
     assert.deepEqual(fs.readFileSync(dbPath), originalDb)
     assert.equal(fs.existsSync(markerPath), false)
+  } finally {
+    await client.close()
+  }
+})
+
+test('real MCP tools and resources read checkpointed WAL without logical data/marker mutation', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-mcp-wal-live-'))
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const dataDir = path.join(root, 'data')
+  const dbDir = path.join(dataDir, 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  const dbPath = path.join(dbDir, 'wal.db')
+  const fixture = openTestSqliteDatabase(dbPath)
+  try {
+    fixture.pragma('journal_mode = WAL')
+    fixture.exec(CHAT_DB_TABLES)
+    fixture.exec(`
+      INSERT INTO meta (name, platform, type, imported_at) VALUES ('WAL live', 'qq', 'group', 1000);
+      INSERT INTO member (platform_id, account_name) VALUES ('alice', 'Alice');
+      INSERT INTO message (sender_id, ts, type, content) VALUES (1, 1000, 0, 'WAL query works');
+    `)
+  } finally {
+    fixture.close()
+  }
+  const dbManager = new DatabaseManager(new NodePathProvider(dataDir), {
+    runtime: { version: '0.37.6', kind: 'mcp' },
+  })
+  t.after(() => dbManager.closeAll())
+  dbManager.raiseCurrentChatDbCompatibilityGate()
+  const original = fs.readFileSync(dbPath)
+  const metaPath = path.join(dataDir, '.chatlab-meta.json')
+  const marker = fs.readFileSync(metaPath)
+
+  const client = new Client({ name: 'wal-live-test', version: '1.0.0' })
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+  const connect = McpServer.prototype.connect
+  t.mock.method(McpServer.prototype, 'connect', function (this: McpServer) {
+    t.after(() => this.close())
+    return connect.call(this, serverTransport)
+  })
+  await startMcpServer({ version: '0.37.6', dbManager })
+  await client.connect(clientTransport)
+  try {
+    for (const [name, args] of [
+      ['chatlab_list_sessions', {}],
+      ['chatlab_get_session_info', { session_id: 'wal' }],
+      ['chatlab_get_recent_messages', { session_id: 'wal' }],
+      ['chatlab_execute_sql', { session_id: 'wal', sql: 'SELECT content FROM message' }],
+    ] as const) {
+      const result = await client.callTool({ name, arguments: { ...args, format: 'json' } })
+      assert.equal(result.isError, undefined, `${name}: ${JSON.stringify(result.content)}`)
+    }
+    for (const uri of ['chatlab://sessions', 'chatlab://sessions/wal/meta', 'chatlab://sessions/wal/schema']) {
+      const resource = await client.readResource({ uri })
+      assert.ok(resource.contents.length > 0, uri)
+    }
+    // Native readonly WAL readers may create coordination sidecars, but may
+    // not modify logical chat records, DB schema or compatibility metadata.
+    assert.deepEqual(fs.readFileSync(dbPath), original)
+    assert.deepEqual(fs.readFileSync(metaPath), marker)
+    const readonlyDb = openTestSqliteDatabase(dbPath, { readonly: true })
+    try {
+      assert.deepEqual(readonlyDb.prepare('SELECT content FROM message').all(), [{ content: 'WAL query works' }])
+    } finally {
+      readonlyDb.close()
+    }
   } finally {
     await client.close()
   }

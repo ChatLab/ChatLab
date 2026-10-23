@@ -9,15 +9,19 @@ import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mc
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { getSessionMeta, getSessionOverview, getDatabaseSchema } from '@openchatlab/core'
-import type { DatabaseAdapter } from '@openchatlab/core'
 import { MCP_TOOL_REGISTRY, CoreDataProvider, getLocalizedToolMetadata } from '@openchatlab/tools'
 import type { SessionListContext } from '@openchatlab/tools/src/definitions/sessions'
 import type { McpDatabaseManager, McpServerOptions } from './types'
 import { jsonSchemaToZod } from './schema'
 import { formatToolResultAsText } from './format'
+import { assertMcpSqlReadOnly } from './sql-guard'
 
 const MCP_TOOL_PREFIX = 'chatlab_'
 
+// These tools only read logical chat data, never migrate sessions or modify
+// the compatibility marker. SQLite's ordinary WAL/SHM coordination can still
+// change auxiliary filesystem files; that contract distinction is documented
+// explicitly and left for upstream maintainer approval.
 const READ_ONLY_TOOL_ANNOTATIONS = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -53,28 +57,19 @@ export function registerTools(server: McpServer, dbManager: McpDatabaseManager, 
         { description, inputSchema: zodShape, annotations: READ_ONLY_TOOL_ANNOTATIONS },
         async (params) => {
           const format = params.format as string | undefined
-          // The shared list handler opens multiple databases; close every connection
-          // after it returns, including when a query throws.
-          const openedDbs: DatabaseAdapter[] = []
-          try {
-            const context: SessionListContext = {
-              db: null as any,
-              sessionId: '',
-              listSessionIds: () => dbManager.listSessionIdsMcpReadonly(),
-              openDb: (id) => {
-                const db = dbManager.openMcpReadonly(id)
-                if (db) openedDbs.push(db)
-                return db
-              },
-            }
-            const toolParams = { ...params } as Record<string, unknown>
-            delete toolParams.format
-            const result = await tool.handler(toolParams, context)
-            const text = applyFormat(result.content, format, tool.name)
-            return { content: [{ type: 'text' as const, text }] }
-          } finally {
-            for (const db of openedDbs) db.close()
+          const context: SessionListContext = {
+            db: null as any,
+            sessionId: '',
+            listSessionIds: () => dbManager.listSessionIdsMcpReadonly(),
+            openDb: (id) => dbManager.openMcpReadonly(id),
+            // Close each independent session transaction before opening the next.
+            closeDb: (db) => db.close(),
           }
+          const toolParams = { ...params } as Record<string, unknown>
+          delete toolParams.format
+          const result = await tool.handler(toolParams, context)
+          const text = applyFormat(result.content, format, tool.name)
+          return { content: [{ type: 'text' as const, text }] }
         }
       )
       continue
@@ -92,6 +87,12 @@ export function registerTools(server: McpServer, dbManager: McpDatabaseManager, 
       async (params) => {
         const sessionId = params.session_id as string
         const format = params.format as string | undefined
+        // Reject SQL that can have prepare-time side effects before even opening
+        // the SQLite database, which might itself create WAL/SHM sidecars.
+        const rawSql = (params as Record<string, unknown>).sql
+        if ((tool.name === 'execute_sql' || tool.name === 'render_chart') && typeof rawSql === 'string') {
+          assertMcpSqlReadOnly(rawSql)
+        }
         const db = dbManager.openMcpReadonly(sessionId)
         if (!db) {
           return {
@@ -104,7 +105,6 @@ export function registerTools(server: McpServer, dbManager: McpDatabaseManager, 
           const toolParams = { ...params } as Record<string, unknown>
           delete toolParams.session_id
           delete toolParams.format
-
           const result = await tool.handler(toolParams, { db, sessionId, dataProvider: new CoreDataProvider(db) })
           const text = applyFormat(result.content, format, tool.name)
           return { content: [{ type: 'text' as const, text }] }

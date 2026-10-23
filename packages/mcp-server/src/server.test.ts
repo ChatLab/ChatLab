@@ -17,7 +17,7 @@ import {
 } from '@openchatlab/node-runtime'
 import { registerTools } from './server'
 
-test('advertises every ChatLab MCP query tool as read-only', async () => {
+test('advertises logical ChatLab MCP queries as read-only', async () => {
   const server = new McpServer({ name: 'chatlab-test', version: '0.0.0' })
   const client = new Client({ name: 'chatlab-test-client', version: '0.0.0' })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
@@ -43,6 +43,36 @@ test('advertises every ChatLab MCP query tool as read-only', async () => {
         tool.name
       )
     }
+  } finally {
+    await client.close()
+    await server.close()
+  }
+})
+
+test('rejects unsafe raw MCP SQL before opening a database', async () => {
+  const server = new McpServer({ name: 'chatlab-sql-precheck', version: '0.0.0' })
+  const client = new Client({ name: 'chatlab-sql-precheck-client', version: '0.0.0' })
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+  let databaseOpenCalls = 0
+
+  try {
+    registerTools(server, {
+      listSessionIdsMcpReadonly: () => [],
+      openMcpReadonly: () => {
+        databaseOpenCalls++
+        throw new Error('Unsafe SQL should never open a database')
+      },
+    })
+    await server.connect(serverTransport)
+    await client.connect(clientTransport)
+
+    const result = await client.callTool({
+      name: 'chatlab_execute_sql',
+      arguments: { session_id: 'missing', sql: "PRAGMA temp_store_directory='/tmp'" },
+    })
+    assert.equal(result.isError, true)
+    assert.match(JSON.stringify(result.content), /Only SELECT or WITH queries/i)
+    assert.equal(databaseOpenCalls, 0)
   } finally {
     await client.close()
     await server.close()
