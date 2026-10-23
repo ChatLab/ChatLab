@@ -299,19 +299,20 @@ async function* parseDiscordExporter(options: ParseOptions): AsyncGenerator<Pars
     onLog?.('error', `解析头部信息失败: ${e}`)
   }
 
-  // 构建 meta
-  const chatName = guild && channel ? `${guild.name} - ${channel.name}` : channel?.name || '未知频道'
+  // DirectGroupTextChat also belongs to "Direct Messages", but remains a group chat.
+  const isPrivate = channel?.type === 'DirectTextChat'
+  const chatName = !isPrivate && guild && channel ? `${guild.name} - ${channel.name}` : channel?.name || '未知频道'
 
   const meta: ParsedMeta = {
     name: chatName,
     platform: KNOWN_PLATFORMS.DISCORD,
-    type: ChatType.GROUP, // Discord 频道都是群聊
-    groupId: channel?.id,
-    groupAvatar: guild?.iconUrl,
+    type: isPrivate ? ChatType.PRIVATE : ChatType.GROUP,
+    groupId: isPrivate ? undefined : channel?.id,
+    groupAvatar: isPrivate ? undefined : guild?.iconUrl,
   }
 
   yield { type: 'meta', data: meta }
-  onLog?.('info', `群聊名称: ${chatName}`)
+  onLog?.('info', `Parsed Discord conversation: type=${meta.type}`)
 
   // 收集成员和消息
   const memberMap = new Map<string, ParsedMember>()
