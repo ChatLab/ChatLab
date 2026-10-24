@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { CHAT_DB_SCHEMA } from '@openchatlab/core'
+import { parseFileSync } from '@openchatlab/parser'
 import { MessageType, type ParsedMessage } from '@openchatlab/shared-types'
 import { openBetterSqliteDatabase } from '../better-sqlite3-adapter'
 import { resolveAutoImportTarget, resolveAutoImportTargetPlan, type AutoImportMatcherDeps } from './auto-import-matcher'
@@ -184,6 +185,69 @@ test('matches a unique group session by stable group id', async (t) => {
       matchedBy: 'stable-id',
     }
   )
+})
+
+test('reimports short Discord DMs and appends non-overlapping exports to the same session', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+  const sourcePath = path.join(tempDir, 'discord.json')
+  const writeExport = (id: number) =>
+    fs.writeFileSync(
+      sourcePath,
+      JSON.stringify({
+        guild: { id: '0', name: 'Direct Messages' },
+        channel: { id: 'dm-channel-1', type: 'DirectTextChat', name: 'Alice' },
+        messages: [
+          {
+            id: String(id),
+            type: 'Default',
+            timestamp: `2026-01-01T00:00:0${id}Z`,
+            content: `Message ${id}`,
+            author: { id: 'alice', name: 'Alice', discriminator: '0000', isBot: false, roles: [] },
+            attachments: [],
+            embeds: [],
+            stickers: [],
+          },
+        ],
+      }),
+      'utf8'
+    )
+
+  writeExport(1)
+  const parsed = await parseFileSync(sourcePath)
+  const dbPath = path.join(tempDir, 'existing.db')
+  seedSession(dbPath, parsed.meta, parsed.members, parsed.messages)
+
+  for (const id of [1, 2]) {
+    writeExport(id)
+    const result = await autoImportFile(sourcePath, {
+      ...createDeps(tempDir, ['existing']),
+      sessionExists: (sessionId) => sessionId === 'existing',
+      createSession: async () => {
+        throw new Error('must not create a duplicate Discord DM')
+      },
+      appendSession: (sessionId, filePath) =>
+        incrementalImport(sessionId, filePath, {
+          openDatabase: (_sessionId, readonly = false) => openBetterSqliteDatabase(dbPath, { readonly, nativeBinding }),
+          onProgress: () => {},
+        }),
+    })
+    assert.equal(result.success, true)
+    assert.equal(result.sessionId, 'existing')
+    assert.equal(result.importMode, 'incremental')
+    assert.equal(result.matchedBy, 'stable-id')
+    assert.equal(result.newMessageCount, id === 1 ? 0 : 1)
+    assert.equal(result.duplicateCount, id === 1 ? 1 : 0)
+  }
+  const db = openBetterSqliteDatabase(dbPath, { readonly: true, nativeBinding })
+  try {
+    assert.deepEqual(db.prepare('SELECT platform_message_id FROM message ORDER BY ts').all(), [
+      { platform_message_id: '1' },
+      { platform_message_id: '2' },
+    ])
+  } finally {
+    db.close()
+  }
 })
 
 test('matches a unique private session by stable owner and participant ids', async (t) => {
