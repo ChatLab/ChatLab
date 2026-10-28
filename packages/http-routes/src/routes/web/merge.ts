@@ -20,6 +20,7 @@ import {
   TempDbReader,
   TempDbWriter,
   createChatLabTempDir,
+  appLogger,
 } from '@openchatlab/node-runtime'
 import type { MergerDataSource } from '@openchatlab/node-runtime'
 import { sessionNotFound } from '../../errors'
@@ -33,7 +34,7 @@ function ensureDb(ctx: MergeRoutesContext, sessionId: string) {
 }
 
 export function registerMergeRoutes(server: FastifyInstance, ctx: MergeRoutesContext): void {
-  const { dbManager, mergeSessionCache: mergeCache, streamImport } = ctx
+  const { dbManager, mergeSessionCache: mergeCache, streamImport, onMergedSessionImported } = ctx
   if (!mergeCache) return
 
   // ── parse (dual-mode) ──────────────────────────────────────────────
@@ -150,11 +151,13 @@ export function registerMergeRoutes(server: FastifyInstance, ctx: MergeRoutesCon
     const readers: TempDbReader[] = []
     try {
       const dataSources: Array<{ source: MergerDataSource; filename: string }> = []
+      const sourceSessionIds: string[] = []
       for (const handle of handles) {
         const entry = mergeCache.openReader(handle)
         if (!entry) return reply.code(404).send({ error: `Handle not found: ${handle}` })
         readers.push(entry.reader)
         dataSources.push({ source: entry.reader.toDataSource(), filename: entry.filename })
+        if (entry.sessionId) sourceSessionIds.push(entry.sessionId)
       }
 
       const merged = buildMergedOutput(dataSources, outputName)
@@ -173,6 +176,18 @@ export function registerMergeRoutes(server: FastifyInstance, ctx: MergeRoutesCon
         try {
           const importResult = await streamImport(dbManager, tmpPath, { sessionGapThreshold })
           sessionId = importResult.sessionId
+          if (onMergedSessionImported) {
+            // Fire and forget: carrying the semantic index over can take a while on a large
+            // session, and the merge response must not wait for it. The callback runs inside
+            // the semantic index worker on both Desktop and CLI Web.
+            const importedSessionId = importResult.sessionId
+            void Promise.resolve()
+              .then(() => onMergedSessionImported({ sessionId: importedSessionId, sourceSessionIds }))
+              .catch((error) => {
+                // The merge itself succeeded; a failed follow-up must not fail the request.
+                appLogger.error('merge', 'merged session import callback failed', error)
+              })
+          }
         } finally {
           try {
             fs.unlinkSync(tmpPath)
@@ -264,7 +279,8 @@ export function registerMergeRoutes(server: FastifyInstance, ctx: MergeRoutesCon
       )
       writer.finish()
 
-      const handle = mergeCache.store(exported.meta.name, tempDbPath)
+      // 记住来源 sessionId：合并导入成功后要按它承接源会话的语义索引向量
+      const handle = mergeCache.store(exported.meta.name, tempDbPath, sid)
       handles.push({ sessionId: sid, handle })
     }
 
