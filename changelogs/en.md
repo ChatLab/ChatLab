@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.37.7 (2026-10-30)
+
+> Fix Discord direct message detection and repeat-import matching, and improve MCP read-only queries and safety checks.
+
+### 🐛 Bug Fixes
+
+- Fix Discord direct messages being imported as group chats and ensure repeated and incremental imports of the same channel match the existing session.
+- [MCP] Add read-only annotations to query tools so AI clients can correctly identify their permissions. (by [@moesnow](https://github.com/moesnow))
+- [MCP] Stop queries from automatically migrating databases or updating data-directory compatibility markers. Older databases must first be upgraded through the desktop app or CLI. (by [@moesnow](https://github.com/moesnow))
+- [MCP] Strengthen session path and SQL validation to prevent access to files outside the data directory and execution of non-query operations. (by [@moesnow](https://github.com/moesnow))
+
 ## v0.37.6 (2026-10-22)
 
 > Improve guidance for unrecognized import formats, allow Memory as the default session page, and fix MCP array parameter types.
