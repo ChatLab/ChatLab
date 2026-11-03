@@ -332,13 +332,25 @@ function buildTimestamp(
     month = secondDatePart
     day = thirdDatePart
   } else if (thirdDatePart > 31) {
-    day = firstDatePart
-    month = secondDatePart
     year = thirdDatePart
+    // A second part above 12 cannot be a month, so the date must be month-first.
+    if (secondDatePart > 12) {
+      month = firstDatePart
+      day = secondDatePart
+    } else {
+      day = firstDatePart
+      month = secondDatePart
+    }
   } else {
-    month = firstDatePart
-    day = secondDatePart
     year = 2000 + thirdDatePart
+    // A first part above 12 cannot be a month, so the date must be day-first.
+    if (firstDatePart > 12) {
+      day = firstDatePart
+      month = secondDatePart
+    } else {
+      month = firstDatePart
+      day = secondDatePart
+    }
   }
 
   let hour = rawHour
