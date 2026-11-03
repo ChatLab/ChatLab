@@ -98,4 +98,30 @@ describe('WhatsApp browser-safe text parser', () => {
       ]
     )
   })
+
+  it('switches the date order only when the preferred month cannot be a month', async () => {
+    const content = [
+      '12/25/2024, 10:30 AM - Alice: month-first date with a long year',
+      '13/01/24, 10:30 - Bob: day above 12 with a short year',
+      '25/12/24, 10:30 - Alice: day-first date with a short year',
+      '02/01/2024, 10:30 - Alice: day-first date with a long year',
+      '01/02/24, 10:30 - Bob: month-first date with a short year',
+      '2024/01/02 10:30 - Alice: year-first date',
+      '',
+    ].join('\n')
+
+    const result = await parseWhatsAppText(content, 'WhatsApp locale fixture.txt')
+
+    assert.deepEqual(
+      result.messages.map((message) => message.timestamp),
+      [
+        localTs('2024-12-25T10:30:00'),
+        localTs('2024-01-13T10:30:00'),
+        localTs('2024-12-25T10:30:00'),
+        localTs('2024-01-02T10:30:00'),
+        localTs('2024-01-02T10:30:00'),
+        localTs('2024-01-02T10:30:00'),
+      ]
+    )
+  })
 })
