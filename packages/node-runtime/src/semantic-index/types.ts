@@ -35,8 +35,8 @@ export interface ChunkRecord {
 /** 写入存储时的 chunk + 向量 */
 export interface ChunkInsert {
   record: ChunkRecord
-  /** 长度必须等于 record.dim */
-  embedding: Float32Array | number[]
+  /** 长度必须等于 record.dim；Buffer 为复用已有向量时读回的 Float32 原始字节 */
+  embedding: Float32Array | number[] | Buffer
 }
 
 /** dense ANN 查询参数（始终限定单对话 + 单模型，命中分区裁剪） */

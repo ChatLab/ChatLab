@@ -17,6 +17,8 @@ interface CacheEntry {
   tempDbPath: string
   filename: string
   createdAt: number
+  /** 由已有会话导出来的句柄记录其来源 sessionId；上传文件没有来源会话 */
+  sessionId?: string
 }
 
 export class MergeSessionCache {
@@ -40,21 +42,21 @@ export class MergeSessionCache {
   }
 
   /** Store a parsed file's temp DB and return a handle for subsequent requests. */
-  store(filename: string, tempDbPath: string): string {
+  store(filename: string, tempDbPath: string, sessionId?: string): string {
     const handle = crypto.randomUUID()
-    this.cache.set(handle, { tempDbPath, filename, createdAt: Date.now() })
+    this.cache.set(handle, { tempDbPath, filename, createdAt: Date.now(), sessionId })
     return handle
   }
 
   /** Open a TempDbReader for a given handle. Caller must close the reader. */
-  openReader(handle: string): { reader: TempDbReader; filename: string } | null {
+  openReader(handle: string): { reader: TempDbReader; filename: string; sessionId?: string } | null {
     const entry = this.cache.get(handle)
     if (!entry || !fs.existsSync(entry.tempDbPath)) return null
     const adapter = openBetterSqliteDatabase(entry.tempDbPath, {
       readonly: true,
       nativeBinding: this.nativeBinding,
     })
-    return { reader: new TempDbReader(adapter), filename: entry.filename }
+    return { reader: new TempDbReader(adapter), filename: entry.filename, sessionId: entry.sessionId }
   }
 
   /** Create a writable temp DB for streaming parse. */

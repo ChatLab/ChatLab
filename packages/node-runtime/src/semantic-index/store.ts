@@ -5,6 +5,7 @@
  * - 初始化元数据表与按维度的 vec0 表。
  * - 写入 chunk 元数据与向量（同一事务，rowid 关联）。
  * - dense ANN 查询（限定 db_path_hash + model_id 分区）。
+ * - 按 embedding 文本的哈希查找可复用的已有向量（跨聊天库），供合并后的会话直接复制。
  *
  * P0-1 硬约定：vec0 的 INTEGER 列与 k 参数绑定必须使用 CAST(? AS INTEGER)。
  */
@@ -61,9 +62,16 @@ function rowToRecord(row: ChunkRow): ChunkRecord {
   }
 }
 
-function toFloat32Buffer(embedding: Float32Array | number[]): Buffer {
+/** 已经是 Float32 原始字节的 Buffer（复用向量）原样返回，其余按 Float32Array 序列化 */
+function toFloat32Buffer(embedding: Float32Array | number[] | Buffer): Buffer {
+  if (Buffer.isBuffer(embedding)) return embedding
   const arr = embedding instanceof Float32Array ? embedding : new Float32Array(embedding)
   return Buffer.from(arr.buffer, arr.byteOffset, arr.byteLength)
+}
+
+/** 统一按向量元素个数计长度：Buffer 是 Float32 字节流，元素数为字节数 / 4 */
+function embeddingLength(embedding: Float32Array | number[] | Buffer): number {
+  return Buffer.isBuffer(embedding) ? embedding.byteLength / Float32Array.BYTES_PER_ELEMENT : embedding.length
 }
 
 const CHUNK_COLUMN_LIST = [
@@ -111,8 +119,9 @@ export class EmbeddingIndexStore {
 
   private insertOne(item: ChunkInsert): void {
     const { record, embedding } = item
-    if (embedding.length !== record.dim) {
-      throw new Error(`embedding length ${embedding.length} mismatches dim ${record.dim} for chunk ${record.chunkId}`)
+    const length = embeddingLength(embedding)
+    if (length !== record.dim) {
+      throw new Error(`embedding length ${length} mismatches dim ${record.dim} for chunk ${record.chunkId}`)
     }
     this.ensureVecTable(record.dim)
 
@@ -154,7 +163,7 @@ export class EmbeddingIndexStore {
   }
 
   /** 写入单个 chunk（元数据 + 向量，同一事务） */
-  insertChunk(record: ChunkRecord, embedding: Float32Array | number[]): void {
+  insertChunk(record: ChunkRecord, embedding: Float32Array | number[] | Buffer): void {
     this.db.transaction(() => this.insertOne({ record, embedding }))()
   }
 
@@ -279,6 +288,51 @@ export class EmbeddingIndexStore {
       .prepare('SELECT dim FROM chunk_vector_index WHERE db_path_hash = ? AND model_id = ? LIMIT 1')
       .get(dbPathHash, modelId) as { dim: number } | undefined
     return row ? row.dim : null
+  }
+
+  /**
+   * 查找可复用的已有向量（跨聊天库）：embedding 文本逐字相同才算命中。
+   *
+   * 复用条件必须完全一致：embedding 文本的哈希、模型、策略、chunker 身份与维度，
+   * 否则复制来的向量不代表本 chunk 的文本。
+   * excludeDbPathHash 用于排除目标聊天库自身，避免把刚写入的行当成"已有"向量。
+   * 返回的是 vec0 读回的 Float32 原始字节，可直接再插入到新分区。
+   */
+  findReusableVector(params: {
+    modelId: string
+    strategyId: string
+    chunkerVersion: string
+    chunkerConfigHash: string
+    dim: number
+    embeddingInputHash: string
+    excludeDbPathHash?: string
+  }): { embedding: Buffer } | null {
+    const table = vecTableName(params.dim)
+    if (!this.tableExists(table)) return null
+
+    const row = this.db
+      .prepare(
+        `SELECT v.embedding AS embedding
+         FROM chunk_vector_index m
+         JOIN ${table} v ON v.vector_id = m.rowid
+         WHERE m.embedding_input_hash = ? AND m.model_id = ? AND m.strategy_id = ?
+           AND m.chunker_version = ? AND m.chunker_config_hash = ?
+           AND m.dim = CAST(? AS INTEGER) AND m.status = 'indexed'
+           AND (? IS NULL OR m.db_path_hash != ?)
+         LIMIT 1`
+      )
+      .get(
+        params.embeddingInputHash,
+        params.modelId,
+        params.strategyId,
+        params.chunkerVersion,
+        params.chunkerConfigHash,
+        params.dim,
+        params.excludeDbPathHash ?? null,
+        params.excludeDbPathHash ?? null
+      ) as { embedding: Buffer } | undefined
+
+    return row ? { embedding: row.embedding } : null
   }
 
   /** 按 chunk_id 取元数据 */
