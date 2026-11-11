@@ -649,4 +649,49 @@ describe('PullEngine', () => {
 
     assert.equal(warns.length, 1)
   })
+
+  it('keeps the pull cursor when the fetch fails', async () => {
+    const session = createSession()
+    const dataSource = createDataSource()
+    dataSource.sessions = [session]
+    const sessionUpdates: Array<{ sessionId: string; updates: Partial<ImportSession> }> = []
+    const engine = createEngine({
+      files: [],
+      dataSource,
+      fetchError: createFetchFailedError(),
+      sessionUpdates,
+      importResult: { success: true, newMessageCount: 0 },
+    })
+
+    const result = await engine.triggerPull(dataSource.id, session.id)
+
+    assert.equal(result.success, false)
+    const update = sessionUpdates.at(-1)
+    assert.equal(update?.updates.lastStatus, 'error')
+    assert.equal(update?.updates.lastPullAt, session.lastPullAt)
+  })
+
+  it('keeps cursors for sessions skipped because the source is unavailable', async () => {
+    const dataSource = createDataSource()
+    dataSource.sessions = ['a', 'b', 'c'].map(createSessionWithId)
+    const sessionUpdates: Array<{ sessionId: string; updates: Partial<ImportSession> }> = []
+    const engine = createEngine({
+      files: [],
+      dataSource,
+      fetchError: createFetchFailedError(),
+      sessionUpdates,
+      importResult: { success: true, newMessageCount: 0 },
+    })
+
+    await engine.pullAllSessions(dataSource)
+
+    assert.deepEqual(
+      sessionUpdates.map((item) => [item.sessionId, item.updates.lastStatus, item.updates.lastPullAt]),
+      [
+        ['a', 'error', 100],
+        ['b', 'error', 100],
+        ['c', 'error', 100],
+      ]
+    )
+  })
 })
