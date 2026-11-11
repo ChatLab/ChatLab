@@ -330,7 +330,7 @@ export class PullEngine {
                   const errMsg = 'Full resync failed'
                   this.logger.error(`[Pull] Full resync already attempted for "${sess.name}", aborting`)
                   this.dsManager.updateSession(sourceId, sess.id, {
-                    lastPullAt: Math.floor(Date.now() / 1000),
+                    lastPullAt: sess.lastPullAt,
                     lastStatus: 'error',
                     lastError: errMsg,
                   })
@@ -344,7 +344,7 @@ export class PullEngine {
 
                   const errMsg = retryResult.error || 'Import failed'
                   this.dsManager.updateSession(sourceId, sess.id, {
-                    lastPullAt: Math.floor(Date.now() / 1000),
+                    lastPullAt: sess.lastPullAt,
                     lastStatus: 'error',
                     lastError: errMsg,
                   })
@@ -411,7 +411,7 @@ export class PullEngine {
             const errMsg = 'Full resync failed'
             this.logger.error(`[Pull] Full resync already attempted for "${sess.name}", aborting`)
             this.dsManager.updateSession(sourceId, sess.id, {
-              lastPullAt: Math.floor(Date.now() / 1000),
+              lastPullAt: sess.lastPullAt,
               lastStatus: 'error',
               lastError: errMsg,
             })
@@ -425,7 +425,7 @@ export class PullEngine {
 
             const errMsg = result.error || 'Import failed'
             this.dsManager.updateSession(sourceId, sess.id, {
-              lastPullAt: Math.floor(Date.now() / 1000),
+              lastPullAt: sess.lastPullAt,
               lastStatus: 'error',
               lastError: errMsg,
             })
@@ -501,9 +501,11 @@ export class PullEngine {
       this.markProgressDone(sess.id)
       try {
         // A failed config commit must not be retried as an error-status write advancing the cursor.
+        // Keep lastPullAt at the last successfully synchronized position: advancing it here
+        // would permanently skip the un-fetched window on the next pull.
         if (error instanceof DataSourceConfigError) throw error
         this.dsManager.updateSession(sourceId, sess.id, {
-          lastPullAt: Math.floor(Date.now() / 1000),
+          lastPullAt: sess.lastPullAt,
           lastStatus: 'error',
           lastError: errMsg,
         })
@@ -549,10 +551,9 @@ export class PullEngine {
   }
 
   private markRemainingSessionsSourceUnavailable(ds: DataSource, startIndex: number, detail: string): void {
-    const now = Math.floor(Date.now() / 1000)
     for (const sess of ds.sessions.slice(startIndex)) {
       this.dsManager.updateSession(ds.id, sess.id, {
-        lastPullAt: now,
+        lastPullAt: sess.lastPullAt,
         lastStatus: 'error',
         lastError: detail,
       })
