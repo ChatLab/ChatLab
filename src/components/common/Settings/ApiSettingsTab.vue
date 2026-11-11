@@ -8,6 +8,7 @@ import { useLayoutStore } from '@/stores/layout'
 import DataSourceAddModal from './API/DataSourceAddModal.vue'
 import DataSourceEditModal from './API/DataSourceEditModal.vue'
 import McpSettingsTab from './McpSettingsTab.vue'
+import { shouldShowSyncError } from './apiSettingsSyncStatus'
 
 const { t, locale } = useI18n()
 const store = useApiServerStore()
@@ -377,8 +378,13 @@ function subscribedRemoteIds(ds: DataSource): Set<string> {
                           <span v-if="sess.lastStatus === 'success'" class="text-green-500">
                             (+{{ sess.lastNewMessages }})
                           </span>
-                          <span v-if="sess.lastStatus === 'error'" class="text-red-500">{{ sess.lastError }}</span>
                         </template>
+                        <span
+                          v-if="shouldShowSyncError(sess, pullingIds.has(sess.id))"
+                          class="text-red-500"
+                        >
+                          {{ sess.lastError }}
+                        </span>
                       </div>
                     </div>
                   </div>
