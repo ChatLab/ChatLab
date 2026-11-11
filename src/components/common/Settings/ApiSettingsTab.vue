@@ -8,7 +8,6 @@ import { useLayoutStore } from '@/stores/layout'
 import DataSourceAddModal from './API/DataSourceAddModal.vue'
 import DataSourceEditModal from './API/DataSourceEditModal.vue'
 import McpSettingsTab from './McpSettingsTab.vue'
-import { shouldShowSyncError } from './apiSettingsSyncStatus'
 
 const { t, locale } = useI18n()
 const store = useApiServerStore()
@@ -217,6 +216,10 @@ async function syncAllInSource(ds: DataSource) {
 
 async function syncSession(ds: DataSource, sess: ImportSession) {
   await store.triggerPull(ds.id, sess.id)
+}
+
+function shouldShowSyncError(sess: ImportSession, pulling: boolean): boolean {
+  return !pulling && sess.lastStatus === 'error' && sess.lastError.length > 0
 }
 
 function formatTime(ts: number): string {

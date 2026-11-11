@@ -3,6 +3,7 @@ interface SyncSessionState {
   targetSessionId: string
   lastPullAt: number
   lastStatus: 'idle' | 'success' | 'error'
+  lastError: string
   lastNewMessages: number
 }
 
@@ -25,7 +26,7 @@ function buildSessionStateMap(sources: SyncSourceState[]): Map<string, string> {
     for (const session of source.sessions) {
       states.set(
         `${source.id}:${session.id}`,
-        JSON.stringify([session.targetSessionId, session.lastPullAt, session.lastStatus, session.lastNewMessages])
+        JSON.stringify([session.targetSessionId, session.lastPullAt, session.lastStatus, session.lastError, session.lastNewMessages])
       )
     }
   }
