@@ -97,3 +97,46 @@ test('轮询只把首次读取作为基线，不将已有同步结果重复通�
   assert.equal(completedCount, 0)
   stop()
 })
+
+test('错误详情变化时也通知刷新（游标与计数不变的连续失败）', async () => {
+  const timer = { tick: null as (() => void) | null }
+  let sources = [
+    createDataSource({
+      targetSessionId: 'local-1',
+      lastPullAt: 100,
+      lastStatus: 'error',
+      lastError: 'net::ERR_CONNECTION_REFUSED',
+    }),
+  ]
+  let completedCount = 0
+
+  const stop = createSyncResultPoller({
+    loadDataSources: async () => sources,
+    onResult: () => {
+      completedCount++
+    },
+    schedule: (callback) => {
+      timer.tick = callback
+      return 1
+    },
+    cancelSchedule: () => {},
+  })
+
+  await Promise.resolve()
+  assert.equal(completedCount, 0)
+
+  sources = [
+    createDataSource({
+      targetSessionId: 'local-1',
+      lastPullAt: 100,
+      lastStatus: 'error',
+      lastError: 'Request timeout',
+    }),
+  ]
+  timer.tick?.()
+  await Promise.resolve()
+  await Promise.resolve()
+
+  assert.equal(completedCount, 1)
+  stop()
+})

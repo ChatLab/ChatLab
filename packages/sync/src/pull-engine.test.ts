@@ -686,12 +686,49 @@ describe('PullEngine', () => {
     await engine.pullAllSessions(dataSource)
 
     assert.deepEqual(
-      sessionUpdates.map((item) => [item.sessionId, item.updates.lastStatus, item.updates.lastPullAt]),
+      sessionUpdates.map((item) => [item.sessionId, item.updates.lastStatus]),
       [
-        ['a', 'error', 100],
-        ['b', 'error', 100],
-        ['c', 'error', 100],
+        ['a', 'error'],
+        ['b', 'error'],
+        ['c', 'error'],
       ]
     )
+    // Sessions skipped because the source is unavailable must not have their
+    // cursors written at all (a stale snapshot could overwrite a newer value).
+    for (const item of sessionUpdates.filter((entry) => entry.sessionId !== 'a')) {
+      assert.equal('lastPullAt' in item.updates, false)
+    }
+  })
+
+  it('does not overwrite a newer cursor when the source becomes unavailable', async () => {
+    const dataSource = createDataSource()
+    dataSource.sessions = ['a', 'b'].map(createSessionWithId)
+    const stored = new Map(dataSource.sessions.map((session) => [session.id, { ...session }]))
+    const updates: Array<{ sessionId: string; updates: Partial<ImportSession> }> = []
+    const dsManager = {
+      get: () => dataSource,
+      updateSession: (_sourceId: string, sessionId: string, patch: Partial<ImportSession>) => {
+        updates.push({ sessionId, updates: patch })
+        const current = stored.get(sessionId)
+        if (current) stored.set(sessionId, { ...current, ...patch })
+      },
+    }
+    // A concurrent pull already advanced session b's cursor on disk.
+    stored.set('b', { ...stored.get('b')!, lastPullAt: 200 })
+    const engine = new PullEngine({
+      dsManager: dsManager as any,
+      fetcher: {
+        fetchToTempFile: async () => {
+          throw createFetchFailedError()
+        },
+      },
+      importer: { sessionExists: () => true, importFile: async () => ({ success: true, newMessageCount: 0 }) },
+      notifier: { onSessionListChanged: () => {}, onPullResult: () => {} },
+    })
+
+    await engine.pullAllSessions(dataSource)
+
+    assert.equal(stored.get('b')?.lastPullAt, 200)
+    assert.equal(stored.get('b')?.lastStatus, 'error')
   })
 })

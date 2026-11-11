@@ -552,8 +552,9 @@ export class PullEngine {
 
   private markRemainingSessionsSourceUnavailable(ds: DataSource, startIndex: number, detail: string): void {
     for (const sess of ds.sessions.slice(startIndex)) {
+      // Status-only update: do not write lastPullAt from this (possibly stale)
+      // snapshot, or it could overwrite a newer cursor written by a concurrent pull.
       this.dsManager.updateSession(ds.id, sess.id, {
-        lastPullAt: sess.lastPullAt,
         lastStatus: 'error',
         lastError: detail,
       })
