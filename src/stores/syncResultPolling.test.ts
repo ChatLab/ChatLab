@@ -140,3 +140,49 @@ test('错误详情变化时也通知刷新（游标与计数不变的连续失�
   assert.equal(completedCount, 1)
   stop()
 })
+
+test('失败尝试中部分导入的计数变化时也通知刷新', async () => {
+  const timer = { tick: null as (() => void) | null }
+  let sources = [
+    createDataSource({
+      targetSessionId: 'local-1',
+      lastPullAt: 100,
+      lastStatus: 'error',
+      lastError: 'net::ERR_CONNECTION_RESET',
+      lastNewMessages: 0,
+    }),
+  ]
+  let completedCount = 0
+
+  const stop = createSyncResultPoller({
+    loadDataSources: async () => sources,
+    onResult: () => {
+      completedCount++
+    },
+    schedule: (callback) => {
+      timer.tick = callback
+      return 1
+    },
+    cancelSchedule: () => {},
+  })
+
+  await Promise.resolve()
+  assert.equal(completedCount, 0)
+
+  // Same status, same error, same cursor — only the partial import count changed.
+  sources = [
+    createDataSource({
+      targetSessionId: 'local-1',
+      lastPullAt: 100,
+      lastStatus: 'error',
+      lastError: 'net::ERR_CONNECTION_RESET',
+      lastNewMessages: 5,
+    }),
+  ]
+  timer.tick?.()
+  await Promise.resolve()
+  await Promise.resolve()
+
+  assert.equal(completedCount, 1)
+  stop()
+})

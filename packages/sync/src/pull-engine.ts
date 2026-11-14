@@ -331,6 +331,7 @@ export class PullEngine {
                   this.logger.error(`[Pull] Full resync already attempted for "${sess.name}", aborting`)
                   this.dsManager.updateSession(sourceId, sess.id, {
                     lastStatus: 'error',
+                    lastNewMessages: totalNewMessages,
                     lastError: errMsg,
                   })
                   this.notifier.onPullResult(sourceId, sess.id, 'error', errMsg)
@@ -344,6 +345,7 @@ export class PullEngine {
                   const errMsg = retryResult.error || 'Import failed'
                   this.dsManager.updateSession(sourceId, sess.id, {
                     lastStatus: 'error',
+                    lastNewMessages: totalNewMessages,
                     lastError: errMsg,
                   })
                   this.notifier.onPullResult(sourceId, sess.id, 'error', errMsg)
@@ -410,6 +412,7 @@ export class PullEngine {
             this.logger.error(`[Pull] Full resync already attempted for "${sess.name}", aborting`)
             this.dsManager.updateSession(sourceId, sess.id, {
               lastStatus: 'error',
+              lastNewMessages: totalNewMessages,
               lastError: errMsg,
             })
             this.notifier.onPullResult(sourceId, sess.id, 'error', errMsg)
@@ -423,6 +426,7 @@ export class PullEngine {
             const errMsg = result.error || 'Import failed'
             this.dsManager.updateSession(sourceId, sess.id, {
               lastStatus: 'error',
+              lastNewMessages: totalNewMessages,
               lastError: errMsg,
             })
             this.notifier.onPullResult(sourceId, sess.id, 'error', errMsg)
@@ -502,6 +506,7 @@ export class PullEngine {
         if (error instanceof DataSourceConfigError) throw error
         this.dsManager.updateSession(sourceId, sess.id, {
           lastStatus: 'error',
+          lastNewMessages: totalNewMessages,
           lastError: errMsg,
         })
       } catch (configError) {

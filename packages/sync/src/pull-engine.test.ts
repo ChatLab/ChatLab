@@ -764,4 +764,32 @@ describe('PullEngine', () => {
     assert.equal(updates.at(-1)?.updates.lastStatus, 'error')
     assert.equal('lastPullAt' in (updates.at(-1)?.updates ?? {}), false)
   })
+
+  it('persists the partial message count when a later page fails', async () => {
+    const session = createSession()
+    const dataSource = createDataSource()
+    dataSource.sessions = [session]
+    const firstPage = writeTempJson({
+      chatlab: { version: '0.0.2', exportedAt: 100 },
+      meta: { name: 'Test Session', platform: 'test', type: 'group' },
+      members: [{ platformId: 'u1', accountName: 'Alice' }],
+      messages: [{ sender: 'u1', timestamp: 101, type: 0, content: 'hi' }],
+      sync: { hasMore: true, nextSince: 101 },
+    })
+    const sessionUpdates: Array<{ sessionId: string; updates: Partial<ImportSession> }> = []
+    const engine = createEngine({
+      files: [firstPage],
+      dataSource,
+      sessionUpdates,
+      importResult: { success: true, newMessageCount: 5 },
+    })
+
+    const result = await engine.triggerPull(dataSource.id, session.id)
+
+    assert.equal(result.success, false)
+    const update = sessionUpdates.at(-1)
+    assert.equal(update?.updates.lastStatus, 'error')
+    assert.equal(update?.updates.lastNewMessages, 5)
+    assert.equal('lastPullAt' in (update?.updates ?? {}), false)
+  })
 })
