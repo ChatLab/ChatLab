@@ -330,7 +330,6 @@ export class PullEngine {
                   const errMsg = 'Full resync failed'
                   this.logger.error(`[Pull] Full resync already attempted for "${sess.name}", aborting`)
                   this.dsManager.updateSession(sourceId, sess.id, {
-                    lastPullAt: sess.lastPullAt,
                     lastStatus: 'error',
                     lastError: errMsg,
                   })
@@ -344,7 +343,6 @@ export class PullEngine {
 
                   const errMsg = retryResult.error || 'Import failed'
                   this.dsManager.updateSession(sourceId, sess.id, {
-                    lastPullAt: sess.lastPullAt,
                     lastStatus: 'error',
                     lastError: errMsg,
                   })
@@ -411,7 +409,6 @@ export class PullEngine {
             const errMsg = 'Full resync failed'
             this.logger.error(`[Pull] Full resync already attempted for "${sess.name}", aborting`)
             this.dsManager.updateSession(sourceId, sess.id, {
-              lastPullAt: sess.lastPullAt,
               lastStatus: 'error',
               lastError: errMsg,
             })
@@ -425,7 +422,6 @@ export class PullEngine {
 
             const errMsg = result.error || 'Import failed'
             this.dsManager.updateSession(sourceId, sess.id, {
-              lastPullAt: sess.lastPullAt,
               lastStatus: 'error',
               lastError: errMsg,
             })
@@ -501,11 +497,10 @@ export class PullEngine {
       this.markProgressDone(sess.id)
       try {
         // A failed config commit must not be retried as an error-status write advancing the cursor.
-        // Keep lastPullAt at the last successfully synchronized position: advancing it here
-        // would permanently skip the un-fetched window on the next pull.
+        // Failure updates are status-only: never write lastPullAt from this snapshot, or a
+        // concurrent pull's newer cursor could be overwritten (and the window re-fetched).
         if (error instanceof DataSourceConfigError) throw error
         this.dsManager.updateSession(sourceId, sess.id, {
-          lastPullAt: sess.lastPullAt,
           lastStatus: 'error',
           lastError: errMsg,
         })

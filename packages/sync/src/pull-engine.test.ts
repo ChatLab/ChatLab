@@ -650,7 +650,7 @@ describe('PullEngine', () => {
     assert.equal(warns.length, 1)
   })
 
-  it('keeps the pull cursor when the fetch fails', async () => {
+  it('does not write the pull cursor when the fetch fails', async () => {
     const session = createSession()
     const dataSource = createDataSource()
     dataSource.sessions = [session]
@@ -668,7 +668,7 @@ describe('PullEngine', () => {
     assert.equal(result.success, false)
     const update = sessionUpdates.at(-1)
     assert.equal(update?.updates.lastStatus, 'error')
-    assert.equal(update?.updates.lastPullAt, session.lastPullAt)
+    assert.equal('lastPullAt' in (update?.updates ?? {}), false)
   })
 
   it('keeps cursors for sessions skipped because the source is unavailable', async () => {
@@ -693,9 +693,8 @@ describe('PullEngine', () => {
         ['c', 'error'],
       ]
     )
-    // Sessions skipped because the source is unavailable must not have their
-    // cursors written at all (a stale snapshot could overwrite a newer value).
-    for (const item of sessionUpdates.filter((entry) => entry.sessionId !== 'a')) {
+    // Failure updates are status-only: no cursor is written from a possibly stale snapshot.
+    for (const item of sessionUpdates) {
       assert.equal('lastPullAt' in item.updates, false)
     }
   })
@@ -730,5 +729,39 @@ describe('PullEngine', () => {
 
     assert.equal(stored.get('b')?.lastPullAt, 200)
     assert.equal(stored.get('b')?.lastStatus, 'error')
+  })
+
+  it('does not overwrite a newer cursor when an older overlapping pull fails', async () => {
+    const session = createSessionWithId('a')
+    const dataSource = createDataSource()
+    dataSource.sessions = [session]
+    const stored = new Map<string, ImportSession>([[session.id, { ...session }]])
+    const updates: Array<{ sessionId: string; updates: Partial<ImportSession> }> = []
+    const dsManager = {
+      get: () => dataSource,
+      updateSession: (_sourceId: string, sessionId: string, patch: Partial<ImportSession>) => {
+        updates.push({ sessionId, updates: patch })
+        const current = stored.get(sessionId)
+        if (current) stored.set(sessionId, { ...current, ...patch })
+      },
+    }
+    const engine = new PullEngine({
+      dsManager: dsManager as any,
+      fetcher: {
+        fetchToTempFile: async () => {
+          // A concurrent session-specific pull completes first and advances the cursor.
+          stored.set(session.id, { ...stored.get(session.id)!, lastPullAt: 200 })
+          throw createFetchFailedError()
+        },
+      },
+      importer: { sessionExists: () => true, importFile: async () => ({ success: true, newMessageCount: 0 }) },
+      notifier: { onSessionListChanged: () => {}, onPullResult: () => {} },
+    })
+
+    await engine.pullAllSessions(dataSource)
+
+    assert.equal(stored.get(session.id)?.lastPullAt, 200)
+    assert.equal(updates.at(-1)?.updates.lastStatus, 'error')
+    assert.equal('lastPullAt' in (updates.at(-1)?.updates ?? {}), false)
   })
 })
