@@ -124,4 +124,27 @@ describe('WhatsApp browser-safe text parser', () => {
       ]
     )
   })
+
+  it('parses dot-separated day-first dates such as German exports', async () => {
+    const android = ['05.03.24, 21:15 - Alice: short year', '06.03.2024, 08:01 - Bob: long year', ''].join('\n')
+    const ios = ['[05.03.24, 21:15:32] Alice: short year', '[31.12.24, 23:59:59] Bob: day above 12', ''].join('\n')
+
+    assert.equal(detectWhatsAppText(ios, '_chat.txt'), true)
+
+    const androidResult = await parseWhatsAppText(android, 'WhatsApp Chat mit Alice.txt')
+    const iosResult = await parseWhatsAppText(ios, '_chat.txt')
+
+    assert.deepEqual(
+      [...androidResult.messages, ...iosResult.messages].map((message) => [
+        message.senderPlatformId,
+        message.timestamp,
+      ]),
+      [
+        ['Alice', localTs('2024-03-05T21:15:00')],
+        ['Bob', localTs('2024-03-06T08:01:00')],
+        ['Alice', localTs('2024-03-05T21:15:32')],
+        ['Bob', localTs('2024-12-31T23:59:59')],
+      ]
+    )
+  })
 })

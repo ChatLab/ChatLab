@@ -8,8 +8,8 @@ export const WHATSAPP_HEAD_SIGNATURES = [
   /訊息與通話已受端對端加密保護/,
   /Messages and calls are end-to-end encrypted/i,
   /你发送给自己的消息已进行端到端加密/,
-  /\d{1,4}\/\d{1,2}\/\d{2,4},?\s+\d{1,2}:\d{2}(?::\d{2})?(?:[\s\u2009\u202F]*(?:AM|PM|A\.M\.|P\.M\.|\u4e0a午|\u4e0b午|\u5348前|\u5348後|오전|오후))?\s+- /i,
-  /\[\d{1,4}\/\d{1,2}\/\d{1,4}[\s,].*\d{1,2}:\d{2}(?::\d{2})?.*\] /,
+  /(?:\d{1,4}\/\d{1,2}\/\d{2,4}|\d{1,4}\.\d{1,2}\.\d{2,4}),?\s+\d{1,2}:\d{2}(?::\d{2})?(?:[\s\u2009\u202F]*(?:AM|PM|A\.M\.|P\.M\.|\u4e0a午|\u4e0b午|\u5348前|\u5348後|오전|오후))?\s+- /i,
+  /\[(?:\d{1,4}\/\d{1,2}\/\d{1,4}|\d{1,4}\.\d{1,2}\.\d{2,4})[\s,].*\d{1,2}:\d{2}(?::\d{2})?.*\] /,
 ]
 
 export const WHATSAPP_FILENAME_SIGNATURES = [
@@ -44,7 +44,7 @@ interface PendingMessage {
 }
 
 const MESSAGE_LINE_REGEX_V1 =
-  /^(\d{1,4}\/\d{1,2}\/\d{2,4},?\s+\d{1,2}:\d{2}(?::\d{2})?(?:[\s\u2009\u202F]*(?:AM|PM|A\.M\.|P\.M\.|\u4e0a午|\u4e0b午|\u5348前|\u5348後|오전|오후))?) - (.+)$/i
+  /^((?:\d{1,4}\/\d{1,2}\/\d{2,4}|\d{1,4}\.\d{1,2}\.\d{2,4}),?\s+\d{1,2}:\d{2}(?::\d{2})?(?:[\s\u2009\u202F]*(?:AM|PM|A\.M\.|P\.M\.|\u4e0a午|\u4e0b午|\u5348前|\u5348後|오전|오후))?) - (.+)$/i
 const MESSAGE_LINE_REGEX_V2 = /^\[([^\]]+)\] (.+)$/
 const SENDER_CONTENT_REGEX = /^(.+?):[\s\u200E]*(.*)$/
 
@@ -83,7 +83,7 @@ const SYSTEM_MESSAGE_REGEX = new RegExp(SYSTEM_MESSAGE_PATTERNS.map((pattern) =>
 
 const TIMESTAMP_SPACING = String.raw`(?:\s|\u2009|\u202F|\uFEFF|\u200E|\u200F|\u200B|\u200C|\u200D|\u2060)`
 const COMMON_TIMESTAMP_REGEX = new RegExp(
-  String.raw`^${TIMESTAMP_SPACING}*(\d{1,4})\/(\d{1,2})\/(\d{1,4})(?:,|${TIMESTAMP_SPACING})+(\d{1,2}):(\d{2})(?::(\d{2}))?(?:${TIMESTAMP_SPACING}+(AM|PM|A\.M\.|P\.M\.|上午|下午|午前|午後|오전|오후))?${TIMESTAMP_SPACING}*$`,
+  String.raw`^${TIMESTAMP_SPACING}*(\d{1,4})([\/.])(\d{1,2})\2(\d{1,4})(?:,|${TIMESTAMP_SPACING})+(\d{1,2}):(\d{2})(?::(\d{2}))?(?:${TIMESTAMP_SPACING}+(AM|PM|A\.M\.|P\.M\.|上午|下午|午前|午後|오전|오후))?${TIMESTAMP_SPACING}*$`,
   'i'
 )
 
@@ -283,12 +283,13 @@ function parseFlexibleTimestamp(raw: string): number | null {
   if (commonMatch) {
     return buildTimestamp(
       Number.parseInt(commonMatch[1], 10),
-      Number.parseInt(commonMatch[2], 10),
       Number.parseInt(commonMatch[3], 10),
       Number.parseInt(commonMatch[4], 10),
       Number.parseInt(commonMatch[5], 10),
-      Number.parseInt(commonMatch[6] ?? '0', 10),
-      parseAmPm(commonMatch[7])
+      Number.parseInt(commonMatch[6], 10),
+      Number.parseInt(commonMatch[7] ?? '0', 10),
+      parseAmPm(commonMatch[8]),
+      commonMatch[2] === '.'
     )
   }
 
@@ -302,12 +303,20 @@ function parseFlexibleTimestamp(raw: string): number | null {
   }
   value = value.replace(/,/g, ' ').replace(/\s+/g, ' ').trim()
 
-  const match = value.match(/^(\d{1,4}\/\d{1,2}\/\d{1,4})\s+(\d{1,2}:\d{2}(?::\d{2})?)$/)
+  const match = value.match(/^(\d{1,4})([/.])(\d{1,2})\2(\d{1,4})\s+(\d{1,2}:\d{2}(?::\d{2})?)$/)
   if (!match) return null
-  const dateParts = match[1].split('/').map((part) => Number.parseInt(part, 10))
-  const timeParts = match[2].split(':').map((part) => Number.parseInt(part, 10))
+  const timeParts = match[5].split(':').map((part) => Number.parseInt(part, 10))
 
-  return buildTimestamp(dateParts[0], dateParts[1], dateParts[2], timeParts[0], timeParts[1], timeParts[2] ?? 0, isPm)
+  return buildTimestamp(
+    Number.parseInt(match[1], 10),
+    Number.parseInt(match[3], 10),
+    Number.parseInt(match[4], 10),
+    timeParts[0],
+    timeParts[1],
+    timeParts[2] ?? 0,
+    isPm,
+    match[2] === '.'
+  )
 }
 
 function parseAmPm(marker: string | undefined): boolean | null {
@@ -322,7 +331,8 @@ function buildTimestamp(
   rawHour: number,
   minute: number,
   second: number,
-  isPm: boolean | null
+  isPm: boolean | null,
+  dotSeparated = false
 ): number | null {
   let year: number
   let month: number
@@ -344,7 +354,8 @@ function buildTimestamp(
   } else {
     year = 2000 + thirdDatePart
     // A first part above 12 cannot be a month, so the date must be day-first.
-    if (firstDatePart > 12) {
+    // Dot-separated dates (dd.mm.yy, for example German exports) are day-first.
+    if (firstDatePart > 12 || (dotSeparated && secondDatePart <= 12)) {
       day = firstDatePart
       month = secondDatePart
     } else {
