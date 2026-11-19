@@ -1,5 +1,16 @@
 # 更新日志
 
+## v0.37.8 (2026-11-19)
+
+> 修复 WhatsApp 日期解析问题，完善远程数据源拉取失败后的进度保护与错误提示。
+
+### 🐛 修复
+
+- 修复部分 WhatsApp TXT 导出记录因日月顺序识别错误而导致消息日期偏移的问题 (by [@Omair-Asdaq](https://github.com/Omair-Asdaq))
+- 支持德语等 WhatsApp TXT 导出中的点分隔日期格式，兼容 Android 与 iOS 导出记录 (by [@goranai](https://github.com/goranai))
+- 修复远程数据源拉取失败后同步位置被错误推进的问题，保留已有进度与本次已导入消息计数，避免重试遗漏消息 (by [@ElliotZhang-cd](https://github.com/ElliotZhang-cd))
+- 完善远程数据源拉取错误提示，首次拉取失败也能显示原因，并及时刷新后续错误详情 (by [@ElliotZhang-cd](https://github.com/ElliotZhang-cd))
+
 ## v0.37.7 (2026-10-30)
 
 > 修复 Discord 私聊识别与重复导入匹配，完善 MCP 只读查询和安全校验。

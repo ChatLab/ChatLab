@@ -1,5 +1,16 @@
 # 更新日誌
 
+## v0.37.8 (2026-11-19)
+
+> 修正 WhatsApp 日期解析問題，並完善遠端資料來源擷取失敗時的進度保護與錯誤提示。
+
+### 🐛 修復
+
+- 修正部分 WhatsApp TXT 匯出紀錄因日月順序辨識錯誤，導致訊息日期不正確的問題 (by [@Omair-Asdaq](https://github.com/Omair-Asdaq))
+- 支援德語等 WhatsApp TXT 匯出的點分隔日期格式，相容 Android 與 iOS 匯出紀錄 (by [@goranai](https://github.com/goranai))
+- 修正遠端資料來源擷取失敗後，同步位置仍被推進的問題；保留既有進度與本次已匯入的訊息數，避免重試時遺漏訊息 (by [@ElliotZhang-cd](https://github.com/ElliotZhang-cd))
+- 完善遠端資料來源的錯誤提示，首次擷取失敗也會顯示原因，並即時更新後續嘗試的錯誤詳情 (by [@ElliotZhang-cd](https://github.com/ElliotZhang-cd))
+
 ## v0.37.7 (2026-10-30)
 
 > 修正 Discord 私訊辨識與重複匯入的對話比對，並完善 MCP 唯讀查詢與安全檢查。

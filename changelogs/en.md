@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.37.8 (2026-11-19)
+
+> Fix WhatsApp date parsing and improve sync progress protection and error reporting when remote data pulls fail.
+
+### 🐛 Bug Fixes
+
+- Fix incorrect message dates caused by misreading the day and month order in some WhatsApp TXT exports. (by [@Omair-Asdaq](https://github.com/Omair-Asdaq))
+- Support dot-separated dates in WhatsApp TXT exports, including German exports from Android and iOS. (by [@goranai](https://github.com/goranai))
+- Fix failed remote data pulls incorrectly advancing the sync position. Preserve existing progress and the number of messages already imported during the attempt so retries do not skip messages. (by [@ElliotZhang-cd](https://github.com/ElliotZhang-cd))
+- Improve remote data pull errors: show the cause even when the first pull fails and keep error details up to date on subsequent attempts. (by [@ElliotZhang-cd](https://github.com/ElliotZhang-cd))
+
 ## v0.37.7 (2026-10-30)
 
 > Fix Discord direct message detection and repeat-import matching, and improve MCP read-only queries and safety checks.
