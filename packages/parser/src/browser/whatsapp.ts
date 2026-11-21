@@ -165,10 +165,11 @@ export class WhatsAppTextAccumulator {
     const v1Match = cleanedLine.match(MESSAGE_LINE_REGEX_V1)
     if (v1Match) {
       const candidates = parseFlexibleTimestampCandidates(v1Match[1])
+      this.saveCurrentMessage()
       if (candidates !== null) {
-        this.saveCurrentMessage()
         this.currentMessage = createPendingMessage(candidates, v1Match[2])
       } else {
+        // Drop the whole invalid message: its continuation lines must not join the previous one.
         this.skippedLines += 1
       }
       return
@@ -183,6 +184,7 @@ export class WhatsAppTextAccumulator {
         return
       }
       if (looksLikeHeaderPrefix(v2Match[1])) {
+        this.saveCurrentMessage()
         this.skippedLines += 1
         return
       }
