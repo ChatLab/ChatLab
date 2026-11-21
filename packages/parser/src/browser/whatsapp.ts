@@ -168,8 +168,10 @@ export class WhatsAppTextAccumulator {
       if (candidates !== null) {
         this.saveCurrentMessage()
         this.currentMessage = createPendingMessage(candidates, v1Match[2])
-        return
+      } else {
+        this.skippedLines += 1
       }
+      return
     }
 
     const v2Match = cleanedLine.match(MESSAGE_LINE_REGEX_V2)
@@ -178,6 +180,10 @@ export class WhatsAppTextAccumulator {
       if (candidates !== null) {
         this.saveCurrentMessage()
         this.currentMessage = createPendingMessage(candidates, v2Match[2])
+        return
+      }
+      if (looksLikeHeaderPrefix(v2Match[1])) {
+        this.skippedLines += 1
         return
       }
     }
@@ -353,6 +359,10 @@ function normalizeYear(rawYear: number): number | null {
   return null
 }
 
+function looksLikeHeaderPrefix(raw: string): boolean {
+  return /^(?:\s|\u2009|\u202F|\uFEFF|\u200E|\u200F|\u200B|\u200C|\u200D|\u2060)*\d{1,4}([/.])\d{1,2}\1\d{1,4}/.test(raw)
+}
+
 function buildValidatedEpochSeconds(
   year: number,
   month: number,
@@ -363,17 +373,18 @@ function buildValidatedEpochSeconds(
 ): number | null {
   if (month < 1 || month > 12 || day < 1 || day > 31) return null
   if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) return null
-  const date = new Date(year, month - 1, day, hour, minute, second)
+  const utcDate = new Date(Date.UTC(year, month - 1, day, hour, minute, second))
   if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day ||
-    date.getHours() !== hour ||
-    date.getMinutes() !== minute ||
-    date.getSeconds() !== second
+    utcDate.getUTCFullYear() !== year ||
+    utcDate.getUTCMonth() !== month - 1 ||
+    utcDate.getUTCDate() !== day ||
+    utcDate.getUTCHours() !== hour ||
+    utcDate.getUTCMinutes() !== minute ||
+    utcDate.getUTCSeconds() !== second
   ) {
     return null
   }
+  const date = new Date(year, month - 1, day, hour, minute, second)
   const timestamp = Math.floor(date.getTime() / 1000)
   return Number.isNaN(timestamp) ? null : timestamp
 }
