@@ -147,4 +147,140 @@ describe('WhatsApp browser-safe text parser', () => {
       ]
     )
   })
+
+  it('applies file-level date order evidence consistently across short and long years', async () => {
+    const dayFirstContent = [
+      '13/01/24, 10:30 - Alice: day above 12 proves day-first',
+      '05/03/24, 10:30 - Alice: ambiguous short year',
+      '05/03/2024, 10:30 - Alice: ambiguous long year',
+    ].join('\n')
+
+    const dayFirstResult = await parseWhatsAppText(dayFirstContent, 'WhatsApp day-first.txt')
+    assert.deepEqual(
+      dayFirstResult.messages.map((message) => message.timestamp),
+      [localTs('2024-01-13T10:30:00'), localTs('2024-03-05T10:30:00'), localTs('2024-03-05T10:30:00')]
+    )
+
+    const monthFirstContent = [
+      '01/13/2024, 10:30 - Alice: second part above 12 proves month-first',
+      '05/03/24, 10:30 - Alice: ambiguous short year',
+      '05/03/2024, 10:30 - Alice: ambiguous long year',
+    ].join('\n')
+
+    const monthFirstResult = await parseWhatsAppText(monthFirstContent, 'WhatsApp month-first.txt')
+    assert.deepEqual(
+      monthFirstResult.messages.map((message) => message.timestamp),
+      [localTs('2024-01-13T10:30:00'), localTs('2024-05-03T10:30:00'), localTs('2024-05-03T10:30:00')]
+    )
+  })
+
+  it('infers date order from chronology when all dates are ambiguous', async () => {
+    const content = [
+      '03/02/2024, 10:00 - Alice: Feb 3 in day-first (Mar 2 in month-first)',
+      '04/01/2024, 10:00 - Bob: Jan 4 in day-first (Apr 1 in month-first)',
+    ].join('\n')
+
+    const result = await parseWhatsAppText(content, 'WhatsApp chronology.txt')
+    assert.deepEqual(
+      result.messages.map((message) => message.timestamp),
+      [localTs('2024-03-02T10:00:00'), localTs('2024-04-01T10:00:00')]
+    )
+  })
+
+  it('skips calendar-invalid dates instead of rolling them into another date or merging into prior message', async () => {
+    const content = [
+      '2024/01/01 10:00 - Alice: first valid message',
+      '13/25/2024, 10:30 - Alice: invalid month and day',
+      '32/12/2024, 10:30 - Alice: day 32',
+      '2024/13/01 10:30 - Alice: month 13 in YMD',
+      '[45/01/2024, 10:30:00] Alice: day 45 in iOS format',
+      '2024/01/02 10:30 - Bob: second valid message',
+    ].join('\n')
+
+    const result = await parseWhatsAppText(content, 'WhatsApp invalid-dates.txt')
+    assert.equal(result.messages.length, 2)
+    assert.equal(result.messages[0]?.senderPlatformId, 'Alice')
+    assert.equal(result.messages[0]?.content, 'first valid message')
+    assert.equal(result.messages[0]?.timestamp, localTs('2024-01-01T10:00:00'))
+    assert.equal(result.messages[1]?.senderPlatformId, 'Bob')
+    assert.equal(result.messages[1]?.content, 'second valid message')
+    assert.equal(result.messages[1]?.timestamp, localTs('2024-01-02T10:30:00'))
+    assert.equal(result.skippedLines, 4)
+  })
+
+  it('drops the continuation lines of a skipped invalid message', async () => {
+    const content = [
+      '2024/01/01 10:00 - Alice: first line',
+      'still Alice',
+      '32/12/2024, 10:30 - Alice: day 32',
+      'continuation of the invalid message',
+      '[45/01/2024, 10:31:00] Bob: day 45',
+      'continuation of another invalid message',
+      '2024/01/02 10:30 - Bob: second',
+    ].join('\n')
+
+    const result = await parseWhatsAppText(content, 'WhatsApp invalid-multiline.txt')
+    assert.deepEqual(
+      result.messages.map((message) => message.content),
+      ['first line\nstill Alice', 'second']
+    )
+    assert.equal(result.skippedLines, 4)
+  })
+
+  it('skips an invalid localized header with the period marker before the time', async () => {
+    const content = [
+      '[2024/01/02 오후 03:06] Alice: first',
+      '[2024/13/02 오후 03:07] Alice: month 13',
+      '[2024/01/02 오후 03:08] Bob: second',
+    ].join('\n')
+
+    const result = await parseWhatsAppText(content, 'WhatsApp korean-invalid.txt')
+    assert.equal(result.messages.length, 2)
+    assert.equal(result.messages[0]?.content, 'first')
+    assert.equal(result.messages[1]?.content, 'second')
+    assert.equal(result.skippedLines, 1)
+  })
+
+  it('skips an invalid localized header whose period marker touches the hour', async () => {
+    const content = [
+      '[2024/01/02 下午3:06] Alice: first',
+      '[2024/13/02 下午3:07] Alice: month 13',
+      '[2024/01/02 下午3:08] Bob: second',
+    ].join('\n')
+
+    const result = await parseWhatsAppText(content, 'WhatsApp chinese-invalid.txt')
+    assert.equal(result.messages.length, 2)
+    assert.equal(result.messages[0]?.content, 'first')
+    assert.equal(result.messages[1]?.content, 'second')
+    assert.equal(result.skippedLines, 1)
+  })
+
+  it('keeps a bracketed date-only continuation line as message text', async () => {
+    const content = [
+      '[01/02/2024, 10:00:00] Alice: meeting notes',
+      '[01/02/2024] agenda',
+      '[01/02/2024, 10:05:00] Bob: thanks',
+    ].join('\n')
+
+    const result = await parseWhatsAppText(content, 'WhatsApp date-only-continuation.txt')
+    assert.equal(result.messages.length, 2)
+    assert.equal(result.messages[0]?.content, 'meeting notes\n[01/02/2024] agenda')
+    assert.equal(result.messages[1]?.content, 'thanks')
+    assert.equal(result.skippedLines, 0)
+  })
+
+  it('validates civil dates timezone-neutrally across host DST spring-forward gaps', async () => {
+    const previousTz = process.env.TZ
+    try {
+      process.env.TZ = 'America/New_York'
+      const content = ['13/03/2022, 02:30 - Alice: sent from non-DST timezone during US spring-forward hour'].join('\n')
+      const result = await parseWhatsAppText(content, 'WhatsApp dst-gap.txt')
+      assert.equal(result.messages.length, 1)
+      assert.equal(result.messages[0]?.timestamp, Math.floor(new Date(2022, 2, 13, 2, 30, 0).getTime() / 1000))
+      assert.equal(result.skippedLines, 0)
+    } finally {
+      if (previousTz === undefined) delete process.env.TZ
+      else process.env.TZ = previousTz
+    }
+  })
 })
