@@ -147,4 +147,67 @@ describe('WhatsApp browser-safe text parser', () => {
       ]
     )
   })
+
+  it('applies file-level date order evidence consistently across short and long years', async () => {
+    const dayFirstContent = [
+      '13/01/24, 10:30 - Alice: day above 12 proves day-first',
+      '05/03/24, 10:30 - Alice: ambiguous short year',
+      '05/03/2024, 10:30 - Alice: ambiguous long year',
+    ].join('\n')
+
+    const dayFirstResult = await parseWhatsAppText(dayFirstContent, 'WhatsApp day-first.txt')
+    assert.deepEqual(
+      dayFirstResult.messages.map((message) => message.timestamp),
+      [
+        localTs('2024-01-13T10:30:00'),
+        localTs('2024-03-05T10:30:00'),
+        localTs('2024-03-05T10:30:00'),
+      ]
+    )
+
+    const monthFirstContent = [
+      '01/13/2024, 10:30 - Alice: second part above 12 proves month-first',
+      '05/03/24, 10:30 - Alice: ambiguous short year',
+      '05/03/2024, 10:30 - Alice: ambiguous long year',
+    ].join('\n')
+
+    const monthFirstResult = await parseWhatsAppText(monthFirstContent, 'WhatsApp month-first.txt')
+    assert.deepEqual(
+      monthFirstResult.messages.map((message) => message.timestamp),
+      [
+        localTs('2024-01-13T10:30:00'),
+        localTs('2024-05-03T10:30:00'),
+        localTs('2024-05-03T10:30:00'),
+      ]
+    )
+  })
+
+  it('infers date order from chronology when all dates are ambiguous', async () => {
+    const content = [
+      '03/02/2024, 10:00 - Alice: Feb 3 in day-first (Mar 2 in month-first)',
+      '04/01/2024, 10:00 - Bob: Jan 4 in day-first (Apr 1 in month-first)',
+    ].join('\n')
+
+    const result = await parseWhatsAppText(content, 'WhatsApp chronology.txt')
+    assert.deepEqual(
+      result.messages.map((message) => message.timestamp),
+      [localTs('2024-03-02T10:00:00'), localTs('2024-04-01T10:00:00')]
+    )
+  })
+
+  it('skips calendar-invalid dates instead of rolling them into another date', async () => {
+    const content = [
+      '13/25/2024, 10:30 - Alice: invalid month and day',
+      '32/12/2024, 10:30 - Alice: day 32',
+      '2024/13/01 10:30 - Alice: month 13 in YMD',
+      '[45/01/2024, 10:30:00] Alice: day 45 in iOS format',
+      '2024/01/02 10:30 - Bob: valid message',
+    ].join('\n')
+
+    const result = await parseWhatsAppText(content, 'WhatsApp invalid-dates.txt')
+    assert.equal(result.messages.length, 1)
+    assert.equal(result.messages[0]?.senderPlatformId, 'Bob')
+    assert.equal(result.messages[0]?.timestamp, localTs('2024-01-02T10:30:00'))
+    assert.equal(result.skippedLines, 4)
+  })
 })
