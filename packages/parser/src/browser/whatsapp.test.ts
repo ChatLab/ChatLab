@@ -208,6 +208,25 @@ describe('WhatsApp browser-safe text parser', () => {
     assert.equal(result.skippedLines, 4)
   })
 
+  it('drops the continuation lines of a skipped invalid message', async () => {
+    const content = [
+      '2024/01/01 10:00 - Alice: first line',
+      'still Alice',
+      '32/12/2024, 10:30 - Alice: day 32',
+      'continuation of the invalid message',
+      '[45/01/2024, 10:31:00] Bob: day 45',
+      'continuation of another invalid message',
+      '2024/01/02 10:30 - Bob: second',
+    ].join('\n')
+
+    const result = await parseWhatsAppText(content, 'WhatsApp invalid-multiline.txt')
+    assert.deepEqual(
+      result.messages.map((message) => message.content),
+      ['first line\nstill Alice', 'second']
+    )
+    assert.equal(result.skippedLines, 4)
+  })
+
   it('skips an invalid localized header with the period marker before the time', async () => {
     const content = [
       '[2024/01/02 오후 03:06] Alice: first',
