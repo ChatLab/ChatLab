@@ -38,9 +38,19 @@ interface MemberInfo {
 
 interface PendingMessage {
   timestamp: number
+  timestampCandidates: TimestampCandidates
   sender: string | null
   contentLines: string[]
   isSystem: boolean
+}
+
+type DateOrderPreference = 'dmy' | 'mdy' | 'ymd'
+
+interface TimestampCandidates {
+  defaultOrder: DateOrderPreference
+  dmy: number | null
+  mdy: number | null
+  ymd: number | null
 }
 
 const MESSAGE_LINE_REGEX_V1 =
@@ -138,6 +148,7 @@ export class WhatsAppTextAccumulator {
   private readonly fileChatName: string
   private readonly memberMap = new Map<string, MemberInfo>()
   private readonly messages: ParsedMessage[] = []
+  private readonly messageTimestampCandidates: TimestampCandidates[] = []
   private currentMessage: PendingMessage | null = null
   private skippedLines = 0
 
@@ -153,17 +164,20 @@ export class WhatsAppTextAccumulator {
     const cleanedLine = cleanLine(line)
     const v1Match = cleanedLine.match(MESSAGE_LINE_REGEX_V1)
     if (v1Match) {
-      this.saveCurrentMessage()
-      this.currentMessage = createPendingMessage(parseFlexibleTimestamp(v1Match[1]) ?? 0, v1Match[2])
-      return
+      const candidates = parseFlexibleTimestampCandidates(v1Match[1])
+      if (candidates !== null) {
+        this.saveCurrentMessage()
+        this.currentMessage = createPendingMessage(candidates, v1Match[2])
+        return
+      }
     }
 
     const v2Match = cleanedLine.match(MESSAGE_LINE_REGEX_V2)
     if (v2Match) {
-      const timestamp = parseFlexibleTimestamp(v2Match[1])
-      if (timestamp !== null) {
+      const candidates = parseFlexibleTimestampCandidates(v2Match[1])
+      if (candidates !== null) {
         this.saveCurrentMessage()
-        this.currentMessage = createPendingMessage(timestamp, v2Match[2])
+        this.currentMessage = createPendingMessage(candidates, v2Match[2])
         return
       }
     }
@@ -177,6 +191,7 @@ export class WhatsAppTextAccumulator {
 
   finish(): WhatsAppTextParseResult {
     this.saveCurrentMessage()
+    resolveFileTimestamps(this.messages, this.messageTimestampCandidates)
     const chatType = this.memberMap.size > 2 ? ChatType.GROUP : ChatType.PRIVATE
     const chatName =
       chatType === ChatType.PRIVATE && shouldInferPrivateChatName(this.fileName, this.fileChatName)
@@ -207,6 +222,7 @@ export class WhatsAppTextAccumulator {
       type: detectMessageType(content, this.currentMessage.isSystem),
       content: content || null,
     })
+    this.messageTimestampCandidates.push(this.currentMessage.timestampCandidates)
     if (this.currentMessage.sender) {
       this.memberMap.set(senderPlatformId, { platformId: senderPlatformId, nickname: senderName })
     }
@@ -214,13 +230,20 @@ export class WhatsAppTextAccumulator {
   }
 }
 
-function createPendingMessage(timestamp: number, restContent: string): PendingMessage {
+function createPendingMessage(timestampCandidates: TimestampCandidates, restContent: string): PendingMessage {
+  const timestamp = pickDefaultTimestamp(timestampCandidates)
   const senderMatch = restContent.match(SENDER_CONTENT_REGEX)
   const isSystem = isSystemMessage(restContent)
   if (senderMatch && !isSystem) {
-    return { timestamp, sender: senderMatch[1].trim(), contentLines: [senderMatch[2]], isSystem }
+    return {
+      timestamp,
+      timestampCandidates,
+      sender: senderMatch[1].trim(),
+      contentLines: [senderMatch[2]],
+      isSystem,
+    }
   }
-  return { timestamp, sender: null, contentLines: [restContent], isSystem }
+  return { timestamp, timestampCandidates, sender: null, contentLines: [restContent], isSystem }
 }
 
 function extractNameFromFileName(fileName: string): string {
@@ -278,10 +301,10 @@ function detectMessageType(content: string, knownSystem = false): MessageType {
   return MessageType.TEXT
 }
 
-function parseFlexibleTimestamp(raw: string): number | null {
+function parseFlexibleTimestampCandidates(raw: string): TimestampCandidates | null {
   const commonMatch = raw.match(COMMON_TIMESTAMP_REGEX)
   if (commonMatch) {
-    return buildTimestamp(
+    return buildTimestampCandidates(
       Number.parseInt(commonMatch[1], 10),
       Number.parseInt(commonMatch[3], 10),
       Number.parseInt(commonMatch[4], 10),
@@ -307,7 +330,7 @@ function parseFlexibleTimestamp(raw: string): number | null {
   if (!match) return null
   const timeParts = match[5].split(':').map((part) => Number.parseInt(part, 10))
 
-  return buildTimestamp(
+  return buildTimestampCandidates(
     Number.parseInt(match[1], 10),
     Number.parseInt(match[3], 10),
     Number.parseInt(match[4], 10),
@@ -324,7 +347,38 @@ function parseAmPm(marker: string | undefined): boolean | null {
   return /^(?:PM|P\.M\.|下午|午後|오후)$/i.test(marker)
 }
 
-function buildTimestamp(
+function normalizeYear(rawYear: number): number | null {
+  if (rawYear >= 1000 && rawYear <= 9999) return rawYear
+  if (rawYear >= 0 && rawYear <= 99) return 2000 + rawYear
+  return null
+}
+
+function buildValidatedEpochSeconds(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second: number
+): number | null {
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) return null
+  const date = new Date(year, month - 1, day, hour, minute, second)
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day ||
+    date.getHours() !== hour ||
+    date.getMinutes() !== minute ||
+    date.getSeconds() !== second
+  ) {
+    return null
+  }
+  const timestamp = Math.floor(date.getTime() / 1000)
+  return Number.isNaN(timestamp) ? null : timestamp
+}
+
+function buildTimestampCandidates(
   firstDatePart: number,
   secondDatePart: number,
   thirdDatePart: number,
@@ -333,42 +387,93 @@ function buildTimestamp(
   second: number,
   isPm: boolean | null,
   dotSeparated = false
-): number | null {
-  let year: number
-  let month: number
-  let day: number
-  if (firstDatePart > 31) {
-    year = firstDatePart
-    month = secondDatePart
-    day = thirdDatePart
-  } else if (thirdDatePart > 31) {
-    year = thirdDatePart
-    // A second part above 12 cannot be a month, so the date must be month-first.
-    if (secondDatePart > 12) {
-      month = firstDatePart
-      day = secondDatePart
-    } else {
-      day = firstDatePart
-      month = secondDatePart
-    }
-  } else {
-    year = 2000 + thirdDatePart
-    // A first part above 12 cannot be a month, so the date must be day-first.
-    // Dot-separated dates (dd.mm.yy, for example German exports) are day-first.
-    if (firstDatePart > 12 || (dotSeparated && secondDatePart <= 12)) {
-      day = firstDatePart
-      month = secondDatePart
-    } else {
-      month = firstDatePart
-      day = secondDatePart
-    }
-  }
-
+): TimestampCandidates | null {
+  if (isPm !== null && (rawHour < 1 || rawHour > 12)) return null
   let hour = rawHour
   if (isPm === true && hour !== 12) hour += 12
   if (isPm === false && hour === 12) hour = 0
 
-  const date = new Date(year, month - 1, day, hour, minute, second)
-  const timestamp = Math.floor(date.getTime() / 1000)
-  return Number.isNaN(timestamp) ? null : timestamp
+  const ymd =
+    firstDatePart >= 1000
+      ? buildValidatedEpochSeconds(firstDatePart, secondDatePart, thirdDatePart, hour, minute, second)
+      : null
+
+  const trailingYear = firstDatePart < 1000 ? normalizeYear(thirdDatePart) : null
+  const dmy =
+    trailingYear !== null
+      ? buildValidatedEpochSeconds(trailingYear, secondDatePart, firstDatePart, hour, minute, second)
+      : null
+  const mdy =
+    trailingYear !== null
+      ? buildValidatedEpochSeconds(trailingYear, firstDatePart, secondDatePart, hour, minute, second)
+      : null
+
+  if (ymd === null && dmy === null && mdy === null) return null
+
+  const defaultOrder: DateOrderPreference =
+    firstDatePart >= 1000
+      ? 'ymd'
+      : thirdDatePart > 31 || dotSeparated
+        ? 'dmy'
+        : 'mdy'
+
+  return { defaultOrder, dmy, mdy, ymd }
+}
+
+function pickDefaultTimestamp(candidates: TimestampCandidates): number {
+  if (candidates.defaultOrder === 'ymd' && candidates.ymd !== null) return candidates.ymd
+  if (candidates.defaultOrder === 'dmy') return (candidates.dmy ?? candidates.mdy ?? candidates.ymd)!
+  return (candidates.mdy ?? candidates.dmy ?? candidates.ymd)!
+}
+
+function pickOrderedTimestamp(candidates: TimestampCandidates, order: 'dmy' | 'mdy'): number {
+  if (candidates.ymd !== null && candidates.dmy === null && candidates.mdy === null) {
+    return candidates.ymd
+  }
+  return order === 'dmy'
+    ? (candidates.dmy ?? candidates.mdy ?? candidates.ymd)!
+    : (candidates.mdy ?? candidates.dmy ?? candidates.ymd)!
+}
+
+function resolveFileTimestamps(messages: ParsedMessage[], candidatesList: TimestampCandidates[]): void {
+  if (messages.length === 0) return
+
+  let dmyEvidence = 0
+  let mdyEvidence = 0
+  for (const candidates of candidatesList) {
+    if (candidates.dmy !== null && candidates.mdy === null) dmyEvidence += 1
+    else if (candidates.mdy !== null && candidates.dmy === null) mdyEvidence += 1
+  }
+
+  let fileOrder: 'dmy' | 'mdy' | null = null
+  if (dmyEvidence > 0 && mdyEvidence === 0) {
+    fileOrder = 'dmy'
+  } else if (mdyEvidence > 0 && dmyEvidence === 0) {
+    fileOrder = 'mdy'
+  } else if (dmyEvidence === 0 && mdyEvidence === 0) {
+    const dmyInversions = countChronologicalInversions(candidatesList, 'dmy')
+    const mdyInversions = countChronologicalInversions(candidatesList, 'mdy')
+    if (dmyInversions < mdyInversions) fileOrder = 'dmy'
+    else if (mdyInversions < dmyInversions) fileOrder = 'mdy'
+  }
+
+  for (let index = 0; index < messages.length; index += 1) {
+    const candidates = candidatesList[index]
+    messages[index].timestamp = fileOrder
+      ? pickOrderedTimestamp(candidates, fileOrder)
+      : pickDefaultTimestamp(candidates)
+  }
+}
+
+function countChronologicalInversions(candidatesList: TimestampCandidates[], order: 'dmy' | 'mdy'): number {
+  let inversions = 0
+  let previous: number | null = null
+  for (const candidates of candidatesList) {
+    const current = pickOrderedTimestamp(candidates, order)
+    if (previous !== null && current < previous) {
+      inversions += 1
+    }
+    previous = current
+  }
+  return inversions
 }
