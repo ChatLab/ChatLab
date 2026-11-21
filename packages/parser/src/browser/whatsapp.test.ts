@@ -195,19 +195,41 @@ describe('WhatsApp browser-safe text parser', () => {
     )
   })
 
-  it('skips calendar-invalid dates instead of rolling them into another date', async () => {
+  it('skips calendar-invalid dates instead of rolling them into another date or merging into prior message', async () => {
     const content = [
+      '2024/01/01 10:00 - Alice: first valid message',
       '13/25/2024, 10:30 - Alice: invalid month and day',
       '32/12/2024, 10:30 - Alice: day 32',
       '2024/13/01 10:30 - Alice: month 13 in YMD',
       '[45/01/2024, 10:30:00] Alice: day 45 in iOS format',
-      '2024/01/02 10:30 - Bob: valid message',
+      '2024/01/02 10:30 - Bob: second valid message',
     ].join('\n')
 
     const result = await parseWhatsAppText(content, 'WhatsApp invalid-dates.txt')
-    assert.equal(result.messages.length, 1)
-    assert.equal(result.messages[0]?.senderPlatformId, 'Bob')
-    assert.equal(result.messages[0]?.timestamp, localTs('2024-01-02T10:30:00'))
+    assert.equal(result.messages.length, 2)
+    assert.equal(result.messages[0]?.senderPlatformId, 'Alice')
+    assert.equal(result.messages[0]?.content, 'first valid message')
+    assert.equal(result.messages[0]?.timestamp, localTs('2024-01-01T10:00:00'))
+    assert.equal(result.messages[1]?.senderPlatformId, 'Bob')
+    assert.equal(result.messages[1]?.content, 'second valid message')
+    assert.equal(result.messages[1]?.timestamp, localTs('2024-01-02T10:30:00'))
     assert.equal(result.skippedLines, 4)
+  })
+
+  it('validates civil dates timezone-neutrally across host DST spring-forward gaps', async () => {
+    const previousTz = process.env.TZ
+    try {
+      process.env.TZ = 'America/New_York'
+      const content = [
+        '13/03/2022, 02:30 - Alice: sent from non-DST timezone during US spring-forward hour',
+      ].join('\n')
+      const result = await parseWhatsAppText(content, 'WhatsApp dst-gap.txt')
+      assert.equal(result.messages.length, 1)
+      assert.equal(result.messages[0]?.timestamp, Math.floor(new Date(2022, 2, 13, 2, 30, 0).getTime() / 1000))
+      assert.equal(result.skippedLines, 0)
+    } finally {
+      if (previousTz === undefined) delete process.env.TZ
+      else process.env.TZ = previousTz
+    }
   })
 })
