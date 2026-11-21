@@ -208,6 +208,20 @@ describe('WhatsApp browser-safe text parser', () => {
     assert.equal(result.skippedLines, 4)
   })
 
+  it('skips an invalid localized header with the period marker before the time', async () => {
+    const content = [
+      '[2024/01/02 오후 03:06] Alice: first',
+      '[2024/13/02 오후 03:07] Alice: month 13',
+      '[2024/01/02 오후 03:08] Bob: second',
+    ].join('\n')
+
+    const result = await parseWhatsAppText(content, 'WhatsApp korean-invalid.txt')
+    assert.equal(result.messages.length, 2)
+    assert.equal(result.messages[0]?.content, 'first')
+    assert.equal(result.messages[1]?.content, 'second')
+    assert.equal(result.skippedLines, 1)
+  })
+
   it('keeps a bracketed date-only continuation line as message text', async () => {
     const content = [
       '[01/02/2024, 10:00:00] Alice: meeting notes',
