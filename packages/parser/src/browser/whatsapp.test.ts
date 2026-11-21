@@ -158,11 +158,7 @@ describe('WhatsApp browser-safe text parser', () => {
     const dayFirstResult = await parseWhatsAppText(dayFirstContent, 'WhatsApp day-first.txt')
     assert.deepEqual(
       dayFirstResult.messages.map((message) => message.timestamp),
-      [
-        localTs('2024-01-13T10:30:00'),
-        localTs('2024-03-05T10:30:00'),
-        localTs('2024-03-05T10:30:00'),
-      ]
+      [localTs('2024-01-13T10:30:00'), localTs('2024-03-05T10:30:00'), localTs('2024-03-05T10:30:00')]
     )
 
     const monthFirstContent = [
@@ -174,11 +170,7 @@ describe('WhatsApp browser-safe text parser', () => {
     const monthFirstResult = await parseWhatsAppText(monthFirstContent, 'WhatsApp month-first.txt')
     assert.deepEqual(
       monthFirstResult.messages.map((message) => message.timestamp),
-      [
-        localTs('2024-01-13T10:30:00'),
-        localTs('2024-05-03T10:30:00'),
-        localTs('2024-05-03T10:30:00'),
-      ]
+      [localTs('2024-01-13T10:30:00'), localTs('2024-05-03T10:30:00'), localTs('2024-05-03T10:30:00')]
     )
   })
 
@@ -216,13 +208,25 @@ describe('WhatsApp browser-safe text parser', () => {
     assert.equal(result.skippedLines, 4)
   })
 
+  it('keeps a bracketed date-only continuation line as message text', async () => {
+    const content = [
+      '[01/02/2024, 10:00:00] Alice: meeting notes',
+      '[01/02/2024] agenda',
+      '[01/02/2024, 10:05:00] Bob: thanks',
+    ].join('\n')
+
+    const result = await parseWhatsAppText(content, 'WhatsApp date-only-continuation.txt')
+    assert.equal(result.messages.length, 2)
+    assert.equal(result.messages[0]?.content, 'meeting notes\n[01/02/2024] agenda')
+    assert.equal(result.messages[1]?.content, 'thanks')
+    assert.equal(result.skippedLines, 0)
+  })
+
   it('validates civil dates timezone-neutrally across host DST spring-forward gaps', async () => {
     const previousTz = process.env.TZ
     try {
       process.env.TZ = 'America/New_York'
-      const content = [
-        '13/03/2022, 02:30 - Alice: sent from non-DST timezone during US spring-forward hour',
-      ].join('\n')
+      const content = ['13/03/2022, 02:30 - Alice: sent from non-DST timezone during US spring-forward hour'].join('\n')
       const result = await parseWhatsAppText(content, 'WhatsApp dst-gap.txt')
       assert.equal(result.messages.length, 1)
       assert.equal(result.messages[0]?.timestamp, Math.floor(new Date(2022, 2, 13, 2, 30, 0).getTime() / 1000))

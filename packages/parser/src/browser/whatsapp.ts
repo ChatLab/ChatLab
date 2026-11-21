@@ -359,8 +359,12 @@ function normalizeYear(rawYear: number): number | null {
   return null
 }
 
+// A header has a time after the date; a date-only bracket such as "[01/02/2024] agenda"
+// is ordinary message text and must stay a continuation line.
 function looksLikeHeaderPrefix(raw: string): boolean {
-  return /^(?:\s|\u2009|\u202F|\uFEFF|\u200E|\u200F|\u200B|\u200C|\u200D|\u2060)*\d{1,4}([/.])\d{1,2}\1\d{1,4}/.test(raw)
+  return /^(?:\s|\u2009|\u202F|\uFEFF|\u200E|\u200F|\u200B|\u200C|\u200D|\u2060)*\d{1,4}([/.])\d{1,2}\1\d{1,4}(?:,|\s|\u2009|\u202F)+\d{1,2}:\d{2}/.test(
+    raw
+  )
 }
 
 function buildValidatedEpochSeconds(
@@ -422,11 +426,7 @@ function buildTimestampCandidates(
   if (ymd === null && dmy === null && mdy === null) return null
 
   const defaultOrder: DateOrderPreference =
-    firstDatePart >= 1000
-      ? 'ymd'
-      : thirdDatePart > 31 || dotSeparated
-        ? 'dmy'
-        : 'mdy'
+    firstDatePart >= 1000 ? 'ymd' : thirdDatePart > 31 || dotSeparated ? 'dmy' : 'mdy'
 
   return { defaultOrder, dmy, mdy, ymd }
 }
