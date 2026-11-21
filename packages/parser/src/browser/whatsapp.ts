@@ -363,9 +363,10 @@ function normalizeYear(rawYear: number): number | null {
 
 // A header has a time after the date, optionally preceded by a period marker as in
 // "[2024/01/02 \uC624\uD6C4 03:06]"; a date-only bracket such as "[01/02/2024] agenda" is
-// ordinary message text and must stay a continuation line.
+// ordinary message text and must stay a continuation line. Like the timestamp parser, CJK
+// markers may touch the hour ("\u4E0B\u53483:06") while Latin AM/PM need a separator.
 const HEADER_PREFIX_REGEX = new RegExp(
-  String.raw`^${TIMESTAMP_SPACING}*\d{1,4}([/.])\d{1,2}\1\d{1,4}(?:,|${TIMESTAMP_SPACING})+(?:(?:AM|PM|A\.M\.|P\.M\.|\u4E0A\u5348|\u4E0B\u5348|\u5348\u524D|\u5348\u5F8C|\uC624\uC804|\uC624\uD6C4)${TIMESTAMP_SPACING}+)?\d{1,2}:\d{2}`,
+  String.raw`^${TIMESTAMP_SPACING}*\d{1,4}([/.])\d{1,2}\1\d{1,4}(?:,|${TIMESTAMP_SPACING})+(?:(?:AM|PM|A\.M\.|P\.M\.)${TIMESTAMP_SPACING}+|(?:\u4E0A\u5348|\u4E0B\u5348|\u5348\u524D|\u5348\u5F8C|\uC624\uC804|\uC624\uD6C4)${TIMESTAMP_SPACING}*)?\d{1,2}:\d{2}`,
   'i'
 )
 
