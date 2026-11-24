@@ -283,4 +283,35 @@ describe('WhatsApp browser-safe text parser', () => {
       else process.env.TZ = previousTz
     }
   })
+
+  it('keeps the sender of a chat message whose text contains a system keyword', async () => {
+    const content = [
+      '12/03/2024, 21:15 - Alice: I added the photos to the album',
+      '12/03/2024, 21:16 - Bob: who removed my file?',
+      '12/03/2024, 21:17 - Alice: This message was deleted',
+      '12/03/2024, 21:18 - Alice added Bob',
+      '12/03/2024, 21:19 - Alice added "Team: A"',
+      '12/03/2024, 21:20 - Jason: \u200EYou added Jason.',
+      '12/03/2024, 21:21 - Team Chat: Messages and calls are end-to-end encrypted.',
+      '12/03/2024, 21:22 - T1: You removed T1',
+      '',
+    ].join('\n')
+
+    const result = await parseWhatsAppText(content, 'WhatsApp Chat with Bob.txt')
+
+    assert.deepEqual(
+      result.messages.map((message) => [message.senderPlatformId, message.type, message.content]),
+      [
+        ['Alice', MessageType.TEXT, 'I added the photos to the album'],
+        ['Bob', MessageType.TEXT, 'who removed my file?'],
+        ['Alice', MessageType.RECALL, 'This message was deleted'],
+        ['system', MessageType.SYSTEM, 'Alice added Bob'],
+        ['system', MessageType.SYSTEM, 'Alice added "Team: A"'],
+        ['system', MessageType.SYSTEM, 'Jason: \u200EYou added Jason.'],
+        ['system', MessageType.SYSTEM, 'Team Chat: Messages and calls are end-to-end encrypted.'],
+        ['system', MessageType.SYSTEM, 'T1: You removed T1'],
+      ]
+    )
+    assert.deepEqual(result.members.map((member) => member.platformId).sort(), ['Alice', 'Bob'])
+  })
 })
