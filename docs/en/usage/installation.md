@@ -32,7 +32,7 @@ Common options: `--port <port>` (default `3110`), `--host <address>`, and `--tok
 
 If the reverse proxy runs as a different Unix user, give its group access to the socket after ChatLab starts: `sudo chgrp <proxy-group> /tmp/chatlab.sock && sudo chmod 660 /tmp/chatlab.sock`. Reapply this after each restart, preferably with a service-manager post-start hook. No permission change is normally needed when ChatLab and the proxy run as the same user.
 
-If the proxy is accessible beyond the local trusted machine, start ChatLab with `--require-auth` (or enforce authentication at the proxy) so the Web UI routes and token configuration are not public.
+CLI Web accepts only loopback Host values (such as `localhost`, `127.0.0.1`, or `[::1]`) when serving without login over loopback or a Unix socket. Non-loopback TCP listeners require a token automatically. If a reverse proxy is reachable from another machine or forwards a custom domain to ChatLab, start ChatLab with `--require-auth` and sign in with the token printed at startup.
 
 To keep ChatLab running as a background service:
 

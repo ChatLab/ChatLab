@@ -1,92 +1,72 @@
-import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { setAuthToken, setRequireAuth, authHook } from './auth'
+import test, { type TestContext } from 'node:test'
+import type { CliHttpAuthOptions } from './auth'
+import { createServer } from './server'
 
-function fakeRequest(url: string, authorization?: string) {
-  return { url, headers: { authorization } } as never
+const TOKEN = 'test_token'
+const bearer = { authorization: `Bearer ${TOKEN}` }
+
+function setup(t: TestContext, overrides: Partial<CliHttpAuthOptions> = {}) {
+  const server = createServer({ token: TOKEN, tcpHost: '127.0.0.1', requireAuth: false, ...overrides })
+  server.get('/_web/test', async () => ({ ok: true }))
+  server.get('/api/v1/test', async () => ({ ok: true }))
+  server.get('/assets/main.js', async () => '')
+  t.after(() => server.close())
+  return server
 }
 
-function fakeReply() {
-  let sentCode = 0
-  let sentBody: unknown = null
-  return {
-    code(c: number) {
-      sentCode = c
-      return this
-    },
-    send(body: unknown) {
-      sentBody = body
-    },
-    get statusCode() {
-      return sentCode
-    },
-    get body() {
-      return sentBody
-    },
+test('local CLI Web accepts loopback authorities without a token', async (t) => {
+  const server = setup(t)
+  for (const host of ['localhost:3100', '127.0.0.1:3110', '[::1]:3110']) {
+    const response = await server.inject({ url: '/_web/test', headers: { host } })
+    assert.equal(response.statusCode, 200, host)
   }
-}
+})
 
-const VALID_TOKEN = 'clb_test_token_12345'
-
-describe('authHook — authentication matrix', () => {
-  beforeEach(() => {
-    setAuthToken(VALID_TOKEN)
-    setRequireAuth(false)
+test('local CLI Web only trusts the request Host, not a forwarded Host', async (t) => {
+  const server = setup(t)
+  const response = await server.inject({
+    url: '/_web/test',
+    headers: { host: 'unrecognized.test', 'x-forwarded-host': 'localhost' },
   })
+  assert.equal(response.statusCode, 400)
+})
 
-  // ── No token configured: all routes open ──
-
-  it('passes all routes when no token is configured', async () => {
-    setAuthToken('' as never)
-    // Hack: reset internal state — setAuthToken('') won't set null, use the real function
-    // Actually setAuthToken sets cachedToken to the string value. Empty string is falsy → all pass.
-    const reply = fakeReply()
-    await authHook(fakeRequest('/api/v1/status'), reply as never)
-    assert.equal(reply.statusCode, 0, '/api/* should pass without token configured')
-  })
-
-  // ── /_web/* default (requireAuth=false): bypass ──
-
-  it('allows /_web/* without auth when requireAuth=false', async () => {
-    const reply = fakeReply()
-    await authHook(fakeRequest('/_web/sessions'), reply as never)
-    assert.equal(reply.statusCode, 0)
-  })
-
-  const cases = [
-    ['rejects /api/* without Bearer header', '/api/v1/status', undefined, false, 401],
-    ['rejects /api/* with wrong token', '/api/v1/status', 'Bearer wrong_token', false, 401],
-    ['allows /api/* with correct token', '/api/v1/status', `Bearer ${VALID_TOKEN}`, false, 0],
-    ['rejects /_web/* without Bearer when requireAuth=true', '/_web/sessions', undefined, true, 401],
-    [
-      'rejects the token-bearing automation config without Bearer when requireAuth=true',
-      '/_web/automation/config',
-      undefined,
-      true,
-      401,
-    ],
-    ['rejects /_web/* with wrong token when requireAuth=true', '/_web/sessions', 'Bearer bad', true, 401],
-    ['allows /_web/* with correct token when requireAuth=true', '/_web/sessions', `Bearer ${VALID_TOKEN}`, true, 0],
-    ['allows static file paths without auth', '/index.html', undefined, false, 0],
-    ['allows static file paths without auth even with requireAuth=true', '/assets/main.js', undefined, true, 0],
-  ] as const
-
-  for (const [name, url, authorization, requireAuth, expectedStatus] of cases) {
-    it(name, async () => {
-      setRequireAuth(requireAuth)
-      const reply = fakeReply()
-      await authHook(fakeRequest(url, authorization), reply as never)
-      assert.equal(reply.statusCode, expectedStatus)
-    })
+test('IPv6 loopback and Unix socket listeners keep local Web UI access', async (t) => {
+  for (const [tcpHost, host] of [
+    ['::1', '[::1]:3110'],
+    [null, 'localhost'],
+  ] as const) {
+    const server = setup(t, { tcpHost })
+    assert.equal((await server.inject({ url: '/_web/test', headers: { host } })).statusCode, 200)
+    assert.equal((await server.inject({ url: '/_web/test', headers: { host: 'unrecognized.test' } })).statusCode, 400)
   }
+})
 
-  // ── setRequireAuth reset ──
+test('non-loopback listeners always require a token for Web UI endpoints', async (t) => {
+  for (const tcpHost of ['0.0.0.0', '::', '192.0.2.10']) {
+    const server = setup(t, { tcpHost })
+    assert.equal((await server.inject({ url: '/_web/test', headers: { host: '127.0.0.1' } })).statusCode, 401)
+    assert.equal((await server.inject({ url: '/_web/test', headers: bearer })).statusCode, 200)
+    assert.equal((await server.inject({ url: '/assets/main.js' })).statusCode, 200)
+  }
+})
 
-  it('setRequireAuth(false) properly resets protection on /_web/*', async () => {
-    setRequireAuth(true)
-    setRequireAuth(false)
-    const reply = fakeReply()
-    await authHook(fakeRequest('/_web/sessions'), reply as never)
-    assert.equal(reply.statusCode, 0, '/_web/* should be open after reset')
-  })
+test('local authenticated mode supports a proxy domain and rejects bad tokens', async (t) => {
+  const server = setup(t, { requireAuth: true })
+  const host = 'chatlab.example'
+  assert.equal((await server.inject({ url: '/_web/test', headers: { host } })).statusCode, 401)
+  assert.equal(
+    (await server.inject({ url: '/_web/test', headers: { host, authorization: 'Bearer invalid' } })).statusCode,
+    401
+  )
+  assert.equal((await server.inject({ url: '/_web/test', headers: { host, ...bearer } })).statusCode, 200)
+})
+
+test('the API always requires Bearer authentication, even with no token configured', async (t) => {
+  const server = setup(t)
+  const withoutToken = setup(t, { token: '' })
+  assert.equal((await server.inject({ url: '/api/v1/test' })).statusCode, 401)
+  assert.equal((await server.inject({ url: '/api/v1/test', headers: bearer })).statusCode, 200)
+  assert.equal((await withoutToken.inject({ url: '/api/v1/test', headers: bearer })).statusCode, 401)
 })

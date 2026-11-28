@@ -4,7 +4,7 @@ import { DataDirCompatibilityError } from '@openchatlab/node-runtime/src/data-di
 import { createServer } from './server'
 
 test('createServer returns DATA_DIR_INCOMPATIBLE when a route hits the data directory gate', async () => {
-  const server = createServer()
+  const server = createServer({ token: 'test_token', tcpHost: '127.0.0.1', requireAuth: false })
   server.get('/boom', async () => {
     throw new DataDirCompatibilityError(
       'DATA_DIR_REQUIRES_NEWER_RUNTIME',

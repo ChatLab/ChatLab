@@ -122,7 +122,7 @@ program
   .option('--socket <path>', 'Listen on a Unix domain socket instead of a TCP port')
   .option('--token <token>', 'Custom Bearer Token (reads from config or auto-generates if omitted)')
   .option('--headless', 'API-only mode, do not serve the Web UI')
-  .option('--require-auth', 'Require Bearer token for all routes including /_web/*')
+  .option('--require-auth', 'Require a Bearer token for Web UI endpoints even on local listeners')
   .option('--no-open', 'Do not auto-open the browser')
   .option('--daemon', 'Run as a resident system service (auto-start on login, macOS/Linux)')
   .action(async (options) => {

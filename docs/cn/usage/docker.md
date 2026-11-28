@@ -47,7 +47,7 @@ docker run --name chatlab `
   ghcr.io/chatlab/chatlab-cli:latest
 ```
 
-容器启动后，打开 <http://127.0.0.1:3110/>。
+容器启动后，打开 <http://127.0.0.1:3110/>，使用 `docker logs chatlab` 中启动时显示的令牌登录。容器默认监听非回环地址，所以即使端口只映射到宿主机的回环地址，也需要令牌。
 
 镜像默认使用非特权 `node` 用户（UID/GID 1000）运行。在 macOS 和 Linux 上，`--user` 会让容器进程使用宿主机当前用户的 UID/GID，`HOME` 则确保 ChatLab 的系统目录仍是 `/home/node/.chatlab`。对于当前用户 UID/GID 不是 1000 的 Linux 主机，这两个参数是必需的。宿主机的 `~/.chatlab` 对应容器内的 `/home/node/.chatlab`，`~/Downloads` 对应容器内可写的下载目录；`CHATLAB_DATA_DIR` 将默认用户数据固定到容器可访问的 `/home/node/.chatlab/data`，避免宿主机 `config.toml` 中的绝对路径在容器内失效。
 
@@ -105,7 +105,7 @@ clb web --no-open --host 0.0.0.0
 | `--host <host>` | 监听地址；在容器外运行时默认为 `127.0.0.1`。 |
 | `--token <token>` | 自定义 Bearer Token；省略时由 ChatLab 读取或生成。 |
 | `--headless` | 仅启动 API，不提供 Web UI。 |
-| `--require-auth` | 除 API 路由外，也要求 Web UI 路由使用 Bearer 认证。 |
+| `--require-auth` | 即使在本机监听，也要求 Web UI 路由使用 Bearer 认证。非回环 TCP 监听自动启用。 |
 | `--no-open` | 不打开浏览器。 |
 | `--daemon` | 安装 macOS/Linux 常驻服务，不适用于容器。 |
 
