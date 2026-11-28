@@ -3,7 +3,6 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useToast } from '@/composables/useToast'
-import MarkdownIt from 'markdown-it'
 import dayjs from 'dayjs'
 import type { SQLResult } from './types'
 import { COLUMN_LABELS } from './types'
@@ -13,6 +12,7 @@ import { exportSQLResult, type SQLExportFormat } from '@/utils/sqlExport'
 import { useLLMService } from '@/services'
 import { useCacheService } from '@/services/cache/service'
 import { useLlmStreamService } from '@/services/ai-stream/service'
+import { createAiMarkdownRenderer } from '@/services/ai/markdown'
 
 const { t, locale } = useI18n()
 const toast = useToast()
@@ -83,13 +83,7 @@ function viewMessageContext(messageId: number) {
   })
 }
 
-// 创建 markdown-it 实例
-const md = new MarkdownIt({
-  html: false,
-  breaks: true,
-  linkify: true,
-  typographer: true,
-})
+const md = createAiMarkdownRenderer()
 
 // Props
 const props = defineProps<{

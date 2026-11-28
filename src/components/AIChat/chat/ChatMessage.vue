@@ -2,7 +2,6 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import dayjs from 'dayjs'
-import MarkdownIt from 'markdown-it'
 import type { ContentBlock, ToolBlockContent } from '@/composables/useAIChat'
 import CaptureButton from '@/components/common/CaptureButton.vue'
 import ErrorBlock from './ErrorBlock.vue'
@@ -13,6 +12,7 @@ import ProcessDisclosure from './ProcessDisclosure.vue'
 import ProcessDisclosureIcon from './ProcessDisclosureIcon.vue'
 import { useToast } from '@/composables/useToast'
 import { stripChartImagePlaceholders } from '@/services/ai/chartMarkdownPlaceholders'
+import { createAiMarkdownRenderer } from '@/services/ai/markdown'
 import { shouldHideRecoverableChartError } from '@/stores/aiChatChartBlocks'
 import type { AIEntityRef, ToolProgress } from '@openchatlab/shared-types'
 import LiveFollowText from './LiveFollowText.vue'
@@ -84,13 +84,7 @@ const editTextareaRef = ref<HTMLTextAreaElement | null>(null)
 const canEdit = computed(() => isUser.value && props.editable && !props.isStreaming && !!props.messageId)
 const canFork = computed(() => !isUser.value && !isSummary.value && !props.isStreaming && !!props.messageId)
 
-// 创建 markdown-it 实例
-const md = new MarkdownIt({
-  html: false, // 禁用 HTML 标签
-  breaks: true, // 将换行转为 <br>
-  linkify: true, // 自动将 URL 转为链接
-  typographer: true, // 启用排版优化
-})
+const md = createAiMarkdownRenderer()
 
 md.renderer.rules.link_open = (tokens, idx, options, _env, self) => {
   tokens[idx].attrSet('target', '_blank')
