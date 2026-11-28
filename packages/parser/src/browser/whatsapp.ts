@@ -227,7 +227,7 @@ export class WhatsAppTextAccumulator {
       senderPlatformId,
       senderAccountName: senderName,
       timestamp: this.currentMessage.timestamp,
-      type: detectMessageType(content, this.currentMessage.isSystem),
+      type: detectMessageType(content, this.currentMessage.isSystem, this.currentMessage.sender !== null),
       content: content || null,
     })
     this.messageTimestampCandidates.push(this.currentMessage.timestampCandidates)
@@ -241,7 +241,7 @@ export class WhatsAppTextAccumulator {
 function createPendingMessage(timestampCandidates: TimestampCandidates, restContent: string): PendingMessage {
   const timestamp = pickDefaultTimestamp(timestampCandidates)
   const senderMatch = restContent.match(SENDER_CONTENT_REGEX)
-  const isSystem = isSystemMessage(restContent)
+  const isSystem = isSystemMessage(restContent) && (!senderMatch || isNoticeWithPrefix(restContent, senderMatch[1]))
   if (senderMatch && !isSystem) {
     return {
       timestamp,
@@ -280,11 +280,23 @@ function cleanLine(line: string): string {
   return line.replace(/^(?:\uFEFF|\u200E|\u200F|\u200B|\u200C|\u200D|\u2060)+/, '').trim()
 }
 
+// "Alice: I added the photos" is a chat message. It is still a notice when the keyword is in the prefix, when WhatsApp
+// marked the text with U+200E after the colon ("Jason: \u200EYou added Jason."), when the text is "You ..." as in the
+// Android "T1: You removed T1", or when it is the encryption notice.
+function isNoticeWithPrefix(restContent: string, prefix: string): boolean {
+  const body = restContent.slice(prefix.length + 1)
+  return (
+    isSystemMessage(prefix) ||
+    /^\s*(?:\u200E|You\b)/.test(body) ||
+    WHATSAPP_HEAD_SIGNATURES.slice(0, 4).some((signature) => signature.test(restContent))
+  )
+}
+
 function isSystemMessage(content: string): boolean {
   return SYSTEM_MESSAGE_REGEX.test(content)
 }
 
-function detectMessageType(content: string, knownSystem = false): MessageType {
+function detectMessageType(content: string, knownSystem = false, hasSender = false): MessageType {
   const trimmed = content.trim()
   if (
     trimmed === '<省略影音内容>' ||
@@ -302,10 +314,15 @@ function detectMessageType(content: string, knownSystem = false): MessageType {
     return MessageType.FILE
   }
   if (trimmed === '貼圖已忽略' || trimmed === '貼圖已略去') return MessageType.EMOJI
-  if (trimmed === '这条消息已删除' || trimmed.startsWith('此訊息已刪除') || trimmed.startsWith('你已刪除此訊息')) {
+  if (
+    trimmed === '这条消息已删除' ||
+    trimmed === 'This message was deleted' ||
+    trimmed.startsWith('此訊息已刪除') ||
+    trimmed.startsWith('你已刪除此訊息')
+  ) {
     return MessageType.RECALL
   }
-  if (knownSystem || isSystemMessage(trimmed)) return MessageType.SYSTEM
+  if (knownSystem || ((!hasSender || /^You\b/.test(trimmed)) && isSystemMessage(trimmed))) return MessageType.SYSTEM
   return MessageType.TEXT
 }
 
