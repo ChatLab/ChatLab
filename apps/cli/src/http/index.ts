@@ -31,7 +31,6 @@ import {
 } from '@openchatlab/node-runtime'
 import type { SemanticIndexRuntime } from '@openchatlab/node-runtime'
 import { createServer } from './server'
-import { setAuthToken, setRequireAuth } from './auth'
 import { registerWebRoutes } from './routes/web'
 import { registerProxyRoutes } from './routes/proxy'
 import { initServerAiLogger, closeServerAiLogger } from '../ai/logger'
@@ -56,7 +55,7 @@ export interface HttpServerOptions {
   token?: string
   /** dist-cli-web/ 目录路径，启用后托管 CLI Web SPA 静态资源 */
   webRoot?: string
-  /** When true, /_web/* also requires Bearer token (for server/headless deployments) */
+  /** Also require a Bearer token for /_web/* on local listeners. Non-loopback TCP always requires it. */
   requireAuth?: boolean
 }
 
@@ -96,7 +95,7 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
   const port = options?.port ?? config.api.port
   const host = options?.host ?? config.api.host
   const socket = options?.socket
-  const token = options?.token ?? ensureToken(config)
+  const token = options?.token || ensureToken(config)
 
   if (socket) await prepareUnixSocket(socket)
 
@@ -192,10 +191,11 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
   // 记录 Rust native parser 可用性（导入是否走 Rust 内核），便于按日志排查回退原因
   logNativeParserStatus()
 
-  setAuthToken(token)
-  setRequireAuth(!!(options?.requireAuth ?? config.api.require_auth))
-
-  server = createServer()
+  server = createServer({
+    token,
+    tcpHost: socket ? null : host,
+    requireAuth: options?.requireAuth ?? config.api.require_auth,
+  })
 
   const multipart = await import('@fastify/multipart')
   await server.register(multipart.default, {
@@ -298,7 +298,6 @@ export async function stopHttpServer(): Promise<void> {
       dbManager = null
     }
     closeServerAiLogger()
-    setRequireAuth(false)
     server = null
   }
 }

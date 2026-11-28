@@ -32,7 +32,7 @@ clb web --headless  # 僅啟動 API，不提供 Web UI（供腳本 / AI Agent �
 
 如果反向代理以另一個 Unix 使用者執行，請在 ChatLab 啟動後為代理所屬群組授予通訊端存取權限：`sudo chgrp <代理群組> /tmp/chatlab.sock && sudo chmod 660 /tmp/chatlab.sock`。每次重新啟動後都需要再次套用，建議使用服務管理器的啟動後掛鉤。ChatLab 與代理以相同使用者執行時通常不需要修改權限。
 
-如果代理可從本機信任環境之外存取，請使用 `--require-auth` 啟動 ChatLab（或在代理層強制驗證身分），避免 Web UI 路由和權杖設定公開暴露。
+CLI Web 透過回環位址或 Unix 通訊端提供本機免登入存取時，只接受回環 Host（如 `localhost`、`127.0.0.1`、`[::1]`）。非回環 TCP 監聽會自動要求權杖。如果反向代理可從本機以外存取，或向 ChatLab 轉送自訂網域，請在 ChatLab 啟動命令中加入 `--require-auth`，並使用啟動時顯示的權杖登入。
 
 若要讓服務常駐後台，可以使用：
 

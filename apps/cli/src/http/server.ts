@@ -7,11 +7,11 @@
 import type { FastifyInstance } from 'fastify'
 import { createApiServer } from '@openchatlab/http-routes/server'
 import { appLogger } from '@openchatlab/node-runtime'
-import { authHook } from './auth'
+import { createCliAuthHook, type CliHttpAuthOptions } from './auth'
 
-export function createServer(): FastifyInstance {
+export function createServer(options: CliHttpAuthOptions): FastifyInstance {
   return createApiServer({
-    authHook,
+    authHook: createCliAuthHook(options),
     onUnhandledError: (request, error) => {
       appLogger.error('http', `${request.method} ${request.url} -> 500`, error)
     },

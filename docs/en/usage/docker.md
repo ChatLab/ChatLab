@@ -48,7 +48,7 @@ docker run --name chatlab `
   ghcr.io/chatlab/chatlab-cli:latest
 ```
 
-Open <http://127.0.0.1:3110/> after the container starts.
+Open <http://127.0.0.1:3110/> after the container starts and sign in with the startup token from `docker logs chatlab`. The container listens on a non-loopback address by default, so the token is required even when the published host port is loopback-only.
 
 The image normally runs as the unprivileged `node` user (UID/GID 1000). On
 macOS and Linux, `--user` matches the container process to the owner of the bind
@@ -114,7 +114,7 @@ The `clb web` options, in CLI declaration order, are:
 | `--host <host>` | Listen address. Defaults to `127.0.0.1` outside the container. |
 | `--token <token>` | Custom Bearer token. ChatLab reads or generates one when omitted. |
 | `--headless` | Start the API without serving the Web UI. |
-| `--require-auth` | Require Bearer authentication for Web UI routes as well as API routes. |
+| `--require-auth` | Require Bearer authentication for Web UI routes even on local listeners. Automatically enforced on non-loopback TCP listeners. |
 | `--no-open` | Do not open a browser. |
 | `--daemon` | Install a resident macOS/Linux service. This is not intended for containers. |
 

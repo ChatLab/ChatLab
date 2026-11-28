@@ -47,7 +47,7 @@ docker run --name chatlab `
   ghcr.io/chatlab/chatlab-cli:latest
 ```
 
-容器啟動後，開啟 <http://127.0.0.1:3110/>。
+容器啟動後，開啟 <http://127.0.0.1:3110/>，使用 `docker logs chatlab` 中啟動時顯示的權杖登入。容器預設監聽非回環位址，因此即使連接埠只映射到宿主機的回環位址，也需要權杖。
 
 映像預設使用非特權 `node` 使用者（UID/GID 1000）執行。在 macOS 和 Linux 上，`--user` 會讓容器程序使用主機目前使用者的 UID/GID，`HOME` 則確保 ChatLab 的系統目錄仍是 `/home/node/.chatlab`。對於目前使用者 UID/GID 不是 1000 的 Linux 主機，這兩個參數是必要的。主機的 `~/.chatlab` 對應容器內的 `/home/node/.chatlab`，`~/Downloads` 對應容器內可寫的下載目錄；`CHATLAB_DATA_DIR` 將預設使用者資料固定到容器可存取的 `/home/node/.chatlab/data`，避免主機 `config.toml` 中的絕對路徑在容器內失效。
 
@@ -105,7 +105,7 @@ clb web --no-open --host 0.0.0.0
 | `--host <host>` | 監聽位址；在容器外執行時預設為 `127.0.0.1`。 |
 | `--token <token>` | 自訂 Bearer Token；省略時由 ChatLab 讀取或產生。 |
 | `--headless` | 僅啟動 API，不提供 Web UI。 |
-| `--require-auth` | 除 API 路由外，也要求 Web UI 路由使用 Bearer 驗證。 |
+| `--require-auth` | 即使在本機監聽，也要求 Web UI 路由使用 Bearer 驗證。非回環 TCP 監聽會自動啟用。 |
 | `--no-open` | 不開啟瀏覽器。 |
 | `--daemon` | 安裝 macOS/Linux 常駐服務，不適用於容器。 |
 

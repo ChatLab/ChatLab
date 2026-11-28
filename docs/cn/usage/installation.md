@@ -32,7 +32,7 @@ clb web --headless  # 仅启动 API，不提供 Web UI（供脚本 / AI Agent �
 
 如果反向代理以另一个 Unix 用户运行，请在 ChatLab 启动后为代理所属组授予套接字访问权限：`sudo chgrp <代理组> /tmp/chatlab.sock && sudo chmod 660 /tmp/chatlab.sock`。每次重启后都需要重新应用，建议使用服务管理器的启动后钩子。ChatLab 与代理以同一用户运行时通常无需修改权限。
 
-如果代理可从本机可信环境之外访问，请使用 `--require-auth` 启动 ChatLab（或在代理层强制身份验证），避免 Web UI 路由和令牌配置公开暴露。
+CLI Web 通过回环地址或 Unix 套接字提供本机免登录访问时，只接受回环 Host（如 `localhost`、`127.0.0.1`、`[::1]`）。非回环 TCP 监听自动要求令牌。如果反向代理可从本机以外访问，或向 ChatLab 转发自定义域名，请在 ChatLab 启动命令中加上 `--require-auth`，并使用启动时显示的令牌登录。
 
 如果希望服务常驻后台，可以使用：
 
